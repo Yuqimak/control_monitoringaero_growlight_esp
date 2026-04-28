@@ -2,12 +2,71 @@
 <html>
 <head>
   <title>IoT Greenhouse</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding: 30px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 15px;
+      margin: 15px auto;
+      width: 250px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .on { background: #22c55e; }
+    .off { background: #ef4444; }
+  </style>
 </head>
+
 <body>
-  <h1>🌱 IoT Greenhouse Dashboard</h1>
-  <p id="status">Status: loading...</p>
+
+<h1>🌱 IoT Greenhouse</h1>
+
+<div class="card">
+  <h3>Status</h3>
+  <p id="status">Offline</p>
+</div>
+
+<div class="card">
+  <h3>Suhu Growlight</h3>
+  <p id="temp">-- °C</p>
+</div>
+
+<div class="card">
+  <h3>Growlight</h3>
+  <p id="lamp">OFF</p>
+  <button class="on" onclick="turnOn()">ON</button>
+  <button class="off" onclick="turnOff()">OFF</button>
+</div>
+
 <script>
-  document.getElementById("status").innerText = "Status: Online (simulasi)";
+  // simulasi data
+  document.getElementById("status").innerText = "Online";
+  document.getElementById("temp").innerText = "28 °C";
+
+  function turnOn() {
+    document.getElementById("lamp").innerText = "ON";
+  }
+
+  function turnOff() {
+    document.getElementById("lamp").innerText = "OFF";
+  }
 </script>
+
 </body>
 </html>
