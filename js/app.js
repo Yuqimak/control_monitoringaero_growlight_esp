@@ -68,6 +68,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function setLight(value) {
     state.lightIntensity = Math.max(0, Math.min(100, value));
     render();
+    if (state.lampStatus === "ON") {
+  lampStatusEl.style.textShadow = "0 0 10px #22c55e";
+} else {
+  lampStatusEl.style.textShadow = "none";
+}
   }
 
   slider.addEventListener("input", function () {
