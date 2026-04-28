@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>IoT Greenhouse</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -9,25 +10,60 @@
 
 <body>
 
-<h1>🌱 IoT Greenhouse</h1>
+<header class="header">
+  <h1>🌱 IoT Greenhouse</h1>
+  <p class="status">Status: <span id="connStatus">Online</span></p>
+</header>
 
-<div class="card">
-  <h3>Status</h3>
-  <p id="status">Offline</p>
-</div>
+<main class="container">
 
-<div class="card">
-  <h3>Suhu Growlight</h3>
-  <p id="temp">-- °C</p>
-</div>
+  <!-- MONITORING -->
+  <section class="grid">
 
-<div class="card">
-  <h3>Growlight</h3>
-  <p id="lamp">OFF</p>
-  <button onclick="turnOn()">ON</button>
-  <button onclick="turnOff()">OFF</button>
-</div>
+    <div class="card">
+      <h3>🌡 Suhu</h3>
+      <p class="big" id="temp">28°C</p>
+    </div>
 
-<script src="js/app.js"></script>
+    <div class="card">
+      <h3>💡 Intensitas</h3>
+      <p class="big" id="light">75%</p>
+      <div class="bar">
+        <div class="fill" style="width:75%"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- CHART PLACEHOLDER -->
+  <section class="card full">
+    <h3>📊 Suhu Realtime</h3>
+    <div class="chart-placeholder">Chart Area</div>
+  </section>
+
+  <section class="card full">
+    <h3>📊 History Intensitas</h3>
+    <div class="chart-placeholder">Chart Area</div>
+  </section>
+
+  <!-- CONTROL -->
+  <section class="grid">
+
+    <div class="card">
+      <h3>🚨 Emergency</h3>
+      <button class="btn off">OFF</button>
+      <button class="btn on">ON</button>
+    </div>
+
+    <div class="card">
+      <h3>🎚 Dimming</h3>
+      <input type="range" min="0" max="100" value="75">
+      <p>75%</p>
+    </div>
+
+  </section>
+
+</main>
+
 </body>
 </html>
