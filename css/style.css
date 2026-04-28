@@ -21,4 +21,14 @@ button {
   padding: 10px;
   border-radius: 10px;
   border: none;
+  font-weight: bold;
+  color: white;
+}
+
+.on {
+  background: #22c55e;
+}
+
+.off {
+  background: #ef4444;
 }
