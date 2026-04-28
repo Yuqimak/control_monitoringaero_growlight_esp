@@ -24,12 +24,8 @@ button {
   font-weight: bold;
   color: white;
 }
-
 .on {
   background: #22c55e;
-}
-body {
-  background: red;
 }
 .off {
   background: #ef4444;
