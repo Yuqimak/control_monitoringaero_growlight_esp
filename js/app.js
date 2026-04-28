@@ -71,8 +71,9 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   slider.addEventListener("input", function () {
-    setLight(this.value);
-  });
+  console.log("SLIDER OK:", this.value);
+  setLight(this.value);
+});
 
   input.addEventListener("input", function () {
     setLight(this.value);
