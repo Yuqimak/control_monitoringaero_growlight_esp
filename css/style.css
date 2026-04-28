@@ -1,32 +1,106 @@
 body {
-  font-family: Arial;
+  margin: 0;
+  font-family: Arial, sans-serif;
   background: #0f172a;
   color: white;
+}
+
+/* HEADER */
+.header {
   text-align: center;
   padding: 20px;
+  background: #111827;
 }
 
+.status {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+/* LAYOUT */
+.container {
+  padding: 15px;
+}
+
+/* GRID MOBILE FRIENDLY */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+/* CARD */
 .card {
   background: #1e293b;
-  padding: 20px;
-  border-radius: 15px;
-  margin: 15px auto;
-  width: 90%;
-  max-width: 300px;
+  padding: 15px;
+  border-radius: 12px;
 }
 
-button {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  font-weight: bold;
-  color: white;
+.full {
+  margin-top: 15px;
 }
-.on {
+
+/* TEXT */
+.big {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+/* BAR */
+.bar {
+  height: 10px;
+  background: #334155;
+  border-radius: 5px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
   background: #22c55e;
 }
+
+/* BUTTON */
+.btn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.on {
+  background: #22c55e;
+  color: white;
+}
+
 .off {
   background: #ef4444;
+  color: white;
+}
+
+/* SLIDER */
+input[type="range"] {
+  width: 100%;
+}
+
+/* CHART PLACEHOLDER */
+.chart-placeholder {
+  height: 120px;
+  background: #0b1220;
+  border: 1px dashed #334155;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+}
+
+/* RESPONSIVE */
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
