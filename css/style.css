@@ -28,7 +28,9 @@ button {
 .on {
   background: #22c55e;
 }
-
+body {
+  background: red;
+}
 .off {
   background: #ef4444;
 }
