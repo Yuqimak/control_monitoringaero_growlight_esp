@@ -17,7 +17,7 @@
 
 <main class="container">
 
-  <!-- MONITORING -->
+  <!-- ================= MONITORING ================= -->
   <section class="grid">
 
     <div class="card">
@@ -26,44 +26,62 @@
     </div>
 
     <div class="card">
-      <h3>💡 Intensitas</h3>
-      <p class="big" id="light">75%</p>
+      <h3>💡 Intensitas Lampu</h3>
+
+      <p class="big">
+        <span id="light">75</span>%
+      </p>
+
       <div class="bar">
-        <div class="fill" style="width:75%"></div>
+        <div class="fill" id="lightBar" style="width:75%"></div>
       </div>
     </div>
 
   </section>
 
-  <!-- CHART PLACEHOLDER -->
+  <!-- ================= CHART PLACEHOLDER ================= -->
   <section class="card full">
     <h3>📊 Suhu Realtime</h3>
-    <div class="chart-placeholder">Chart Area</div>
+    <div class="chart-placeholder">Chart Area (Realtime Temperature)</div>
   </section>
 
   <section class="card full">
     <h3>📊 History Intensitas</h3>
-    <div class="chart-placeholder">Chart Area</div>
+    <div class="chart-placeholder">Chart Area (Usage History)</div>
   </section>
 
-  <!-- CONTROL -->
+  <!-- ================= CONTROL ================= -->
   <section class="grid">
 
+    <!-- EMERGENCY CONTROL -->
     <div class="card">
-      <h3>🚨 Emergency</h3>
-      <button class="btn off">OFF</button>
-      <button class="btn on">ON</button>
+      <h3>🚨 Emergency Control</h3>
+
+      <button id="btnOn" class="btn on">ON</button>
+      <button id="btnOff" class="btn off">OFF</button>
+
+      <p>Light Status: <span id="lampStatus">OFF</span></p>
     </div>
 
+    <!-- DIMMING CONTROL -->
     <div class="card">
-      <h3>🎚 Dimming</h3>
-      <input type="range" min="0" max="100" value="75">
-      <p>75%</p>
+      <h3>🎚 Dimming Control</h3>
+
+      <input id="dimmer" type="range" min="0" max="100" value="75">
+
+      <div class="input-group">
+        <input id="dimmerInput" type="number" min="0" max="100" value="75">
+        <span>%</span>
+      </div>
+
+      <p>Current: <span id="dimmerValue">75</span>%</p>
     </div>
 
   </section>
 
 </main>
+
+<script src="js/app.js"></script>
 
 </body>
 </html>
