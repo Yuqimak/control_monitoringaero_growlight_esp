@@ -1,5 +1,9 @@
-document.getElementById("status").innerText = "Online";
-document.getElementById("temp").innerText = "28 °C";
+document.addEventListener("DOMContentLoaded", function() {
+  console.log("JS NYALA");
+
+  document.getElementById("status").innerText = "Online";
+  document.getElementById("temp").innerText = "28 °C";
+});
 
 function turnOn() {
   document.getElementById("lamp").innerText = "ON";
