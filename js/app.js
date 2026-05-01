@@ -92,24 +92,11 @@ onValue(sensorRef, (snapshot) => {
   // 🎚 CONTROL EVENTS
   // =======================
 
-  function setLight(value) {
-    state.lightIntensity = Math.max(0, Math.min(100, value));
-    render();
-    if (state.lampStatus === "ON") {
-  lampStatusEl.style.textShadow = "0 0 10px #22c55e";
-} else {
-  lampStatusEl.style.textShadow = "none";
+ function setLight(value) {
+  const val = Math.max(0, Math.min(100, value));
+
+  set(ref(db, 'sensor/cahaya'), val);
 }
-  }
-
-  slider.addEventListener("input", function () {
-  console.log("SLIDER OK:", this.value);
-  setLight(this.value);
-});
-
-  input.addEventListener("input", function () {
-    setLight(this.value);
-  });
 
 
   // =======================
