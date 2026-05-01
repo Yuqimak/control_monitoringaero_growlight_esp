@@ -55,7 +55,12 @@ const tempChart = new Chart(ctx, {
       label: 'Suhu (°C)',
       data: tempData,
       borderWidth: 2,
-      tension: 0.3
+      tension: 0.4,
+      fill: true,
+      backgroundColor: "rgba(34,197,94,0.2)",
+      borderColor: "#22c55e",
+      pointRadius: 3,
+      pointBackgroundColor: "#22c55e"
     }]
   },
   options: {
