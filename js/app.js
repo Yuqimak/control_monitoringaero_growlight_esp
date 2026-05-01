@@ -52,25 +52,36 @@ const tempChart = new Chart(ctx, {
   data: {
     labels: labels,
     datasets: [{
-      label: 'Suhu (°C)',
-      data: tempData,
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true,
-      backgroundColor: "rgba(34,197,94,0.2)",
-      borderColor: "#22c55e",
-      pointRadius: 3,
-      pointBackgroundColor: "#22c55e"
-    }]
+  label: 'Suhu (°C)',
+  data: tempData,
+  borderWidth: 2,
+  tension: 0.4,
+
+  // 🔥 WAJIB
+  fill: 'start',
+
+  backgroundColor: "rgba(34,197,94,0.3)", // agak diperjelas
+  borderColor: "#22c55e",
+
+  pointRadius: 3,
+  pointBackgroundColor: "#22c55e"
+}]
   },
-  options: {
-    responsive: true,
-    scales: {
-      y: {
-        beginAtZero: false
+ options: {
+  responsive: true,
+  plugins: {
+    legend: {
+      labels: {
+        color: "#fff"
       }
     }
+  },
+  scales: {
+    y: {
+      beginAtZero: false
+    }
   }
+}
 });
 
   // default status
