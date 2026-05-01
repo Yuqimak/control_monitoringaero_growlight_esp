@@ -13,25 +13,24 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
 document.addEventListener("DOMContentLoaded", function () {
 
   // =======================
-  // 🔥 STATE SYSTEM
+  // STATE
   // =======================
   const state = {
-    temperature: 28,
-    lightIntensity: 75,
-    lampStatus: "OFF"
+    temperature: 0,
+    lightIntensity: 0,
+    lampStatus: "-"
   };
 
   // =======================
-  // DOM ELEMENTS
+  // DOM
   // =======================
   const tempEl = document.getElementById("temp");
-
   const lightEl = document.getElementById("light");
   const lightBar = document.getElementById("lightBar");
-
   const lampStatusEl = document.getElementById("lampStatus");
 
   const slider = document.getElementById("dimmer");
@@ -43,25 +42,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const connStatus = document.getElementById("connStatus");
 
+  // default status
+  connStatus.innerText = "Connecting...";
+  connStatus.style.color = "orange";
 
   // =======================
-  // 🔄 RENDER FUNCTION
+  // RENDER
   // =======================
   function render() {
-
-    // temperature
     tempEl.innerText = state.temperature + "°C";
 
-    // light intensity
     lightEl.innerText = state.lightIntensity;
     valueEl.innerText = state.lightIntensity;
-
     lightBar.style.width = state.lightIntensity + "%";
 
     slider.value = state.lightIntensity;
     input.value = state.lightIntensity;
 
-    // lamp status
     lampStatusEl.innerText = state.lampStatus;
 
     if (state.lampStatus === "ON") {
@@ -70,62 +67,48 @@ document.addEventListener("DOMContentLoaded", function () {
       lampStatusEl.style.color = "#ef4444";
     }
 
-    // connection
-    connStatus.innerText = "Online";
+    connStatus.innerText = "Connected";
     connStatus.style.color = "#22c55e";
   }
+
+  // =======================
+  // REALTIME LISTENER
+  // =======================
   const sensorRef = ref(db, 'sensor');
 
-onValue(sensorRef, (snapshot) => {
-  const data = snapshot.val();
-  if (!data) return;
+  onValue(sensorRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
 
-  state.temperature = data.suhu || 0;
-  state.lightIntensity = data.cahaya || 0;
-  state.lampStatus = data.status ? "ON" : "OFF";
+    state.temperature = data.suhu || 0;
+    state.lightIntensity = data.cahaya || 0;
+    state.lampStatus = data.status ? "ON" : "OFF";
 
-  render();
-});
-
-
-  // =======================
-  // 🎚 CONTROL EVENTS
-  // =======================
-
- function setLight(value) {
-  const val = Math.max(0, Math.min(100, value));
-
-  set(ref(db, 'sensor/cahaya'), val);
-}
-
+    render();
+  });
 
   // =======================
-  // 🚨 LAMP CONTROL
+  // CONTROL
   // =======================
+  function setLight(value) {
+    const val = Math.max(0, Math.min(100, value));
+    set(ref(db, 'sensor/cahaya'), val);
+  }
+
+  slider.addEventListener("input", function () {
+    setLight(this.value);
+  });
+
+  input.addEventListener("input", function () {
+    setLight(this.value);
+  });
 
   btnOn.addEventListener("click", function () {
-  set(ref(db, 'sensor/status'), true);
-});
+    set(ref(db, 'sensor/status'), true);
+  });
 
   btnOff.addEventListener("click", function () {
-  set(ref(db, 'sensor/status'), false);
-});
-
-
-  // =======================
-  // 🌡 SIMULASI SUHU (dummy IoT feel)
-  // =======================
-
-  //setInterval(() => {
-    // random kecil biar kerasa "hidup"
-    //state.temperature = 27 + Math.floor(Math.random() * 4);
-    //render();
-  //}, 3000);
-
-
-  // =======================
-  // INIT FIRST RENDER
-  // =======================
-  render();
+    set(ref(db, 'sensor/status'), false);
+  });
 
 });
