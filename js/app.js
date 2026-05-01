@@ -1,3 +1,18 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyChvTp4M8FoT7qI008irZ5KOnjOiRFk6uc",
+  authDomain: "growlightta.firebaseapp.com",
+  databaseURL: "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "growlightta",
+  storageBucket: "growlightta.firebasestorage.app",
+  messagingSenderId: "982821946750",
+  appId: "1:982821946750:web:98fc04e2b573e9dd955f2f"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 document.addEventListener("DOMContentLoaded", function () {
 
   // =======================
@@ -59,6 +74,18 @@ document.addEventListener("DOMContentLoaded", function () {
     connStatus.innerText = "Online";
     connStatus.style.color = "#22c55e";
   }
+  const sensorRef = ref(db, 'sensor');
+
+onValue(sensorRef, (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  state.temperature = data.suhu || 0;
+  state.lightIntensity = data.cahaya || 0;
+  state.lampStatus = data.status ? "ON" : "OFF";
+
+  render();
+});
 
 
   // =======================
@@ -90,25 +117,23 @@ document.addEventListener("DOMContentLoaded", function () {
   // =======================
 
   btnOn.addEventListener("click", function () {
-    state.lampStatus = "ON";
-    render();
-  });
+  set(ref(db, 'sensor/status'), true);
+});
 
   btnOff.addEventListener("click", function () {
-    state.lampStatus = "OFF";
-    render();
-  });
+  set(ref(db, 'sensor/status'), false);
+});
 
 
   // =======================
   // 🌡 SIMULASI SUHU (dummy IoT feel)
   // =======================
 
-  setInterval(() => {
+  //setInterval(() => {
     // random kecil biar kerasa "hidup"
-    state.temperature = 27 + Math.floor(Math.random() * 4);
-    render();
-  }, 3000);
+    //state.temperature = 27 + Math.floor(Math.random() * 4);
+    //render();
+  //}, 3000);
 
 
   // =======================
