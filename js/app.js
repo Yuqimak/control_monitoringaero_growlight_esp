@@ -41,6 +41,32 @@ document.addEventListener("DOMContentLoaded", function () {
   const btnOff = document.getElementById("btnOff");
 
   const connStatus = document.getElementById("connStatus");
+//chart
+  const ctx = document.getElementById("tempChart");
+
+let tempData = [];
+let labels = [];
+
+const tempChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Suhu (°C)',
+      data: tempData,
+      borderWidth: 2,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: false
+      }
+    }
+  }
+});
 
   // default status
   connStatus.innerText = "Connecting...";
@@ -76,16 +102,32 @@ document.addEventListener("DOMContentLoaded", function () {
   // =======================
   const sensorRef = ref(db, 'sensor');
 
-  onValue(sensorRef, (snapshot) => {
-    const data = snapshot.val();
-    if (!data) return;
+ onValue(sensorRef, (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
 
-    state.temperature = data.suhu || 0;
-    state.lightIntensity = data.cahaya || 0;
-    state.lampStatus = data.status ? "ON" : "OFF";
+  state.temperature = data.suhu || 0;
+  state.lightIntensity = data.cahaya || 0;
+  state.lampStatus = data.status ? "ON" : "OFF";
 
-    render();
-  });
+  // =======================
+  // UPDATE CHART
+  // =======================
+  const now = new Date().toLocaleTimeString();
+
+  labels.push(now);
+  tempData.push(state.temperature);
+
+  // batasi data biar ringan
+  if (labels.length > 10) {
+    labels.shift();
+    tempData.shift();
+  }
+
+  tempChart.update();
+
+  render();
+});
 
   // =======================
   // CONTROL
