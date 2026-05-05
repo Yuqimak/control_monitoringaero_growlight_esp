@@ -43,6 +43,27 @@ document.addEventListener("DOMContentLoaded", function () {
   const connStatus = document.getElementById("connStatus");
 //chart
   const ctx = document.getElementById("tempChart");
+  const ctxLight = document.getElementById("lightChart");
+
+let lightData = [];
+let lightLabels = [];
+
+const lightChart = new Chart(ctxLight, {
+  type: 'line',
+  data: {
+    labels: lightLabels,
+    datasets: [{
+      label: 'Cahaya (%)',
+      data: lightData,
+      borderWidth: 2,
+      tension: 0.4,
+      fill: 'start',
+      backgroundColor: "rgba(255,215,0,0.2)",
+      borderColor: "#facc15",
+      pointRadius: 3
+    }]
+  }
+});
 
 let tempData = [];
 let labels = [];
@@ -128,31 +149,36 @@ tempEl.innerText = state.temperature + "°C (" + statusText + ")";
   // =======================
   const sensorRef = ref(db, 'sensor');
 
- onValue(sensorRef, (snapshot) => {
-  const data = snapshot.val();
-  if (!data) return;
+ // =======================
+// UPDATE CHART SUHU
+// =======================
+const now = new Date().toLocaleTimeString();
 
-  state.temperature = data.suhu || 0;
-  state.lightIntensity = data.cahaya || 0;
-  state.lampStatus = data.status ? "ON" : "OFF";
+labels.push(now);
+tempData.push(state.temperature);
 
-  // =======================
-  // UPDATE CHART
-  // =======================
-  const now = new Date().toLocaleTimeString();
+if (labels.length > 10) {
+  labels.shift();
+  tempData.shift();
+}
 
-  labels.push(now);
-  tempData.push(state.temperature);
+tempChart.update();
 
-  // batasi data biar ringan
-  if (labels.length > 10) {
-    labels.shift();
-    tempData.shift();
-  }
 
-  tempChart.update();
+// =======================
+// UPDATE CHART CAHAYA
+// =======================
+lightLabels.push(now);
+lightData.push(state.lightIntensity);
 
-  render();
+if (lightLabels.length > 10) {
+  lightLabels.shift();
+  lightData.shift();
+}
+
+lightChart.update();
+
+render();
 });
 
   // =======================
