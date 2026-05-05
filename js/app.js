@@ -92,7 +92,17 @@ const tempChart = new Chart(ctx, {
   // RENDER
   // =======================
   function render() {
-    tempEl.innerText = state.temperature + "°C";
+    let statusText = "";
+
+if (state.temperature > 30) {
+  statusText = "🔥 Panas";
+} else if (state.temperature >= 25) {
+  statusText = "🌱 Ideal";
+} else {
+  statusText = "❄️ Dingin";
+}
+
+tempEl.innerText = state.temperature + "°C (" + statusText + ")";
 
     lightEl.innerText = state.lightIntensity;
     valueEl.innerText = state.lightIntensity;
