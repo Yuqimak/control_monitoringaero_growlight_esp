@@ -147,12 +147,13 @@ tempEl.innerText = state.temperature + "°C (" + statusText + ")";
   // =======================
   // REALTIME LISTENER
   // =======================
- const sensorRef = ref(db, 'sensor');
+const sensorRef = ref(db, 'sensor');
 
 onValue(sensorRef, (snapshot) => {
   const data = snapshot.val();
   if (!data) return;
 
+  // ambil data dari Firebase
   state.temperature = data.suhu || 0;
   state.lightIntensity = data.cahaya || 0;
   state.lampStatus = data.status ? "ON" : "OFF";
@@ -181,9 +182,9 @@ onValue(sensorRef, (snapshot) => {
 
   lightChart.update();
 
+  // render UI
   render();
 });
-
  // =======================
 // UPDATE CHART SUHU
 // =======================
