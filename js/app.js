@@ -147,7 +147,42 @@ tempEl.innerText = state.temperature + "°C (" + statusText + ")";
   // =======================
   // REALTIME LISTENER
   // =======================
-  const sensorRef = ref(db, 'sensor');
+ const sensorRef = ref(db, 'sensor');
+
+onValue(sensorRef, (snapshot) => {
+  const data = snapshot.val();
+  if (!data) return;
+
+  state.temperature = data.suhu || 0;
+  state.lightIntensity = data.cahaya || 0;
+  state.lampStatus = data.status ? "ON" : "OFF";
+
+  const now = new Date().toLocaleTimeString();
+
+  // ===== CHART SUHU =====
+  labels.push(now);
+  tempData.push(state.temperature);
+
+  if (labels.length > 10) {
+    labels.shift();
+    tempData.shift();
+  }
+
+  tempChart.update();
+
+  // ===== CHART CAHAYA =====
+  lightLabels.push(now);
+  lightData.push(state.lightIntensity);
+
+  if (lightLabels.length > 10) {
+    lightLabels.shift();
+    lightData.shift();
+  }
+
+  lightChart.update();
+
+  render();
+});
 
  // =======================
 // UPDATE CHART SUHU
