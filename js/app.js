@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyChvTp4M8FoT7qI008irZ5KOnjOiRFk6uc",
+  apiKey: "AIzaSy...",
   authDomain: "growlightta.firebaseapp.com",
   databaseURL: "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "growlightta",
@@ -41,71 +41,56 @@ document.addEventListener("DOMContentLoaded", function () {
   const btnOff = document.getElementById("btnOff");
 
   const connStatus = document.getElementById("connStatus");
-//chart
+
+  // =======================
+  // CHART INIT
+  // =======================
   const ctx = document.getElementById("tempChart");
   const ctxLight = document.getElementById("lightChart");
 
-let lightData = [];
-let lightLabels = [];
+  let tempData = [];
+  let labels = [];
 
-const lightChart = new Chart(ctxLight, {
-  type: 'line',
-  data: {
-    labels: lightLabels,
-    datasets: [{
-      label: 'Cahaya (%)',
-      data: lightData,
-      borderWidth: 2,
-      tension: 0.4,
-      fill: 'start',
-      backgroundColor: "rgba(255,215,0,0.2)",
-      borderColor: "#facc15",
-      pointRadius: 3
-    }]
-  }
-});
+  let lightData = [];
+  let lightLabels = [];
 
-let tempData = [];
-let labels = [];
-
-const tempChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [{
-  label: 'Suhu (°C)',
-  data: tempData,
-  borderWidth: 2,
-  tension: 0.4,
-
-  // 🔥 WAJIB
-  fill: 'start',
-
-  backgroundColor: "rgba(34,197,94,0.3)", // agak diperjelas
-  borderColor: "#22c55e",
-
-  pointRadius: 3,
-  pointBackgroundColor: "#22c55e"
-}]
-  },
- options: {
-  responsive: true,
-  plugins: {
-    legend: {
-      labels: {
-        color: "#fff"
-      }
+  const tempChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Suhu (°C)',
+        data: tempData,
+        borderWidth: 2,
+        tension: 0.4,
+        fill: 'start',
+        backgroundColor: "rgba(34,197,94,0.3)",
+        borderColor: "#22c55e",
+        pointRadius: 3
+      }]
     }
-  },
-  scales: {
-    y: {
-      beginAtZero: false
-    }
-  }
-}
-});
+  });
 
-  // default status
+  const lightChart = new Chart(ctxLight, {
+    type: 'line',
+    data: {
+      labels: lightLabels,
+      datasets: [{
+        label: 'Cahaya (%)',
+        data: lightData,
+        borderWidth: 2,
+        tension: 0.4,
+        fill: 'start',
+        backgroundColor: "rgba(255,215,0,0.2)",
+        borderColor: "#facc15",
+        pointRadius: 3
+      }]
+    }
+  });
+
+  // =======================
+  // STATUS AWAL
+  // =======================
   connStatus.innerText = "Connecting...";
   connStatus.style.color = "orange";
 
@@ -115,15 +100,15 @@ const tempChart = new Chart(ctx, {
   function render() {
     let statusText = "";
 
-if (state.temperature > 30) {
-  statusText = "🔥 Panas";
-} else if (state.temperature >= 25) {
-  statusText = "🌱 Ideal";
-} else {
-  statusText = "❄️ Dingin";
-}
+    if (state.temperature > 30) {
+      statusText = "🔥 Panas";
+    } else if (state.temperature >= 25) {
+      statusText = "🌱 Ideal";
+    } else {
+      statusText = "❄️ Dingin";
+    }
 
-tempEl.innerText = state.temperature + "°C (" + statusText + ")";
+    tempEl.innerText = state.temperature + "°C (" + statusText + ")";
 
     lightEl.innerText = state.lightIntensity;
     valueEl.innerText = state.lightIntensity;
@@ -133,89 +118,47 @@ tempEl.innerText = state.temperature + "°C (" + statusText + ")";
     input.value = state.lightIntensity;
 
     lampStatusEl.innerText = state.lampStatus;
-
-    if (state.lampStatus === "ON") {
-      lampStatusEl.style.color = "#22c55e";
-    } else {
-      lampStatusEl.style.color = "#ef4444";
-    }
+    lampStatusEl.style.color = state.lampStatus === "ON" ? "#22c55e" : "#ef4444";
 
     connStatus.innerText = "Connected";
     connStatus.style.color = "#22c55e";
   }
 
   // =======================
-  // REALTIME LISTENER
+  // REALTIME FIREBASE
   // =======================
-const sensorRef = ref(db, 'sensor');
+  const sensorRef = ref(db, 'sensor');
 
-onValue(sensorRef, (snapshot) => {
-  const data = snapshot.val();
-  if (!data) return;
+  onValue(sensorRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
 
-  // ambil data dari Firebase
-  state.temperature = data.suhu || 0;
-  state.lightIntensity = data.cahaya || 0;
-  state.lampStatus = data.status ? "ON" : "OFF";
+    state.temperature = data.suhu || 0;
+    state.lightIntensity = data.cahaya || 0;
+    state.lampStatus = data.status ? "ON" : "OFF";
 
-  const now = new Date().toLocaleTimeString();
+    const now = new Date().toLocaleTimeString();
 
-  // ===== CHART SUHU =====
-  labels.push(now);
-  tempData.push(state.temperature);
+    // suhu chart
+    labels.push(now);
+    tempData.push(state.temperature);
+    if (labels.length > 10) {
+      labels.shift();
+      tempData.shift();
+    }
+    tempChart.update();
 
-  if (labels.length > 10) {
-    labels.shift();
-    tempData.shift();
-  }
+    // cahaya chart
+    lightLabels.push(now);
+    lightData.push(state.lightIntensity);
+    if (lightLabels.length > 10) {
+      lightLabels.shift();
+      lightData.shift();
+    }
+    lightChart.update();
 
-  tempChart.update();
-
-  // ===== CHART CAHAYA =====
-  lightLabels.push(now);
-  lightData.push(state.lightIntensity);
-
-  if (lightLabels.length > 10) {
-    lightLabels.shift();
-    lightData.shift();
-  }
-
-  lightChart.update();
-
-  // render UI
-  render();
-});
- // =======================
-// UPDATE CHART SUHU
-// =======================
-const now = new Date().toLocaleTimeString();
-
-labels.push(now);
-tempData.push(state.temperature);
-
-if (labels.length > 10) {
-  labels.shift();
-  tempData.shift();
-}
-
-tempChart.update();
-
-
-// =======================
-// UPDATE CHART CAHAYA
-// =======================
-lightLabels.push(now);
-lightData.push(state.lightIntensity);
-
-if (lightLabels.length > 10) {
-  lightLabels.shift();
-  lightData.shift();
-}
-
-lightChart.update();
-
-render();
-});
+    render();
+  });
 
   // =======================
   // CONTROL
