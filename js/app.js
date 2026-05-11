@@ -212,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const sensorRef = ref(db, 'sensor');
 
   onValue(sensorRef, (snapshot) => {
-    state.sensorLight = data.sensorLight || 0;
+
     const data = snapshot.val();
 
     if (!data) return;
@@ -275,18 +275,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     }
 
-    lightLabels.push(now);
-
-lightData.push(state.brightness);
-sensorLightData.push(state.sensorLight);
-
-if (lightLabels.length > 10) {
-  lightLabels.shift();
-  lightData.shift();
-  sensorLightData.shift();
-}
-
-lightChart.update();
+    lightChart.update();
 
     render();
 
