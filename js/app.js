@@ -52,45 +52,141 @@ const controlSection = document.getElementById("controlSection");
   const ctx = document.getElementById("tempChart");
   const ctxLight = document.getElementById("lightChart");
 
-  let tempData = [];
-  let labels = [];
+ // =======================
+// CHART INIT
+// =======================
 
-  let lightData = [];
-  let lightLabels = [];
+const ctx = document.getElementById("tempChart");
+const ctxLight = document.getElementById("lightChart");
 
-  const tempChart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Suhu (°C)',
-        data: tempData,
-        borderWidth: 2,
-        tension: 0.4,
-        fill: 'start',
-        backgroundColor: "rgba(34,197,94,0.3)",
-        borderColor: "#22c55e",
-        pointRadius: 3
-      }]
-    }
-  });
+// suhu
+let tempData = [];
+let labels = [];
 
-  const lightChart = new Chart(ctxLight, {
-    type: 'line',
-    data: {
-      labels: lightLabels,
-      datasets: [{
-        label: 'Cahaya (%)',
+// cahaya
+let lightLabels = [];
+let lightData = [];        // lamp output
+let sensorLightData = []; // sensor asli
+
+// =======================
+// TEMP CHART
+// =======================
+
+const tempChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: labels,
+    datasets: [{
+      label: 'Suhu (°C)',
+      data: tempData,
+      borderWidth: 2,
+      tension: 0.4,
+      fill: true,
+      backgroundColor: "rgba(34,197,94,0.3)",
+      borderColor: "#22c55e",
+      pointRadius: 3
+    }]
+  }
+});
+
+// =======================
+// LIGHT CHART
+// =======================
+
+const lightChart = new Chart(ctxLight, {
+  type: 'line',
+  data: {
+    labels: lightLabels,
+    datasets: [
+
+      {
+        label: 'Lamp Output (%)',
         data: lightData,
         borderWidth: 2,
         tension: 0.4,
-        fill: 'start',
-        backgroundColor: "rgba(255,215,0,0.2)",
+        fill: false,
         borderColor: "#facc15",
+        backgroundColor: "rgba(255,215,0,0.2)",
         pointRadius: 3
-      }]
-    }
-  });
+      },
+
+      {
+        label: 'Sensor Light (%)',
+        data: sensorLightData,
+        borderWidth: 2,
+        tension: 0.4,
+        fill: false,
+        borderColor: "#38bdf8",
+        backgroundColor: "rgba(56,189,248,0.2)",
+        pointRadius: 3
+      }
+
+    ]
+  }
+});
+
+// =======================
+// FIREBASE REALTIME
+// =======================
+
+// sensor
+const sensorRef = ref(db, 'sensor');
+
+onValue(sensorRef, (snapshot) => {
+
+  const data = snapshot.val();
+  if (!data) return;
+
+  state.temperature = data.suhu || 0;
+  state.sensorLight = data.cahaya || 0;
+
+  render();
+
+});
+
+// control
+const controlRef = ref(db, 'control');
+
+onValue(controlRef, (snapshot) => {
+
+  const control = snapshot.val();
+  if (!control) return;
+
+  state.brightness = control.brightness || 0;
+  state.lampStatus = control.lamp ? "ON" : "OFF";
+
+  const now = new Date().toLocaleTimeString();
+
+  // suhu chart
+  labels.push(now);
+  tempData.push(state.temperature);
+
+  if (labels.length > 10) {
+    labels.shift();
+    tempData.shift();
+  }
+
+  tempChart.update();
+
+  // light chart
+  lightLabels.push(now);
+
+  lightData.push(state.brightness);
+  sensorLightData.push(state.sensorLight);
+
+  if (lightLabels.length > 10) {
+
+    lightLabels.shift();
+    lightData.shift();
+    sensorLightData.shift();
+
+  }
+
+  lightChart.update();
+
+  render();
+
+});
 
   // =======================
   // STATUS AWAL
@@ -195,7 +291,7 @@ const controlSection = document.getElementById("controlSection");
   // =======================
   function setLight(value) {
     const val = Math.max(0, Math.min(100, value));
-    set(ref(db, 'sensor/cahaya'), val);
+    set(ref(db, 'control/brightness'), val);
   }
 
   slider.addEventListener("input", function () {
@@ -207,7 +303,7 @@ const controlSection = document.getElementById("controlSection");
   });
 
   btnOn.addEventListener("click", function () {
-    set(ref(db, 'sensor/status'), true);
+    set(ref(db, 'control/lamp'), true);
   });
 
   btnOff.addEventListener("click", function () {
