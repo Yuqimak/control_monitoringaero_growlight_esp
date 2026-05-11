@@ -227,7 +227,7 @@ unlockBtn.addEventListener("click", () => {
 
     const correctPin = snapshot.val();
 
-    if (pin === correctPin) {
+    if (pin === String(correctPin)) {
 
       state.unlocked = true;
       updateControlAccess();
