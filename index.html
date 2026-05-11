@@ -52,8 +52,24 @@
     <canvas id="lightChart"></canvas>
   </section>
 
+  <section class="card full access-card">
+  <h3>🔒 Control Access</h3>
+
+  <div class="access-box">
+    <input type="password" id="pinInput" placeholder="Enter PIN">
+
+    <button id="unlockBtn" class="btn on">
+      Unlock Control
+    </button>
+  </div>
+
+  <p id="accessStatus" class="locked">
+    Control Locked
+  </p>
+</section>
+
   <!-- ================= CONTROL ================= -->
-  <section class="grid">
+  <section class="grid" id="controlSection">
 
     <div class="card">
       <h3>🚨 Emergency Control</h3>
