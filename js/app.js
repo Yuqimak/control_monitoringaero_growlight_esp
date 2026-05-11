@@ -20,10 +20,11 @@ document.addEventListener("DOMContentLoaded", function () {
   // STATE
   // =======================
   const state = {
-    temperature: 0,
-    lightIntensity: 0,
-    lampStatus: "-"
-  };
+  temperature: 0,
+  lightIntensity: 0,
+  lampStatus: "-",
+  unlocked: false
+};
 
   // =======================
   // DOM
@@ -39,8 +40,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const btnOn = document.getElementById("btnOn");
   const btnOff = document.getElementById("btnOff");
-
-  const connStatus = document.getElementById("connStatus");
+    const connStatus = document.getElementById("connStatus");
+  const pinInput = document.getElementById("pinInput");
+const unlockBtn = document.getElementById("unlockBtn");
+const accessStatus = document.getElementById("accessStatus");
+const controlSection = document.getElementById("controlSection");  
 
   // =======================
   // CHART INIT
@@ -93,10 +97,36 @@ document.addEventListener("DOMContentLoaded", function () {
   // =======================
   connStatus.innerText = "Connecting...";
   connStatus.style.color = "orange";
-
+  updateControlAccess();
   // =======================
   // RENDER
   // =======================
+  function updateControlAccess() {
+
+  const controls = controlSection.querySelectorAll(
+    "button, input"
+  );
+
+  controls.forEach(el => {
+
+    // jangan disable PIN input
+    if (
+      el.id !== "pinInput" &&
+      el.id !== "unlockBtn"
+    ) {
+      el.disabled = !state.unlocked;
+    }
+
+  });
+
+  if (state.unlocked) {
+    accessStatus.innerText = "🔓 Control Unlocked";
+    accessStatus.style.color = "#22c55e";
+  } else {
+    accessStatus.innerText = "🔒 Control Locked";
+    accessStatus.style.color = "#ef4444";
+  }
+}
   function render() {
     let statusText = "";
 
@@ -183,5 +213,36 @@ document.addEventListener("DOMContentLoaded", function () {
   btnOff.addEventListener("click", function () {
     set(ref(db, 'sensor/status'), false);
   });
+// =======================
+// PIN ACCESS
+// =======================
 
+unlockBtn.addEventListener("click", () => {
+
+  const pin = pinInput.value;
+
+  const pinRef = ref(db, 'system/adminpin');
+
+  onValue(pinRef, (snapshot) => {
+
+    const correctPin = snapshot.val();
+
+    if (pin === correctPin) {
+
+      state.unlocked = true;
+      updateControlAccess();
+
+      pinInput.value = "";
+
+    } else {
+
+      alert("PIN Salah");
+
+    }
+
+  }, {
+    onlyOnce: true
+  });
+
+});
 });
