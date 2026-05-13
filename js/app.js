@@ -14,21 +14,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
 
   // =======================
   // STATE
   // =======================
+
   const state = {
-  temperature: 0,
-  lightIntensity: 0,
-  lampStatus: "-",
-  unlocked: false
-};
+    temperature: 0,
+    brightness: 0,
+    sensorLight: 0,
+    lampStatus: "-",
+    unlocked: false
+  };
 
   // =======================
   // DOM
   // =======================
+
   const tempEl = document.getElementById("temp");
   const lightEl = document.getElementById("light");
   const lightBar = document.getElementById("lightBar");
@@ -40,190 +43,134 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const btnOn = document.getElementById("btnOn");
   const btnOff = document.getElementById("btnOff");
-    const connStatus = document.getElementById("connStatus");
+
+  const connStatus = document.getElementById("connStatus");
+
   const pinInput = document.getElementById("pinInput");
-const unlockBtn = document.getElementById("unlockBtn");
-const accessStatus = document.getElementById("accessStatus");
-const controlSection = document.getElementById("controlSection");  
+  const unlockBtn = document.getElementById("unlockBtn");
+  const accessStatus = document.getElementById("accessStatus");
+  const controlSection = document.getElementById("controlSection");
 
   // =======================
   // CHART INIT
   // =======================
-  const ctx = document.getElementById("tempChart");
-  const ctxLight = document.getElementById("lightChart");
 
- // =======================
-// CHART INIT
-// =======================
+  const tempCtx = document.getElementById("tempChart");
+  const lightCtx = document.getElementById("lightChart");
 
-const ctx = document.getElementById("tempChart");
-const ctxLight = document.getElementById("lightChart");
+  let labels = [];
+  let tempData = [];
 
-// suhu
-let tempData = [];
-let labels = [];
+  let lightLabels = [];
+  let lightData = [];
+  let sensorLightData = [];
 
-// cahaya
-let lightLabels = [];
-let lightData = [];        // lamp output
-let sensorLightData = []; // sensor asli
+  // =======================
+  // TEMP CHART
+  // =======================
 
-// =======================
-// TEMP CHART
-// =======================
-
-const tempChart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels: labels,
-    datasets: [{
-      label: 'Suhu (°C)',
-      data: tempData,
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true,
-      backgroundColor: "rgba(34,197,94,0.3)",
-      borderColor: "#22c55e",
-      pointRadius: 3
-    }]
-  }
-});
-
-// =======================
-// LIGHT CHART
-// =======================
-
-const lightChart = new Chart(ctxLight, {
-  type: 'line',
-  data: {
-    labels: lightLabels,
-    datasets: [
-
-      {
-        label: 'Lamp Output (%)',
-        data: lightData,
+  const tempChart = new Chart(tempCtx, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Suhu (°C)",
+        data: tempData,
         borderWidth: 2,
         tension: 0.4,
-        fill: false,
-        borderColor: "#facc15",
-        backgroundColor: "rgba(255,215,0,0.2)",
+        fill: true,
+        backgroundColor: "rgba(34,197,94,0.3)",
+        borderColor: "#22c55e",
         pointRadius: 3
-      },
+      }]
+    }
+  });
 
-      {
-        label: 'Sensor Light (%)',
-        data: sensorLightData,
-        borderWidth: 2,
-        tension: 0.4,
-        fill: false,
-        borderColor: "#38bdf8",
-        backgroundColor: "rgba(56,189,248,0.2)",
-        pointRadius: 3
-      }
+  // =======================
+  // LIGHT CHART
+  // =======================
 
-    ]
-  }
-});
+  const lightChart = new Chart(lightCtx, {
+    type: "line",
+    data: {
+      labels: lightLabels,
+      datasets: [
 
-// =======================
-// FIREBASE REALTIME
-// =======================
+        {
+          label: "Lamp Output (%)",
+          data: lightData,
+          borderWidth: 2,
+          tension: 0.4,
+          fill: false,
+          borderColor: "#facc15",
+          backgroundColor: "rgba(255,215,0,0.2)",
+          pointRadius: 3
+        },
 
-// sensor
-const sensorRef = ref(db, 'sensor');
+        {
+          label: "Sensor Light (%)",
+          data: sensorLightData,
+          borderWidth: 2,
+          tension: 0.4,
+          fill: false,
+          borderColor: "#38bdf8",
+          backgroundColor: "rgba(56,189,248,0.2)",
+          pointRadius: 3
+        }
 
-onValue(sensorRef, (snapshot) => {
-
-  const data = snapshot.val();
-  if (!data) return;
-
-  state.temperature = data.suhu || 0;
-  state.sensorLight = data.cahaya || 0;
-
-  render();
-
-});
-
-// control
-const controlRef = ref(db, 'control');
-
-onValue(controlRef, (snapshot) => {
-
-  const control = snapshot.val();
-  if (!control) return;
-
-  state.brightness = control.brightness || 0;
-  state.lampStatus = control.lamp ? "ON" : "OFF";
-
-  const now = new Date().toLocaleTimeString();
-
-  // suhu chart
-  labels.push(now);
-  tempData.push(state.temperature);
-
-  if (labels.length > 10) {
-    labels.shift();
-    tempData.shift();
-  }
-
-  tempChart.update();
-
-  // light chart
-  lightLabels.push(now);
-
-  lightData.push(state.brightness);
-  sensorLightData.push(state.sensorLight);
-
-  if (lightLabels.length > 10) {
-
-    lightLabels.shift();
-    lightData.shift();
-    sensorLightData.shift();
-
-  }
-
-  lightChart.update();
-
-  render();
-
-});
+      ]
+    }
+  });
 
   // =======================
   // STATUS AWAL
   // =======================
+
   connStatus.innerText = "Connecting...";
   connStatus.style.color = "orange";
+
   updateControlAccess();
+
+  // =======================
+  // ACCESS CONTROL
+  // =======================
+
+  function updateControlAccess() {
+
+    const controls = controlSection.querySelectorAll(
+      "button, input"
+    );
+
+    controls.forEach(el => {
+
+      if (
+        el.id !== "pinInput" &&
+        el.id !== "unlockBtn"
+      ) {
+        el.disabled = !state.unlocked;
+      }
+
+    });
+
+    if (state.unlocked) {
+
+      accessStatus.innerText = "🔓 Control Unlocked";
+      accessStatus.style.color = "#22c55e";
+
+    } else {
+
+      accessStatus.innerText = "🔒 Control Locked";
+      accessStatus.style.color = "#ef4444";
+
+    }
+  }
+
   // =======================
   // RENDER
   // =======================
-  function updateControlAccess() {
 
-  const controls = controlSection.querySelectorAll(
-    "button, input"
-  );
-
-  controls.forEach(el => {
-
-    // jangan disable PIN input
-    if (
-      el.id !== "pinInput" &&
-      el.id !== "unlockBtn"
-    ) {
-      el.disabled = !state.unlocked;
-    }
-
-  });
-
-  if (state.unlocked) {
-    accessStatus.innerText = "🔓 Control Unlocked";
-    accessStatus.style.color = "#22c55e";
-  } else {
-    accessStatus.innerText = "🔒 Control Locked";
-    accessStatus.style.color = "#ef4444";
-  }
-}
   function render() {
+
     let statusText = "";
 
     if (state.temperature > 30) {
@@ -234,17 +181,31 @@ onValue(controlRef, (snapshot) => {
       statusText = "❄️ Dingin";
     }
 
-    tempEl.innerText = state.temperature + "°C (" + statusText + ")";
+    tempEl.innerText =
+      `${state.temperature}°C (${statusText})`;
 
-    lightEl.innerText = state.lightIntensity;
-    valueEl.innerText = state.lightIntensity;
-    lightBar.style.width = state.lightIntensity + "%";
+    lightEl.innerText =
+      state.sensorLight;
 
-    slider.value = state.lightIntensity;
-    input.value = state.lightIntensity;
+    valueEl.innerText =
+      state.brightness;
 
-    lampStatusEl.innerText = state.lampStatus;
-    lampStatusEl.style.color = state.lampStatus === "ON" ? "#22c55e" : "#ef4444";
+    lightBar.style.width =
+      state.brightness + "%";
+
+    slider.value =
+      state.brightness;
+
+    input.value =
+      state.brightness;
+
+    lampStatusEl.innerText =
+      state.lampStatus;
+
+    lampStatusEl.style.color =
+      state.lampStatus === "ON"
+        ? "#22c55e"
+        : "#ef4444";
 
     connStatus.innerText = "Connected";
     connStatus.style.color = "#22c55e";
@@ -253,45 +214,82 @@ onValue(controlRef, (snapshot) => {
   // =======================
   // REALTIME FIREBASE
   // =======================
-  const sensorRef = ref(db, 'sensor');
 
-  onValue(sensorRef, (snapshot) => {
+  const rootRef = ref(db);
+
+  onValue(rootRef, (snapshot) => {
+
     const data = snapshot.val();
+
     if (!data) return;
 
-    state.temperature = data.suhu || 0;
-    state.lightIntensity = data.cahaya || 0;
-    state.lampStatus = data.status ? "ON" : "OFF";
+    const sensor = data.sensor || {};
+    const control = data.control || {};
 
-    const now = new Date().toLocaleTimeString();
+    state.temperature =
+      sensor.suhu || 0;
+
+    state.sensorLight =
+      sensor.cahaya || 0;
+
+    state.brightness =
+      control.brightness || 0;
+
+    state.lampStatus =
+      control.lamp ? "ON" : "OFF";
+
+    const now =
+      new Date().toLocaleTimeString();
 
     // suhu chart
     labels.push(now);
     tempData.push(state.temperature);
+
     if (labels.length > 10) {
+
       labels.shift();
       tempData.shift();
+
     }
+
     tempChart.update();
 
-    // cahaya chart
+    // light chart
     lightLabels.push(now);
-    lightData.push(state.lightIntensity);
+
+    lightData.push(state.brightness);
+
+    sensorLightData.push(
+      state.sensorLight
+    );
+
     if (lightLabels.length > 10) {
+
       lightLabels.shift();
       lightData.shift();
+      sensorLightData.shift();
+
     }
+
     lightChart.update();
 
     render();
+
   });
 
   // =======================
   // CONTROL
   // =======================
+
   function setLight(value) {
-    const val = Math.max(0, Math.min(100, value));
-    set(ref(db, 'control/brightness'), val);
+
+    const val =
+      Math.max(0, Math.min(100, value));
+
+    set(
+      ref(db, "control/brightness"),
+      val
+    );
   }
 
   slider.addEventListener("input", function () {
@@ -302,43 +300,62 @@ onValue(controlRef, (snapshot) => {
     setLight(this.value);
   });
 
-  btnOn.addEventListener("click", function () {
-    set(ref(db, 'control/lamp'), true);
+  btnOn.addEventListener("click", () => {
+
+    set(
+      ref(db, "control/lamp"),
+      true
+    );
+
   });
 
-  btnOff.addEventListener("click", function () {
-    set(ref(db, 'sensor/status'), false);
-  });
-// =======================
-// PIN ACCESS
-// =======================
+  btnOff.addEventListener("click", () => {
 
-unlockBtn.addEventListener("click", () => {
+    set(
+      ref(db, "control/lamp"),
+      false
+    );
 
-  const pin = pinInput.value;
+    set(
+      ref(db, "control/brightness"),
+      0
+    );
 
-  const pinRef = ref(db, 'system/adminpin');
-
-  onValue(pinRef, (snapshot) => {
-
-    const correctPin = snapshot.val();
-
-    if (pin === String(correctPin)) {
-
-      state.unlocked = true;
-      updateControlAccess();
-
-      pinInput.value = "";
-
-    } else {
-
-      alert("PIN Salah");
-
-    }
-
-  }, {
-    onlyOnce: true
   });
 
-});
+  // =======================
+  // PIN ACCESS
+  // =======================
+
+  unlockBtn.addEventListener("click", () => {
+
+    const pin = pinInput.value;
+
+    const pinRef =
+      ref(db, "system/adminpin");
+
+    onValue(pinRef, (snapshot) => {
+
+      const correctPin = snapshot.val();
+
+      if (pin === String(correctPin)) {
+
+        state.unlocked = true;
+
+        updateControlAccess();
+
+        pinInput.value = "";
+
+      } else {
+
+        alert("PIN Salah");
+
+      }
+
+    }, {
+      onlyOnce: true
+    });
+
+  });
+
 });
