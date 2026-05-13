@@ -128,7 +128,35 @@ document.addEventListener("DOMContentLoaded", () => {
       },
 
       options: {
-        responsive: true
+
+        responsive: true,
+
+        plugins: {
+
+          legend: {
+            labels: {
+              color: "#cbd5e1"
+            }
+          }
+
+        },
+
+        scales: {
+
+          x: {
+            ticks: {
+              color: "#94a3b8"
+            }
+          },
+
+          y: {
+            ticks: {
+              color: "#94a3b8"
+            }
+          }
+
+        }
+
       }
     }
 
@@ -193,7 +221,35 @@ document.addEventListener("DOMContentLoaded", () => {
       },
 
       options: {
-        responsive: true
+
+        responsive: true,
+
+        plugins: {
+
+          legend: {
+            labels: {
+              color: "#cbd5e1"
+            }
+          }
+
+        },
+
+        scales: {
+
+          x: {
+            ticks: {
+              color: "#94a3b8"
+            }
+          },
+
+          y: {
+            ticks: {
+              color: "#94a3b8"
+            }
+          }
+
+        }
+
       }
     }
 
@@ -212,8 +268,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     controls.forEach((el) => {
 
-      el.disabled =
-        !state.unlocked;
+      if (
+        el.id !== "pinInput" &&
+        el.id !== "unlockBtn"
+      ) {
+
+        el.disabled =
+          !state.unlocked;
+
+      }
 
     });
 
@@ -274,7 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
         : "#ef4444";
 
     connStatus.innerText =
-      "Connected";
+      "Realtime Connected";
 
     connStatus.style.color =
       "#22c55e";
@@ -290,89 +353,110 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const rootRef = ref(db);
 
-  onValue(rootRef, (snapshot) => {
+  onValue(
 
-    const data = snapshot.val();
+    rootRef,
 
-    if (!data) return;
+    (snapshot) => {
 
-    const sensor =
-      data.sensor || {};
+      const data = snapshot.val();
 
-    const control =
-      data.control || {};
+      if (!data) return;
 
-    const lamp =
-      control.lamp || {};
+      const sensor =
+        data.sensor || {};
 
-    /* =========================
-       UPDATE STATE
-    ========================= */
+      const control =
+        data.control || {};
 
-    state.temperature =
-      sensor.suhu || 0;
+      const lamp =
+        control.lamp || {};
 
-    state.sensorLight =
-      sensor.cahaya || 0;
+      /* =========================
+         UPDATE STATE
+      ========================= */
 
-    state.brightness =
-      lamp.brightness || 0;
+      state.temperature =
+        sensor.suhu || 0;
 
-    state.lampState =
-      lamp.state || false;
+      state.sensorLight =
+        sensor.cahaya || 0;
 
-    /* =========================
-       UPDATE CHART
-    ========================= */
+      state.brightness =
+        lamp.brightness || 0;
 
-    const time =
-      new Date()
-      .toLocaleTimeString();
+      state.lampState =
+        lamp.state || false;
 
-    // TEMP CHART
+      /* =========================
+         UPDATE CHART
+      ========================= */
 
-    tempLabels.push(time);
+      const time =
+        new Date()
+        .toLocaleTimeString();
 
-    tempData.push(
-      state.temperature
-    );
+      // TEMP CHART
 
-    if (tempLabels.length > 10) {
+      tempLabels.push(time);
 
-      tempLabels.shift();
-      tempData.shift();
+      tempData.push(
+        state.temperature
+      );
+
+      if (tempLabels.length > 10) {
+
+        tempLabels.shift();
+        tempData.shift();
+
+      }
+
+      tempChart.update();
+
+      // LIGHT CHART
+
+      lightLabels.push(time);
+
+      lampData.push(
+        state.brightness
+      );
+
+      sensorData.push(
+        state.sensorLight
+      );
+
+      if (lightLabels.length > 10) {
+
+        lightLabels.shift();
+
+        lampData.shift();
+
+        sensorData.shift();
+
+      }
+
+      lightChart.update();
+
+      renderUI();
+
+    },
+
+    (error) => {
+
+      console.error(error);
+
+      connStatus.innerText =
+        "Disconnected";
+
+      connStatus.style.color =
+        "#ef4444";
+
+      statusDot.style.background =
+        "#ef4444";
 
     }
 
-    tempChart.update();
-
-    // LIGHT CHART
-
-    lightLabels.push(time);
-
-    lampData.push(
-      state.brightness
-    );
-
-    sensorData.push(
-      state.sensorLight
-    );
-
-    if (lightLabels.length > 10) {
-
-      lightLabels.shift();
-
-      lampData.shift();
-
-      sensorData.shift();
-
-    }
-
-    lightChart.update();
-
-    renderUI();
-
-  });
+  );
 
   /* ========================================
      SET BRIGHTNESS
