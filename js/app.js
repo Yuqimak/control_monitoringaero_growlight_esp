@@ -1,219 +1,320 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+import {
+  getDatabase,
+  ref,
+  onValue,
+  set
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+/* ========================================
+   FIREBASE
+======================================== */
 
 const firebaseConfig = {
+
   apiKey: "AIzaSy...",
   authDomain: "growlightta.firebaseapp.com",
-  databaseURL: "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
+
+  databaseURL:
+    "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
+
   projectId: "growlightta",
-  storageBucket: "growlightta.firebasestorage.app",
+
+  storageBucket:
+    "growlightta.firebasestorage.app",
+
   messagingSenderId: "982821946750",
-  appId: "1:982821946750:web:98fc04e2b573e9dd955f2f"
+
+  appId:
+    "1:982821946750:web:98fc04e2b573e9dd955f2f"
+
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+/* ========================================
+   APP START
+======================================== */
+
 document.addEventListener("DOMContentLoaded", () => {
 
-  // =======================
-  // STATE
-  // =======================
+  /* ========================================
+     STATE
+  ======================================== */
 
   const state = {
+
     temperature: 0,
-    brightness: 0,
     sensorLight: 0,
-    lampStatus: "-",
+
+    brightness: 0,
+    lampState: false,
+
     unlocked: false
+
   };
 
-  // =======================
-  // DOM
-  // =======================
+  /* ========================================
+     DOM
+  ======================================== */
 
-  const tempEl = document.getElementById("temp");
-  const lightEl = document.getElementById("light");
-  const lightBar = document.getElementById("lightBar");
-  const lampStatusEl = document.getElementById("lampStatus");
+  const tempEl =
+    document.getElementById("temp");
 
-  const slider = document.getElementById("dimmer");
-  const input = document.getElementById("dimmerInput");
-  const valueEl = document.getElementById("dimmerValue");
+  const lightEl =
+    document.getElementById("light");
 
-  const btnOn = document.getElementById("btnOn");
-  const btnOff = document.getElementById("btnOff");
+  const lightBar =
+    document.getElementById("lightBar");
 
-  const connStatus = document.getElementById("connStatus");
+  const connStatus =
+    document.getElementById("connStatus");
 
-  const pinInput = document.getElementById("pinInput");
-  const unlockBtn = document.getElementById("unlockBtn");
-  const accessStatus = document.getElementById("accessStatus");
-  const controlSection = document.getElementById("controlSection");
+  const statusDot =
+    document.getElementById("statusDot");
 
-  // =======================
-  // CHART INIT
-  // =======================
+  const lampStatus =
+    document.getElementById("lampStatus");
 
-  const tempCtx = document.getElementById("tempChart");
-  const lightCtx = document.getElementById("lightChart");
+  const dimmer =
+    document.getElementById("dimmer");
 
-  let labels = [];
-  let tempData = [];
+  const dimmerInput =
+    document.getElementById("dimmerInput");
 
-  let lightLabels = [];
-  let lightData = [];
-  let sensorLightData = [];
+  const dimmerValue =
+    document.getElementById("dimmerValue");
 
-  // =======================
-  // TEMP CHART
-  // =======================
+  const btnOn =
+    document.getElementById("btnOn");
 
-  const tempChart = new Chart(tempCtx, {
-    type: "line",
-    data: {
-      labels: labels,
-      datasets: [{
-        label: "Suhu (°C)",
-        data: tempData,
-        borderWidth: 2,
-        tension: 0.4,
-        fill: true,
-        backgroundColor: "rgba(34,197,94,0.3)",
-        borderColor: "#22c55e",
-        pointRadius: 3
-      }]
-    }
-  });
+  const btnOff =
+    document.getElementById("btnOff");
 
-  // =======================
-  // LIGHT CHART
-  // =======================
+  const pinInput =
+    document.getElementById("pinInput");
 
-  const lightChart = new Chart(lightCtx, {
-    type: "line",
-    data: {
-      labels: lightLabels,
-      datasets: [
+  const unlockBtn =
+    document.getElementById("unlockBtn");
 
-        {
-          label: "Lamp Output (%)",
-          data: lightData,
-          borderWidth: 2,
-          tension: 0.4,
-          fill: false,
-          borderColor: "#facc15",
-          backgroundColor: "rgba(255,215,0,0.2)",
-          pointRadius: 3
-        },
+  const accessStatus =
+    document.getElementById("accessStatus");
 
-        {
-          label: "Sensor Light (%)",
-          data: sensorLightData,
-          borderWidth: 2,
-          tension: 0.4,
-          fill: false,
-          borderColor: "#38bdf8",
-          backgroundColor: "rgba(56,189,248,0.2)",
-          pointRadius: 3
-        }
+  const controlSection =
+    document.getElementById("controlSection");
 
-      ]
-    }
-  });
+  /* ========================================
+     CHART DATA
+  ======================================== */
 
-  // =======================
-  // STATUS AWAL
-  // =======================
+  const tempLabels = [];
+  const tempData = [];
 
-  connStatus.innerText = "Connecting...";
-  connStatus.style.color = "orange";
+  const lightLabels = [];
+  const lampData = [];
+  const sensorData = [];
 
-  updateControlAccess();
+  /* ========================================
+     CHART TEMP
+  ======================================== */
 
-  // =======================
-  // ACCESS CONTROL
-  // =======================
+  const tempChart = new Chart(
 
-  function updateControlAccess() {
+    document.getElementById("tempChart"),
 
-    const controls = controlSection.querySelectorAll(
-      "button, input"
-    );
+    {
+      type: "line",
 
-    controls.forEach(el => {
+      data: {
 
-      if (
-        el.id !== "pinInput" &&
-        el.id !== "unlockBtn"
-      ) {
-        el.disabled = !state.unlocked;
+        labels: tempLabels,
+
+        datasets: [
+
+          {
+            label: "Temperature (°C)",
+
+            data: tempData,
+
+            borderColor: "#22c55e",
+
+            backgroundColor:
+              "rgba(34,197,94,0.2)",
+
+            borderWidth: 2,
+
+            fill: true,
+
+            tension: 0.4,
+
+            pointRadius: 2
+          }
+
+        ]
+      },
+
+      options: {
+        responsive: true
       }
+    }
+
+  );
+
+  /* ========================================
+     CHART LIGHT
+  ======================================== */
+
+  const lightChart = new Chart(
+
+    document.getElementById("lightChart"),
+
+    {
+      type: "line",
+
+      data: {
+
+        labels: lightLabels,
+
+        datasets: [
+
+          {
+            label: "Lamp Output (%)",
+
+            data: lampData,
+
+            borderColor: "#facc15",
+
+            backgroundColor:
+              "rgba(250,204,21,0.2)",
+
+            borderWidth: 2,
+
+            fill: false,
+
+            tension: 0.4,
+
+            pointRadius: 2
+          },
+
+          {
+            label: "Sensor Light (%)",
+
+            data: sensorData,
+
+            borderColor: "#38bdf8",
+
+            backgroundColor:
+              "rgba(56,189,248,0.2)",
+
+            borderWidth: 2,
+
+            fill: false,
+
+            tension: 0.4,
+
+            pointRadius: 2
+          }
+
+        ]
+      },
+
+      options: {
+        responsive: true
+      }
+    }
+
+  );
+
+  /* ========================================
+     ACCESS CONTROL
+  ======================================== */
+
+  function updateAccessUI() {
+
+    const controls =
+      controlSection.querySelectorAll(
+        "button, input"
+      );
+
+    controls.forEach((el) => {
+
+      el.disabled =
+        !state.unlocked;
 
     });
 
     if (state.unlocked) {
 
-      accessStatus.innerText = "🔓 Control Unlocked";
-      accessStatus.style.color = "#22c55e";
+      accessStatus.innerText =
+        "🔓 Control Unlocked";
+
+      accessStatus.style.color =
+        "#22c55e";
 
     } else {
 
-      accessStatus.innerText = "🔒 Control Locked";
-      accessStatus.style.color = "#ef4444";
+      accessStatus.innerText =
+        "🔒 Control Locked";
+
+      accessStatus.style.color =
+        "#ef4444";
 
     }
+
   }
 
-  // =======================
-  // RENDER
-  // =======================
+  updateAccessUI();
 
-  function render() {
+  /* ========================================
+     RENDER UI
+  ======================================== */
 
-    let statusText = "";
-
-    if (state.temperature > 30) {
-      statusText = "🔥 Panas";
-    } else if (state.temperature >= 25) {
-      statusText = "🌱 Ideal";
-    } else {
-      statusText = "❄️ Dingin";
-    }
+  function renderUI() {
 
     tempEl.innerText =
-      `${state.temperature}°C (${statusText})`;
+      state.temperature;
 
     lightEl.innerText =
       state.sensorLight;
 
-    valueEl.innerText =
-      state.brightness;
-
     lightBar.style.width =
-      state.brightness + "%";
+      `${state.brightness}%`;
 
-    slider.value =
+    dimmer.value =
       state.brightness;
 
-    input.value =
+    dimmerInput.value =
       state.brightness;
 
-    lampStatusEl.innerText =
-      state.lampStatus;
+    dimmerValue.innerText =
+      state.brightness;
 
-    lampStatusEl.style.color =
-      state.lampStatus === "ON"
+    lampStatus.innerText =
+      state.lampState
+        ? "ON"
+        : "OFF";
+
+    lampStatus.style.color =
+      state.lampState
         ? "#22c55e"
         : "#ef4444";
 
-    connStatus.innerText = "Connected";
-    connStatus.style.color = "#22c55e";
+    connStatus.innerText =
+      "Connected";
+
+    connStatus.style.color =
+      "#22c55e";
+
+    statusDot.style.background =
+      "#22c55e";
+
   }
 
-  // =======================
-  // REALTIME FIREBASE
-  // =======================
+  /* ========================================
+     REALTIME DATABASE
+  ======================================== */
 
   const rootRef = ref(db);
 
@@ -223,8 +324,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!data) return;
 
-    const sensor = data.sensor || {};
-    const control = data.control || {};
+    const sensor =
+      data.sensor || {};
+
+    const control =
+      data.control || {};
+
+    const lamp =
+      control.lamp || {};
+
+    /* =========================
+       UPDATE STATE
+    ========================= */
 
     state.temperature =
       sensor.suhu || 0;
@@ -233,129 +344,201 @@ document.addEventListener("DOMContentLoaded", () => {
       sensor.cahaya || 0;
 
     state.brightness =
-      control.brightness || 0;
+      lamp.brightness || 0;
 
-    state.lampStatus =
-      control.lamp ? "ON" : "OFF";
+    state.lampState =
+      lamp.state || false;
 
-    const now =
-      new Date().toLocaleTimeString();
+    /* =========================
+       CHART
+    ========================= */
 
-    // suhu chart
-    labels.push(now);
-    tempData.push(state.temperature);
+    const time =
+      new Date()
+      .toLocaleTimeString();
 
-    if (labels.length > 10) {
+    // TEMP
 
-      labels.shift();
+    tempLabels.push(time);
+
+    tempData.push(
+      state.temperature
+    );
+
+    if (tempLabels.length > 10) {
+
+      tempLabels.shift();
       tempData.shift();
 
     }
 
     tempChart.update();
 
-    // light chart
-    lightLabels.push(now);
+    // LIGHT
 
-    lightData.push(state.brightness);
+    lightLabels.push(time);
 
-    sensorLightData.push(
+    lampData.push(
+      state.brightness
+    );
+
+    sensorData.push(
       state.sensorLight
     );
 
     if (lightLabels.length > 10) {
 
       lightLabels.shift();
-      lightData.shift();
-      sensorLightData.shift();
+
+      lampData.shift();
+
+      sensorData.shift();
 
     }
 
     lightChart.update();
 
-    render();
+    renderUI();
 
   });
 
-  // =======================
-  // CONTROL
-  // =======================
+  /* ========================================
+     CONTROL FUNCTION
+  ======================================== */
 
-  function setLight(value) {
+  function setBrightness(value) {
 
     const val =
-      Math.max(0, Math.min(100, value));
+      Math.max(
+        0,
+        Math.min(100, value)
+      );
 
     set(
-      ref(db, "control/brightness"),
+      ref(db,
+        "control/lamp/brightness"
+      ),
       val
     );
+
   }
 
-  slider.addEventListener("input", function () {
-    setLight(this.value);
-  });
+  /* ========================================
+     SLIDER EVENT
+  ======================================== */
 
-  input.addEventListener("input", function () {
-    setLight(this.value);
-  });
+  dimmer.addEventListener(
+    "input",
+    (e) => {
 
-  btnOn.addEventListener("click", () => {
+      setBrightness(
+        e.target.value
+      );
 
-    set(
-      ref(db, "control/lamp"),
-      true
-    );
+    }
+  );
 
-  });
+  dimmerInput.addEventListener(
+    "input",
+    (e) => {
 
-  btnOff.addEventListener("click", () => {
+      setBrightness(
+        e.target.value
+      );
 
-    set(
-      ref(db, "control/lamp"),
-      false
-    );
+    }
+  );
 
-    set(
-      ref(db, "control/brightness"),
-      0
-    );
+  /* ========================================
+     BUTTON CONTROL
+  ======================================== */
 
-  });
+  btnOn.addEventListener(
+    "click",
+    () => {
 
-  // =======================
-  // PIN ACCESS
-  // =======================
+      set(
+        ref(db,
+          "control/lamp/state"
+        ),
+        true
+      );
 
-  unlockBtn.addEventListener("click", () => {
+    }
+  );
 
-    const pin = pinInput.value;
+  btnOff.addEventListener(
+    "click",
+    () => {
 
-    const pinRef =
-      ref(db, "system/adminpin");
+      set(
+        ref(db,
+          "control/lamp/state"
+        ),
+        false
+      );
 
-    onValue(pinRef, (snapshot) => {
+      set(
+        ref(db,
+          "control/lamp/brightness"
+        ),
+        0
+      );
 
-      const correctPin = snapshot.val();
+    }
+  );
 
-      if (pin === String(correctPin)) {
+  /* ========================================
+     PIN ACCESS
+  ======================================== */
 
-        state.unlocked = true;
+  unlockBtn.addEventListener(
+    "click",
+    () => {
 
-        updateControlAccess();
+      const pin =
+        pinInput.value;
 
-        pinInput.value = "";
+      const pinRef =
+        ref(db,
+          "system/adminpin"
+        );
 
-      } else {
+      onValue(
+        pinRef,
 
-        alert("PIN Salah");
+        (snapshot) => {
 
-      }
+          const correctPin =
+            snapshot.val();
 
-    }, {
-      onlyOnce: true
-    });
+          if (
+            pin ===
+            String(correctPin)
+          ) {
 
-  });
+            state.unlocked =
+              true;
+
+            updateAccessUI();
+
+            pinInput.value = "";
+
+          } else {
+
+            alert("Wrong PIN");
+
+          }
+
+        },
+
+        {
+          onlyOnce: true
+        }
+
+      );
+
+    }
+  );
 
 });
