@@ -1,104 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>IoT Greenhouse</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <link rel="stylesheet" href="css/style.css">
+  <title>GrowLight Dashboard</title>
+
+  <link rel="stylesheet" href="css/style.css"/>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
 
-<header class="header">
-  <h1>🌱 IoT Greenhouse</h1>
-  <p class="status">
-    Status: <span id="connStatus" style="color: orange;">Connecting...</span>
-  </p>
-</header>
-
-<main class="container">
-
-  <!-- ================= MONITORING ================= -->
-  <section class="grid">
-
-    <div class="card">
-      <h3>🌡 Suhu</h3>
-      <p class="big" id="temp">-</p>
+  <!-- ================= HEADER ================= -->
+  <header class="header">
+    <div>
+      <h1>🌱 GrowLight Dashboard</h1>
+      <p class="subtitle">
+        Smart IoT Monitoring System
+      </p>
     </div>
 
-    <div class="card">
-      <h3>💡 Intensitas Lampu</h3>
+    <div class="status-box">
+      <span class="dot" id="statusDot"></span>
 
-      <p class="big">
-        <span id="light">-</span>%
+      <p>
+        ESP32 :
+        <span id="connStatus">Connecting...</span>
+      </p>
+    </div>
+  </header>
+
+  <!-- ================= MAIN ================= -->
+  <main class="container">
+
+    <!-- ================= SENSOR ================= -->
+    <section class="grid">
+
+      <!-- TEMPERATURE -->
+      <div class="card">
+        <h3>🌡 Temperature</h3>
+
+        <p class="big">
+          <span id="temp">-</span>°C
+        </p>
+      </div>
+
+      <!-- LIGHT -->
+      <div class="card">
+        <h3>💡 Light Intensity</h3>
+
+        <p class="big">
+          <span id="light">-</span>%
+        </p>
+
+        <div class="bar">
+          <div class="fill" id="lightBar"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= CHART ================= -->
+    <section class="card full">
+      <h3>📈 Temperature Realtime</h3>
+
+      <canvas id="tempChart"></canvas>
+    </section>
+
+    <section class="card full">
+      <h3>📊 Light Intensity History</h3>
+
+      <canvas id="lightChart"></canvas>
+    </section>
+
+    <!-- ================= ACCESS ================= -->
+    <section class="card full access-card">
+
+      <h3>🔒 Admin Access</h3>
+
+      <div class="access-box">
+
+        <input
+          type="password"
+          id="pinInput"
+          placeholder="Enter Admin PIN"
+        />
+
+        <button id="unlockBtn" class="btn on">
+          Unlock
+        </button>
+
+      </div>
+
+      <p id="accessStatus" class="locked">
+        Control Locked
       </p>
 
-      <div class="bar">
-        <div class="fill" id="lightBar" style="width:0%"></div>
-      </div>
-    </div>
+    </section>
 
-  </section>
+    <!-- ================= CONTROL ================= -->
+    <section class="grid control-grid" id="controlSection">
 
-  <!-- ================= CHART PLACEHOLDER ================= -->
-  <section class="card full">
-  <h3>📊 Suhu Realtime</h3>
-  <canvas id="tempChart"></canvas>
-</section>
+      <!-- LAMP CONTROL -->
+      <div class="card">
 
-  <section class="card full">
-    <h3>📊 History Intensitas</h3>
-    <canvas id="lightChart"></canvas>
-  </section>
+        <h3>💡 Lamp Control</h3>
 
-  <section class="card full access-card">
-  <h3>🔒 Control Access</h3>
+        <div class="button-group">
+          <button id="btnOn" class="btn on">
+            ON
+          </button>
 
-  <div class="access-box">
-    <input type="password" id="pinInput" placeholder="Enter PIN">
+          <button id="btnOff" class="btn off">
+            OFF
+          </button>
+        </div>
 
-    <button id="unlockBtn" class="btn on">
-      Unlock Control
-    </button>
-  </div>
+        <p class="info-text">
+          Status :
+          <span id="lampStatus">-</span>
+        </p>
 
-  <p id="accessStatus" class="locked">
-    Control Locked
-  </p>
-</section>
-
-  <!-- ================= CONTROL ================= -->
-  <section class="grid" id="controlSection">
-
-    <div class="card">
-      <h3>🚨 Emergency Control</h3>
-
-      <button id="btnOn" class="btn on">ON</button>
-      <button id="btnOff" class="btn off">OFF</button>
-
-      <p>Light Status: <span id="lampStatus">-</span></p>
-    </div>
-
-    <div class="card">
-      <h3>🎚 Dimming Control</h3>
-
-      <input id="dimmer" type="range" min="0" max="100" value="0">
-
-      <div class="input-group">
-        <input id="dimmerInput" type="number" min="0" max="100" value="0">
-        <span>%</span>
       </div>
 
-      <p>Current: <span id="dimmerValue">0</span>%</p>
-    </div>
+      <!-- DIMMER -->
+      <div class="card">
 
-  </section>
+        <h3>🎚 Brightness Control</h3>
 
-</main>
+        <input
+          id="dimmer"
+          type="range"
+          min="0"
+          max="100"
+          value="0"
+        />
 
-<!-- WAJIB MODULE -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module" src="js/app.js?v=99"></script>
+        <div class="input-group">
+
+          <input
+            id="dimmerInput"
+            type="number"
+            min="0"
+            max="100"
+            value="0"
+          />
+
+          <span>%</span>
+
+        </div>
+
+        <p class="info-text">
+          Current :
+          <span id="dimmerValue">0</span>%
+        </p>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= APP ================= -->
+  <script type="module" src="js/app.js?v=100"></script>
+
 </body>
 </html>
