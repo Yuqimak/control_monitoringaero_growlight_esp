@@ -1,38 +1,10 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { db } from "./firebase.js";
 
 import {
-  getDatabase,
   ref,
   onValue,
   set
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-/* ========================================
-   FIREBASE
-======================================== */
-
-const firebaseConfig = {
-
-  apiKey: "AIzaSy...",
-  authDomain: "growlightta.firebaseapp.com",
-
-  databaseURL:
-    "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
-
-  projectId: "growlightta",
-
-  storageBucket:
-    "growlightta.firebasestorage.app",
-
-  messagingSenderId: "982821946750",
-
-  appId:
-    "1:982821946750:web:98fc04e2b573e9dd955f2f"
-
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
 
 /* ========================================
    APP START
@@ -117,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const sensorData = [];
 
   /* ========================================
-     CHART TEMP
+     TEMPERATURE CHART
   ======================================== */
 
   const tempChart = new Chart(
@@ -163,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   /* ========================================
-     CHART LIGHT
+     LIGHT CHART
   ======================================== */
 
   const lightChart = new Chart(
@@ -228,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
   );
 
   /* ========================================
-     ACCESS CONTROL
+     ACCESS UI
   ======================================== */
 
   function updateAccessUI() {
@@ -313,7 +285,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     REALTIME DATABASE
+     FIREBASE REALTIME
   ======================================== */
 
   const rootRef = ref(db);
@@ -350,14 +322,14 @@ document.addEventListener("DOMContentLoaded", () => {
       lamp.state || false;
 
     /* =========================
-       CHART
+       UPDATE CHART
     ========================= */
 
     const time =
       new Date()
       .toLocaleTimeString();
 
-    // TEMP
+    // TEMP CHART
 
     tempLabels.push(time);
 
@@ -374,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     tempChart.update();
 
-    // LIGHT
+    // LIGHT CHART
 
     lightLabels.push(time);
 
@@ -403,7 +375,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ========================================
-     CONTROL FUNCTION
+     SET BRIGHTNESS
   ======================================== */
 
   function setBrightness(value) {
@@ -415,16 +387,17 @@ document.addEventListener("DOMContentLoaded", () => {
       );
 
     set(
-      ref(db,
+      ref(
+        db,
         "control/lamp/brightness"
       ),
-      val
+      Number(val)
     );
 
   }
 
   /* ========================================
-     SLIDER EVENT
+     DIMMER EVENT
   ======================================== */
 
   dimmer.addEventListener(
@@ -458,7 +431,8 @@ document.addEventListener("DOMContentLoaded", () => {
     () => {
 
       set(
-        ref(db,
+        ref(
+          db,
           "control/lamp/state"
         ),
         true
@@ -472,14 +446,16 @@ document.addEventListener("DOMContentLoaded", () => {
     () => {
 
       set(
-        ref(db,
+        ref(
+          db,
           "control/lamp/state"
         ),
         false
       );
 
       set(
-        ref(db,
+        ref(
+          db,
           "control/lamp/brightness"
         ),
         0
@@ -500,11 +476,13 @@ document.addEventListener("DOMContentLoaded", () => {
         pinInput.value;
 
       const pinRef =
-        ref(db,
+        ref(
+          db,
           "system/adminpin"
         );
 
       onValue(
+
         pinRef,
 
         (snapshot) => {
