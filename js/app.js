@@ -301,18 +301,55 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   updateAccessUI();
+function animateValue(el, start, end, duration = 300) {
 
+  let startTime = null;
+
+  function animate(currentTime) {
+
+    if (!startTime)
+      startTime = currentTime;
+
+    const progress =
+      Math.min(
+        (currentTime - startTime) /
+        duration,
+        1
+      );
+
+    const value =
+      Math.floor(
+        progress *
+        (end - start) +
+        start
+      );
+
+    el.innerText = value;
+
+    if (progress < 1)
+      requestAnimationFrame(animate);
+
+  }
+
+  requestAnimationFrame(animate);
+
+}
   /* ========================================
      RENDER UI
   ======================================== */
 
   function renderUI() {
 
-    tempEl.innerText =
-      state.temperature;
-
-    lightEl.innerText =
-      state.sensorLight;
+   animateValue(
+  tempEl,
+  Number(tempEl.innerText) || 0,
+  state.temperature
+);
+animateValue(
+  lightEl,
+  Number(lightEl.innerText) || 0,
+  state.sensorLight
+);
 
     lightBar.style.width =
       `${state.brightness}%`;
