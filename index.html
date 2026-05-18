@@ -177,12 +177,108 @@
         </div>
 
       </header>
+<!-- ======================================
+     DASHBOARD
+====================================== -->
 
+<section class="section page-section" id="dashboard">
+
+  <h2 class="section-title green">
+    🏠 DASHBOARD
+  </h2>
+
+  <div class="monitor-grid">
+
+    <!-- CARD 1 -->
+
+    <div class="monitor-card">
+
+      <div class="card-head">
+
+        <div class="card-icon green-box">
+          🌡
+        </div>
+
+        <div>
+          <h3>Suhu</h3>
+          <p class="card-sub">
+            Temperature
+          </p>
+        </div>
+
+      </div>
+
+      <div class="metric">
+        <span id="temp">
+          --
+        </span>°C
+      </div>
+
+    </div>
+
+    <!-- CARD 2 -->
+
+    <div class="monitor-card">
+
+      <div class="card-head">
+
+        <div class="card-icon yellow-box">
+          💡
+        </div>
+
+        <div>
+          <h3>Cahaya</h3>
+          <p class="card-sub">
+            Light
+          </p>
+        </div>
+
+      </div>
+
+      <div class="metric">
+        <span id="light">
+          --
+        </span>%
+      </div>
+
+    </div>
+
+    <!-- CARD 3 -->
+
+    <div class="monitor-card">
+
+      <div class="card-head">
+
+        <div class="card-icon purple-box">
+          ⚡
+        </div>
+
+        <div>
+          <h3>Status Lampu</h3>
+          <p class="card-sub">
+            Lamp Status
+          </p>
+        </div>
+
+      </div>
+
+      <div
+        class="metric green-text"
+        id="lampStatus"
+      >
+        OFF
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
       <!-- ======================================
            MONITORING
       ======================================= -->
 
-      <section class="section page-section" id="dashboard">
+      <section class="section page-section hidden" id="monitoring">
 
         <h2 class="section-title green">
           🌱 MONITORING
