@@ -74,30 +74,29 @@
 
       <!-- MENU -->
 
-      <nav class="menu">
+     <nav class="menu">
 
-        <button class="menu-item active">
-          🏠 Dashboard
-        </button>
+  <button class="menu-item active" data-target="dashboard">
+    🏠 Dashboard
+  </button>
 
-        <button class="menu-item">
-          🌡 Monitoring
-        </button>
+  <button class="menu-item" data-target="monitoring">
+    🌡 Monitoring
+  </button>
 
-        <button class="menu-item">
-          📈 Analytics
-        </button>
+  <button class="menu-item" data-target="analytics">
+    📈 Analytics
+  </button>
 
-        <button class="menu-item">
-          🎛 Control
-        </button>
+  <button class="menu-item" data-target="control">
+    🎛 Control
+  </button>
 
-        <button class="menu-item">
-          🔒 Security
-        </button>
+  <button class="menu-item" data-target="security">
+    🔒 Security
+  </button>
 
-      </nav>
-
+</nav>
       <!-- SYSTEM STATUS -->
 
       <div class="system-box">
@@ -183,7 +182,7 @@
            MONITORING
       ======================================= -->
 
-      <section class="section">
+      <section class="section page-section" id="monitoring">
 
         <h2 class="section-title green">
           🌱 MONITORING
@@ -317,7 +316,7 @@
            ANALYTICS
       ======================================= -->
 
-      <section class="section">
+      <section class="section page-section hidden" id="analytics">
 
         <h2 class="section-title blue">
           📊 ANALYTICS
@@ -373,7 +372,7 @@
            CONTROL
       ======================================= -->
 
-      <section class="section">
+      <section class="section page-section hidden" id="control">
 
         <h2 class="section-title orange">
           🎛 CONTROL
@@ -486,7 +485,7 @@
            SECURITY
       ======================================= -->
 
-      <section class="section">
+      <section class="section page-section hidden" id="security">
 
         <h2 class="section-title purple">
           🔒 SECURITY ACCESS
