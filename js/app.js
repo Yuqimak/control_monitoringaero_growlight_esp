@@ -76,6 +76,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const controlSection =
     document.getElementById("controlSection");
+  const dashboardTemp =
+  document.getElementById("dashboardTemp");
+
+const dashboardLight =
+  document.getElementById("dashboardLight");
+
+const dashboardLamp =
+  document.getElementById("dashboardLamp");  
 
   /* ========================================
      CHART DATA
@@ -372,6 +380,21 @@ animateValue(
       state.lampState
         ? "#22c55e"
         : "#ef4444";
+    dashboardTemp.innerText =
+  state.temperature;
+
+dashboardLight.innerText =
+  state.sensorLight;
+
+dashboardLamp.innerText =
+  state.lampState
+    ? "ON"
+    : "OFF";
+
+dashboardLamp.style.color =
+  state.lampState
+    ? "#22c55e"
+    : "#ef4444";
 
     connStatus.innerText =
       "Realtime Connected";
