@@ -74,30 +74,29 @@
 
       <!-- MENU -->
 
-      <nav class="menu">
+     <nav class="menu">
 
-        <button class="menu-item active" data-target="dashboard">
-          🏠 Dashboard
-        </button>
+  <button class="menu-item active" data-target="dashboard">
+    🏠 Dashboard
+  </button>
 
-        <button class="menu-item" data-target="monitoring">
-          🌡 Monitoring
-        </button>
+  <button class="menu-item" data-target="monitoring">
+    🌡 Monitoring
+  </button>
 
-        <button class="menu-item" data-target="analytics">
-          📈 Analytics
-        </button>
+  <button class="menu-item" data-target="analytics">
+    📈 Analytics
+  </button>
 
-        <button class="menu-item" data-target="control">
-          🎛 Control
-        </button>
+  <button class="menu-item" data-target="control">
+    🎛 Control
+  </button>
 
-        <button class="menu-item" data-target="security">
-          🔒 Security
-        </button>
+  <button class="menu-item" data-target="security">
+    🔒 Security
+  </button>
 
-      </nav>
-
+</nav>
       <!-- SYSTEM STATUS -->
 
       <div class="system-box">
@@ -178,105 +177,103 @@
         </div>
 
       </header>
+<!-- ======================================
+     DASHBOARD
+====================================== -->
 
-      <!-- ======================================
-           DASHBOARD
-      ======================================= -->
+<section class="section page-section" id="dashboard">
 
-      <section class="section page-section" id="dashboard">
+  <h2 class="section-title green">
+    🏠 DASHBOARD
+  </h2>
 
-        <h2 class="section-title green">
-          🏠 DASHBOARD
-        </h2>
+  <div class="monitor-grid">
 
-        <div class="monitor-grid">
+    <!-- CARD 1 -->
 
-          <!-- CARD 1: TEMPERATURE -->
+    <div class="monitor-card">
 
-          <div class="monitor-card">
+      <div class="card-head">
 
-            <div class="card-head">
-
-              <div class="card-icon green-box">
-                🌡
-              </div>
-
-              <div>
-                <h3>Suhu</h3>
-                <p class="card-sub">
-                  Temperature
-                </p>
-              </div>
-
-            </div>
-
-            <div class="metric">
-              <span id="dashboardTemp">
-                --
-              </span>°C
-            </div>
-
-          </div>
-
-          <!-- CARD 2: LIGHT -->
-
-          <div class="monitor-card">
-
-            <div class="card-head">
-
-              <div class="card-icon yellow-box">
-                💡
-              </div>
-
-              <div>
-                <h3>Cahaya</h3>
-                <p class="card-sub">
-                  Light
-                </p>
-              </div>
-
-            </div>
-
-            <div class="metric">
-              <span id="dashboardLight">
-                --
-              </span>%
-            </div>
-
-          </div>
-
-          <!-- CARD 3: LAMP STATUS -->
-
-          <div class="monitor-card">
-
-            <div class="card-head">
-
-              <div class="card-icon purple-box">
-                ⚡
-              </div>
-
-              <div>
-                <h3>Status Lampu</h3>
-                <p class="card-sub">
-                  Lamp Status
-                </p>
-              </div>
-
-            </div>
-
-            <div
-              class="metric green-text"
-              id="dashboardLamp"
-            >
-              OFF
-            </div>
-
-          </div>
-
+        <div class="card-icon green-box">
+          🌡
         </div>
 
-      </section>
+        <div>
+          <h3>Suhu</h3>
+          <p class="card-sub">
+            Temperature
+          </p>
+        </div>
 
+      </div>
+
+      <div class="metric">
+        <span id="temp">
+          --
+        </span>°C
+      </div>
+
+    </div>
+
+    <!-- CARD 2 -->
+
+    <div class="monitor-card">
+
+      <div class="card-head">
+
+        <div class="card-icon yellow-box">
+          💡
+        </div>
+
+        <div>
+          <h3>Cahaya</h3>
+          <p class="card-sub">
+            Light
+          </p>
+        </div>
+
+      </div>
+
+      <div class="metric">
+        <span id="light">
+          --
+        </span>%
+      </div>
+
+    </div>
+
+    <!-- CARD 3 -->
+
+    <div class="monitor-card">
+
+      <div class="card-head">
+
+        <div class="card-icon purple-box">
+          ⚡
+        </div>
+
+        <div>
+          <h3>Status Lampu</h3>
+          <p class="card-sub">
+            Lamp Status
+          </p>
+        </div>
+
+      </div>
+
+      <div
+        class="metric green-text"
+        id="lampStatus"
+      >
+        OFF
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
       <!-- ======================================
            MONITORING
       ======================================= -->
@@ -312,14 +309,16 @@
             </div>
 
             <div class="metric">
-              <span id="monitorTemp">
-                --
-              </span>°C
-            </div>
+  <span id="monitorTemp">
+    --
+  </span>°C
+</div>
 
             <p class="metric-status hot">
               🔥 Panas
             </p>
+
+            <canvas id="tempMiniChart"></canvas>
 
           </div>
 
@@ -346,10 +345,10 @@
             </div>
 
             <div class="metric">
-              <span id="monitorLight">
-                --
-              </span>%
-            </div>
+  <span id="monitorLight">
+    --
+  </span>%
+</div>
 
             <p class="metric-status warning">
               Intensitas Sedang
@@ -387,13 +386,12 @@
               </div>
 
             </div>
-
-            <div
-              class="metric green-text"
-              id="monitorLampStatus"
-            >
-              OFF
-            </div>
+        <div
+  class="metric green-text"
+  id="monitorLampStatus"
+>
+  OFF
+</div>
 
             <p class="metric-status success">
               Lampu Aktif
@@ -417,7 +415,7 @@
 
         <div class="analytics-grid">
 
-          <!-- TEMP CHART -->
+          <!-- TEMP -->
 
           <div class="analytics-card">
 
@@ -437,7 +435,7 @@
 
           </div>
 
-          <!-- LIGHT CHART -->
+          <!-- LIGHT -->
 
           <div class="analytics-card">
 
@@ -506,8 +504,8 @@
 
               Status Lampu :
 
-              <span id="lampStatus">
-                OFF
+              <span id="lampStateText">
+                ON
               </span>
 
             </p>
