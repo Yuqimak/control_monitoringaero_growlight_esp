@@ -17,79 +17,60 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   const state = {
-
     temperature: 0,
     sensorLight: 0,
-
     brightness: 0,
     lampState: false,
-
     unlocked: false
-
   };
 
-   /* ========================================
+  /* ========================================
      DOM
   ======================================== */
 
   // DISPLAY ELEMENTS (untuk dashboard + monitoring)
-  const tempEl =
-    document.getElementById("temp");
-
-  const lightEl =
-    document.getElementById("light");
-
-  const lampStatus =
-    document.getElementById("lampStatus");
+  const tempEl = document.getElementById("temp");
+  const lightEl = document.getElementById("light");
+  const lampStatus = document.getElementById("lampStatus");
 
   // MONITORING DISPLAY ELEMENTS
-  const monitorTemp =
-    document.getElementById("monitorTemp");
-
-  const monitorLight =
-    document.getElementById("monitorLight");
-
-  const monitorLampStatus =
-    document.getElementById("monitorLampStatus");
+  const monitorTemp = document.getElementById("monitorTemp");
+  const monitorLight = document.getElementById("monitorLight");
+  const monitorLampStatus = document.getElementById("monitorLampStatus");
 
   // LIGHT BAR
-  const lightBar =
-    document.getElementById("lightBar");
+  const lightBar = document.getElementById("lightBar");
 
   // CONNECTION STATUS
-  const connStatus =
-    document.getElementById("connStatus");
+  const connStatus = document.getElementById("connStatus");
 
   // DIMMER ELEMENTS
-  const dimmer =
-    document.getElementById("dimmer");
-
-  const dimmerInput =
-    document.getElementById("dimmerInput");
-
-  const dimmerValue =
-    document.getElementById("dimmerValue");
+  const dimmer = document.getElementById("dimmer");
+  const dimmerInput = document.getElementById("dimmerInput");
+  const dimmerValue = document.getElementById("dimmerValue");
 
   // BUTTON ELEMENTS
-  const btnOn =
-    document.getElementById("btnOn");
+  const btnOn = document.getElementById("btnOn");
+  const btnOff = document.getElementById("btnOff");
 
-  const btnOff =
-    document.getElementById("btnOff");
+  // MINUS/PLUS BUTTONS
+  const minusBtn = document.getElementById("minusBtn");
+  const plusBtn = document.getElementById("plusBtn");
+
+  // LAMP STATE TEXT
+  const lampStateText = document.getElementById("lampStateText");
 
   // SECURITY ELEMENTS
-  const pinInput =
-    document.getElementById("pinInput");
-
-  const unlockBtn =
-    document.getElementById("unlockBtn");
-
-  const accessStatus =
-    document.getElementById("accessStatus");
+  const pinInput = document.getElementById("pinInput");
+  const unlockBtn = document.getElementById("unlockBtn");
+  const accessStatus = document.getElementById("accessStatus");
 
   // CONTROL SECTION
-  const controlSection =
-    document.getElementById("controlSection");  
+  const controlSection = document.getElementById("controlSection");
+
+  // CLOCK ELEMENTS
+  const dateText = document.getElementById("dateText");
+  const clockText = document.getElementById("clockText");
 
   /* ========================================
      CHART DATA
@@ -107,73 +88,47 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   const tempChart = new Chart(
-
     document.getElementById("tempChart"),
-
     {
       type: "line",
-
       data: {
-
         labels: tempLabels,
-
         datasets: [
-
           {
             label: "Temperature (°C)",
-
             data: tempData,
-
             borderColor: "#22c55e",
-
-            backgroundColor:
-              "rgba(34,197,94,0.2)",
-
+            backgroundColor: "rgba(34,197,94,0.2)",
             borderWidth: 2,
-
             fill: true,
-
             tension: 0.4,
-
             pointRadius: 2
           }
-
         ]
       },
-
       options: {
-
         responsive: true,
-
         plugins: {
-
           legend: {
             labels: {
               color: "#cbd5e1"
             }
           }
-
         },
-
         scales: {
-
           x: {
             ticks: {
               color: "#94a3b8"
             }
           },
-
           y: {
             ticks: {
               color: "#94a3b8"
             }
           }
-
         }
-
       }
     }
-
   );
 
   /* ========================================
@@ -181,92 +136,57 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   const lightChart = new Chart(
-
     document.getElementById("lightChart"),
-
     {
       type: "line",
-
       data: {
-
         labels: lightLabels,
-
         datasets: [
-
           {
             label: "Lamp Output (%)",
-
             data: lampData,
-
             borderColor: "#facc15",
-
-            backgroundColor:
-              "rgba(250,204,21,0.2)",
-
+            backgroundColor: "rgba(250,204,21,0.2)",
             borderWidth: 2,
-
             fill: false,
-
             tension: 0.4,
-
             pointRadius: 2
           },
-
           {
             label: "Sensor Light (%)",
-
             data: sensorData,
-
             borderColor: "#38bdf8",
-
-            backgroundColor:
-              "rgba(56,189,248,0.2)",
-
+            backgroundColor: "rgba(56,189,248,0.2)",
             borderWidth: 2,
-
             fill: false,
-
             tension: 0.4,
-
             pointRadius: 2
           }
-
         ]
       },
-
       options: {
-
         responsive: true,
-
         plugins: {
-
           legend: {
             labels: {
               color: "#cbd5e1"
             }
           }
-
         },
-
         scales: {
-
           x: {
             ticks: {
               color: "#94a3b8"
             }
           },
-
           y: {
             ticks: {
               color: "#94a3b8"
             }
           }
-
         }
-
       }
     }
-
   );
 
   /* ========================================
@@ -274,86 +194,88 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   function updateAccessUI() {
+    if (!controlSection) return;
 
-    const controls =
-      controlSection.querySelectorAll(
-        "button, input"
-      );
+    const controls = controlSection.querySelectorAll("button, input");
 
     controls.forEach((el) => {
-
-      if (
-        el.id !== "pinInput" &&
-        el.id !== "unlockBtn"
-      ) {
-
-        el.disabled =
-          !state.unlocked;
-
+      if (el.id !== "pinInput" && el.id !== "unlockBtn") {
+        el.disabled = !state.unlocked;
       }
-
     });
 
-    if (state.unlocked) {
-
-      accessStatus.innerText =
-        "🔓 Control Unlocked";
-
-      accessStatus.style.color =
-        "#22c55e";
-
-    } else {
-
-      accessStatus.innerText =
-        "🔒 Control Locked";
-
-      accessStatus.style.color =
-        "#ef4444";
-
+    if (accessStatus) {
+      if (state.unlocked) {
+        accessStatus.innerText = "🔓 Control Unlocked";
+        accessStatus.style.color = "#22c55e";
+      } else {
+        accessStatus.innerText = "🔒 Control Locked";
+        accessStatus.style.color = "#ef4444";
+      }
     }
-
   }
 
   updateAccessUI();
-function animateValue(el, start, end, duration = 300) {
 
-  let startTime = null;
+  /* ========================================
+     ANIMATE VALUE
+  ======================================== */
 
-  function animate(currentTime) {
+  function animateValue(el, start, end, duration = 300) {
+    if (!el) return;
 
-    if (!startTime)
-      startTime = currentTime;
+    let startTime = null;
 
-    const progress =
-      Math.min(
-        (currentTime - startTime) /
-        duration,
-        1
-      );
+    function animate(currentTime) {
+      if (!startTime) startTime = currentTime;
 
-    const value =
-      Math.floor(
-        progress *
-        (end - start) +
-        start
-      );
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+      const value = Math.floor(progress * (end - start) + start);
 
-    el.innerText = value;
+      el.innerText = value;
 
-    if (progress < 1)
-      requestAnimationFrame(animate);
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    }
 
+    requestAnimationFrame(animate);
   }
 
-  requestAnimationFrame(animate);
+  /* ========================================
+     UPDATE CLOCK
+  ======================================== */
 
-}
-   /* ========================================
+  function updateClock() {
+    const now = new Date();
+
+    if (dateText) {
+      const options = {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      };
+      dateText.innerText = now.toLocaleDateString("en-US", options);
+    }
+
+    if (clockText) {
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+      clockText.innerText = `${hours}:${minutes}:${seconds}`;
+    }
+  }
+
+  // Update clock every second
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  /* ========================================
      RENDER UI
   ======================================== */
 
   function renderUI() {
-
     // ✅ DASHBOARD TEMPERATURE (animate)
     if (tempEl) {
       animateValue(
@@ -410,13 +332,18 @@ function animateValue(el, start, end, duration = 300) {
       monitorLampStatus.style.color = state.lampState ? "#22c55e" : "#ef4444";
     }
 
+    // ✅ LAMP STATE TEXT (Control)
+    if (lampStateText) {
+      lampStateText.innerText = state.lampState ? "ON" : "OFF";
+    }
+
     // ✅ CONNECTION STATUS
     if (connStatus) {
       connStatus.innerText = "Realtime Connected";
       connStatus.style.color = "#22c55e";
     }
-
   }
+
   /* ========================================
      FIREBASE REALTIME
   ======================================== */
@@ -424,108 +351,65 @@ function animateValue(el, start, end, duration = 300) {
   const rootRef = ref(db);
 
   onValue(
-
     rootRef,
-
     (snapshot) => {
-
       const data = snapshot.val();
 
       if (!data) return;
 
-      const sensor =
-        data.sensor || {};
-
-      const control =
-        data.control || {};
-
-      const lamp =
-        control.lamp || {};
+      const sensor = data.sensor || {};
+      const control = data.control || {};
+      const lamp = control.lamp || {};
 
       /* =========================
          UPDATE STATE
       ========================= */
 
-      state.temperature =
-        sensor.suhu || 0;
-
-      state.sensorLight =
-        sensor.cahaya || 0;
-
-      state.brightness =
-        lamp.brightness || 0;
-
-      state.lampState =
-        lamp.state || false;
+      state.temperature = sensor.suhu || 0;
+      state.sensorLight = sensor.cahaya || 0;
+      state.brightness = lamp.brightness || 0;
+      state.lampState = lamp.state || false;
 
       /* =========================
          UPDATE CHART
       ========================= */
 
-      const time =
-        new Date()
-        .toLocaleTimeString();
+      const time = new Date().toLocaleTimeString();
 
       // TEMP CHART
-
       tempLabels.push(time);
-
-      tempData.push(
-        state.temperature
-      );
+      tempData.push(state.temperature);
 
       if (tempLabels.length > 10) {
-
         tempLabels.shift();
         tempData.shift();
-
       }
 
       tempChart.update();
 
       // LIGHT CHART
-
       lightLabels.push(time);
-
-      lampData.push(
-        state.brightness
-      );
-
-      sensorData.push(
-        state.sensorLight
-      );
+      lampData.push(state.brightness);
+      sensorData.push(state.sensorLight);
 
       if (lightLabels.length > 10) {
-
         lightLabels.shift();
-
         lampData.shift();
-
         sensorData.shift();
-
       }
 
       lightChart.update();
 
       renderUI();
-
     },
-
     (error) => {
-
       console.error(error);
 
-      connStatus.innerText =
-        "Disconnected";
-
-      connStatus.style.color =
-        "#ef4444";
-
-      statusDot.style.background =
-        "#ef4444";
-
+      if (connStatus) {
+        connStatus.innerText = "Disconnected";
+        connStatus.style.color = "#ef4444";
+      }
     }
-
   );
 
   /* ========================================
@@ -533,183 +417,127 @@ function animateValue(el, start, end, duration = 300) {
   ======================================== */
 
   function setBrightness(value) {
-
-    const val =
-      Math.max(
-        0,
-        Math.min(100, value)
-      );
+    const val = Math.max(0, Math.min(100, value));
 
     set(
-      ref(
-        db,
-        "control/lamp/brightness"
-      ),
+      ref(db, "control/lamp/brightness"),
       Number(val)
     );
-
   }
 
   /* ========================================
      DIMMER EVENT
   ======================================== */
 
-  dimmer.addEventListener(
-    "input",
-    (e) => {
+  if (dimmer) {
+    dimmer.addEventListener("input", (e) => {
+      setBrightness(e.target.value);
+    });
+  }
 
-      setBrightness(
-        e.target.value
-      );
+  if (dimmerInput) {
+    dimmerInput.addEventListener("input", (e) => {
+      setBrightness(e.target.value);
+    });
+  }
 
-    }
-  );
+  /* ========================================
+     MINUS/PLUS BUTTON
+  ======================================== */
 
-  dimmerInput.addEventListener(
-    "input",
-    (e) => {
+  if (minusBtn) {
+    minusBtn.addEventListener("click", () => {
+      const currentValue = parseInt(dimmerInput.value) || 0;
+      const newValue = Math.max(0, currentValue - 10);
+      setBrightness(newValue);
+    });
+  }
 
-      setBrightness(
-        e.target.value
-      );
-
-    }
-  );
+  if (plusBtn) {
+    plusBtn.addEventListener("click", () => {
+      const currentValue = parseInt(dimmerInput.value) || 0;
+      const newValue = Math.min(100, currentValue + 10);
+      setBrightness(newValue);
+    });
+  }
 
   /* ========================================
      BUTTON CONTROL
   ======================================== */
 
-  btnOn.addEventListener(
-    "click",
-    () => {
+  if (btnOn) {
+    btnOn.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), true);
+    });
+  }
 
-      set(
-        ref(
-          db,
-          "control/lamp/state"
-        ),
-        true
-      );
-
-    }
-  );
-
-  btnOff.addEventListener(
-    "click",
-    () => {
-
-      set(
-        ref(
-          db,
-          "control/lamp/state"
-        ),
-        false
-      );
-
-      set(
-        ref(
-          db,
-          "control/lamp/brightness"
-        ),
-        0
-      );
-
-    }
-  );
+  if (btnOff) {
+    btnOff.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), false);
+      set(ref(db, "control/lamp/brightness"), 0);
+    });
+  }
 
   /* ========================================
      PIN ACCESS
   ======================================== */
 
-  unlockBtn.addEventListener(
-    "click",
-    () => {
+  if (unlockBtn) {
+    unlockBtn.addEventListener("click", () => {
+      const pin = pinInput.value;
 
-      const pin =
-        pinInput.value;
-
-      const pinRef =
-        ref(
-          db,
-          "system/adminpin"
-        );
+      const pinRef = ref(db, "system/adminpin");
 
       onValue(
-
         pinRef,
-
         (snapshot) => {
+          const correctPin = snapshot.val();
 
-          const correctPin =
-            snapshot.val();
-
-          if (
-            pin ===
-            String(correctPin)
-          ) {
-
-            state.unlocked =
-              true;
-
+          if (pin === String(correctPin)) {
+            state.unlocked = true;
             updateAccessUI();
-
             pinInput.value = "";
-
           } else {
-
             alert("Wrong PIN");
-
           }
-
         },
-
         {
           onlyOnce: true
         }
-
       );
-
-    }
-  );
-/* ========================================
-   SIDEBAR NAVIGATION
-======================================== */
-
-const menuItems =
-  document.querySelectorAll(".menu-item");
-
-const sections =
-  document.querySelectorAll(".page-section");
-
-menuItems.forEach((item) => {
-
-  item.addEventListener("click", () => {
-
-    // remove active menu
-    menuItems.forEach((menu) => {
-      menu.classList.remove("active");
     });
+  }
 
-    // active current menu
-    item.classList.add("active");
+  /* ========================================
+     SIDEBAR NAVIGATION
+  ======================================== */
 
-    // hide all section
-    sections.forEach((section) => {
-      section.classList.add("hidden");
+  const menuItems = document.querySelectorAll(".menu-item");
+  const sections = document.querySelectorAll(".page-section");
+
+  menuItems.forEach((item) => {
+    item.addEventListener("click", () => {
+      // remove active menu
+      menuItems.forEach((menu) => {
+        menu.classList.remove("active");
+      });
+
+      // active current menu
+      item.classList.add("active");
+
+      // hide all section
+      sections.forEach((section) => {
+        section.classList.add("hidden");
+      });
+
+      // show selected section
+      const target = item.dataset.target;
+      const targetSection = document.getElementById(target);
+
+      if (targetSection) {
+        targetSection.classList.remove("hidden");
+      }
     });
-
-    // show selected section
-    const target =
-      item.dataset.target;
-
-    const targetSection =
-      document.getElementById(target);
-
-    if (targetSection) {
-      targetSection.classList.remove("hidden");
-    }
-
   });
 
 });
