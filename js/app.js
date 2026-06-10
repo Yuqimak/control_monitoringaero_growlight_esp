@@ -49,6 +49,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const lampStatus =
     document.getElementById("lampStatus");
+  const monitorTemp =
+document.getElementById("monitorTemp");
+
+const monitorLight =
+document.getElementById("monitorLight");
+
+const monitorLampStatus =
+document.getElementById("monitorLampStatus");
 
   const dimmer =
     document.getElementById("dimmer");
@@ -702,5 +710,4 @@ menuItems.forEach((item) => {
 
   });
 
-});
 });
