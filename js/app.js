@@ -28,36 +28,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
   };
 
-  /* ========================================
+   /* ========================================
      DOM
   ======================================== */
 
+  // DISPLAY ELEMENTS (untuk dashboard + monitoring)
   const tempEl =
     document.getElementById("temp");
 
   const lightEl =
     document.getElementById("light");
 
+  const lampStatus =
+    document.getElementById("lampStatus");
+
+  // MONITORING DISPLAY ELEMENTS
+  const monitorTemp =
+    document.getElementById("monitorTemp");
+
+  const monitorLight =
+    document.getElementById("monitorLight");
+
+  const monitorLampStatus =
+    document.getElementById("monitorLampStatus");
+
+  // LIGHT BAR
   const lightBar =
     document.getElementById("lightBar");
 
+  // CONNECTION STATUS
   const connStatus =
     document.getElementById("connStatus");
 
-  const statusDot =
-    document.getElementById("statusDot");
-
-  const lampStatus =
-    document.getElementById("lampStatus");
-  const monitorTemp =
-document.getElementById("monitorTemp");
-
-const monitorLight =
-document.getElementById("monitorLight");
-
-const monitorLampStatus =
-document.getElementById("monitorLampStatus");
-
+  // DIMMER ELEMENTS
   const dimmer =
     document.getElementById("dimmer");
 
@@ -67,12 +70,14 @@ document.getElementById("monitorLampStatus");
   const dimmerValue =
     document.getElementById("dimmerValue");
 
+  // BUTTON ELEMENTS
   const btnOn =
     document.getElementById("btnOn");
 
   const btnOff =
     document.getElementById("btnOff");
 
+  // SECURITY ELEMENTS
   const pinInput =
     document.getElementById("pinInput");
 
@@ -82,16 +87,9 @@ document.getElementById("monitorLampStatus");
   const accessStatus =
     document.getElementById("accessStatus");
 
+  // CONTROL SECTION
   const controlSection =
-    document.getElementById("controlSection");
-  const dashboardTemp =
-  document.getElementById("dashboardTemp");
-
-const dashboardLight =
-  document.getElementById("dashboardLight");
-
-const dashboardLamp =
-  document.getElementById("dashboardLamp");  
+    document.getElementById("controlSection");  
 
   /* ========================================
      CHART DATA
