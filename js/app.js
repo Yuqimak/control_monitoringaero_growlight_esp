@@ -348,71 +348,75 @@ function animateValue(el, start, end, duration = 300) {
   requestAnimationFrame(animate);
 
 }
-  /* ========================================
+   /* ========================================
      RENDER UI
   ======================================== */
 
   function renderUI() {
 
-   animateValue(
-  tempEl,
-  Number(tempEl.innerText) || 0,
-  state.temperature
-);
-animateValue(
-  lightEl,
-  Number(lightEl.innerText) || 0,
-  state.sensorLight
-);
+    // ✅ DASHBOARD TEMPERATURE (animate)
+    if (tempEl) {
+      animateValue(
+        tempEl,
+        Number(tempEl.innerText) || 0,
+        state.temperature
+      );
+    }
 
-    lightBar.style.width =
-      `${state.brightness}%`;
+    // ✅ DASHBOARD LIGHT (animate)
+    if (lightEl) {
+      animateValue(
+        lightEl,
+        Number(lightEl.innerText) || 0,
+        state.sensorLight
+      );
+    }
 
-    dimmer.value =
-      state.brightness;
+    // ✅ MONITORING TEMPERATURE
+    if (monitorTemp) {
+      monitorTemp.innerText = state.temperature;
+    }
 
-    dimmerInput.value =
-      state.brightness;
+    // ✅ MONITORING LIGHT
+    if (monitorLight) {
+      monitorLight.innerText = state.sensorLight;
+    }
 
-    dimmerValue.innerText =
-      state.brightness;
+    // ✅ LIGHT BAR
+    if (lightBar) {
+      lightBar.style.width = `${state.brightness}%`;
+    }
 
-    lampStatus.innerText =
-      state.lampState
-        ? "ON"
-        : "OFF";
+    // ✅ DIMMER CONTROLS
+    if (dimmer) {
+      dimmer.value = state.brightness;
+    }
+    if (dimmerInput) {
+      dimmerInput.value = state.brightness;
+    }
+    if (dimmerValue) {
+      dimmerValue.innerText = state.brightness;
+    }
 
-    lampStatus.style.color =
-      state.lampState
-        ? "#22c55e"
-        : "#ef4444";
-    dashboardTemp.innerText =
-  state.temperature;
+    // ✅ LAMP STATUS (Dashboard)
+    if (lampStatus) {
+      lampStatus.innerText = state.lampState ? "ON" : "OFF";
+      lampStatus.style.color = state.lampState ? "#22c55e" : "#ef4444";
+    }
 
-dashboardLight.innerText =
-  state.sensorLight;
+    // ✅ LAMP STATUS (Monitoring)
+    if (monitorLampStatus) {
+      monitorLampStatus.innerText = state.lampState ? "ON" : "OFF";
+      monitorLampStatus.style.color = state.lampState ? "#22c55e" : "#ef4444";
+    }
 
-dashboardLamp.innerText =
-  state.lampState
-    ? "ON"
-    : "OFF";
-
-dashboardLamp.style.color =
-  state.lampState
-    ? "#22c55e"
-    : "#ef4444";
-
-    connStatus.innerText =
-      "Realtime Connected";
-
-    connStatus.style.color =
-      "#22c55e";
-
-    statusDot.style.background =
-      "#22c55e";
+    // ✅ CONNECTION STATUS
+    if (connStatus) {
+      connStatus.innerText = "Realtime Connected";
+      connStatus.style.color = "#22c55e";
+    }
 
   }
-
   /* ========================================
      FIREBASE REALTIME
   ======================================== */
