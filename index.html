@@ -122,61 +122,36 @@
       <!-- ======================================
            TOPBAR
       ======================================= -->
+<header class="topbar">
 
-      <header class="topbar">
+  <!-- WRAPPER KIRI: Tombol + Title -->
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">
+      ☰
+    </button>
 
-        <!-- TITLE -->
+    <div>
+      <h1>🌱 IoT Greenhouse</h1>
+      <p class="subtitle">Smart Monitoring & Control System</p>
+    </div>
+  </div>
 
-        <div>
+  <!-- STATUS (tetap di kanan) -->
+  <div class="topbar-right">
+    <div class="status-card">
+      <p class="online-text">● Online</p>
+      <p class="firebase-text">
+        Firebase : <span id="connStatus">Connecting...</span>
+      </p>
+    </div>
+    <div class="clock-card">
+      <p id="dateText">--</p>
+      <h3 id="clockText">--:--:--</h3>
+    </div>
+  </div>
 
-          <h1>
-            🌱 IoT Greenhouse
-          </h1>
-
-          <p class="subtitle">
-            Smart Monitoring &
-            Control System
-          </p>
-
-        </div>
-
-        <!-- STATUS -->
-
-        <div class="topbar-right">
-
-          <div class="status-card">
-
-            <p class="online-text">
-              ● Online
-            </p>
-
-            <p class="firebase-text">
-
-              Firebase :
-
-              <span id="connStatus">
-                Connecting...
-              </span>
-
-            </p>
-
-          </div>
-
-          <div class="clock-card">
-
-            <p id="dateText">
-              --
-            </p>
-
-            <h3 id="clockText">
-              --:--:--
-            </h3>
-
-          </div>
-
-        </div>
-
-      </header>
+</header>
+  
 <!-- ======================================
      DASHBOARD
 ====================================== -->
