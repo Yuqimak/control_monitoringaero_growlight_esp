@@ -670,43 +670,49 @@ dashboardLamp.style.color =
 
     }
   );
-/* ========================================
-   SIDEBAR NAVIGATION
-======================================== */
+  /* ========================================
+     SIDEBAR NAVIGATION
+  ======================================== */
 
-const menuItems =
-  document.querySelectorAll(".menu-item");
+  const menuItems =
+    document.querySelectorAll(".menu-item");
 
-const sections =
-  document.querySelectorAll(".page-section");
+  const sections =
+    document.querySelectorAll(".page-section");
 
-menuItems.forEach((item) => {
+  menuItems.forEach((item) => {
 
-  item.addEventListener("click", () => {
+    item.addEventListener("click", () => {
 
-    // remove active menu
-    menuItems.forEach((menu) => {
-      menu.classList.remove("active");
+      // remove active menu
+      menuItems.forEach((menu) => {
+        menu.classList.remove("active");
+      });
+
+      // active current menu
+      item.classList.add("active");
+
+      // hide all section
+      sections.forEach((section) => {
+        section.classList.add("hidden");
+      });
+
+      // show selected section
+      const target =
+        item.dataset.target;
+
+      const targetSection =
+        document.getElementById(target);
+
+      if (targetSection) {
+        targetSection.classList.remove("hidden");
+      }
+
     });
 
-    // active current menu
-    item.classList.add("active");
+  });
 
-    // hide all section
-    sections.forEach((section) => {
-      section.classList.add("hidden");
-    });
-
-    // show selected section
-    const target =
-      item.dataset.target;
-
-    const targetSection =
-      document.getElementById(target);
-
-    if (targetSection) {
-      targetSection.classList.remove("hidden");
-    }
+}); // <-- INI YANG KURANG!
 
   });
 
