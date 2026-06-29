@@ -12,10 +12,6 @@ import {
 
 document.addEventListener("DOMContentLoaded", () => {
 
-  /* ========================================
-     STATE
-  ======================================== */
-
   const state = {
     temperature: 0,
     sensorLight: 0,
@@ -23,10 +19,6 @@ document.addEventListener("DOMContentLoaded", () => {
     lampState: false,
     unlocked: false
   };
-
-  /* ========================================
-     DOM
-  ======================================== */
 
   const tempEl = document.getElementById("temp");
   const lightEl = document.getElementById("light");
@@ -50,19 +42,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashboardLight = document.getElementById("dashboardLight");
   const dashboardLamp = document.getElementById("dashboardLamp");
 
-  /* ========================================
-     CHART DATA
-  ======================================== */
-
   const tempLabels = [];
   const tempData = [];
   const lightLabels = [];
   const lampData = [];
   const sensorData = [];
-
-  /* ========================================
-     TEMPERATURE CHART
-  ======================================== */
 
   const tempChart = new Chart(
     document.getElementById("tempChart"),
@@ -107,10 +91,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   );
-
-  /* ========================================
-     LIGHT CHART
-  ======================================== */
 
   const lightChart = new Chart(
     document.getElementById("lightChart"),
@@ -166,10 +146,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  /* ========================================
-     ACCESS UI
-  ======================================== */
-
   function updateAccessUI() {
     const controls = controlSection.querySelectorAll("button, input");
     controls.forEach((el) => {
@@ -202,10 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(animate);
   }
 
-  /* ========================================
-     RENDER UI
-  ======================================== */
-
   function renderUI() {
     animateValue(tempEl, Number(tempEl.innerText) || 0, state.temperature);
     animateValue(lightEl, Number(lightEl.innerText) || 0, state.sensorLight);
@@ -227,10 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
     connStatus.style.color = "#22c55e";
     statusDot.style.background = "#22c55e";
   }
-
-  /* ========================================
-     FIREBASE REALTIME
-  ======================================== */
 
   const rootRef = ref(db);
 
@@ -281,18 +249,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  /* ========================================
-     SET BRIGHTNESS
-  ======================================== */
-
   function setBrightness(value) {
     const val = Math.max(0, Math.min(100, value));
     set(ref(db, "control/lamp/brightness"), Number(val));
   }
-
-  /* ========================================
-     DIMMER EVENT
-  ======================================== */
 
   dimmer.addEventListener("input", (e) => {
     setBrightness(e.target.value);
@@ -302,10 +262,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setBrightness(e.target.value);
   });
 
-  /* ========================================
-     BUTTON CONTROL
-  ======================================== */
-
   btnOn.addEventListener("click", () => {
     set(ref(db, "control/lamp/state"), true);
   });
@@ -314,10 +270,6 @@ document.addEventListener("DOMContentLoaded", () => {
     set(ref(db, "control/lamp/state"), false);
     set(ref(db, "control/lamp/brightness"), 0);
   });
-
-  /* ========================================
-     PIN ACCESS
-  ======================================== */
 
   unlockBtn.addEventListener("click", () => {
     const pin = pinInput.value;
@@ -340,10 +292,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     );
   });
-
-  /* ========================================
-     SIDEBAR NAVIGATION
-  ======================================== */
 
   const menuItems = document.querySelectorAll(".menu-item");
   const sections = document.querySelectorAll(".page-section");
@@ -368,4 +316,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-}); // <-- TUTUP DOMContentLoaded
+});
