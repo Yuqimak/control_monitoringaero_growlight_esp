@@ -670,7 +670,7 @@ dashboardLamp.style.color =
 
     }
   );
-  /* ========================================
+    /* ========================================
      SIDEBAR NAVIGATION
   ======================================== */
 
@@ -712,8 +712,6 @@ dashboardLamp.style.color =
 
   });
 
-}); // <-- INI YANG KURANG!
+}); // <-- INI SATU-SATUNYA TUTUP
 
-  });
-
-});
+// PASTIKAN TIDAK ADA KURUNG LAIN SETELAH INI!
