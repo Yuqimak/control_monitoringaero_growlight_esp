@@ -24,23 +24,30 @@ document.addEventListener("DOMContentLoaded", () => {
      DOM - SEMUA ADA DI HTML
   ======================================== */
 
-  const tempEl = document.getElementById("temp");
-  const lightEl = document.getElementById("light");
-  const lightBar = document.getElementById("lightBar");
-  const connStatus = document.getElementById("connStatus");
-  const lampStatus = document.getElementById("lampStatus");
-  const monitorTemp = document.getElementById("monitorTemp");
-  const monitorLight = document.getElementById("monitorLight");
-  const monitorLampStatus = document.getElementById("monitorLampStatus");
-  const dimmer = document.getElementById("dimmer");
-  const dimmerInput = document.getElementById("dimmerInput");
-  const dimmerValue = document.getElementById("dimmerValue");
-  const btnOn = document.getElementById("btnOn");
-  const btnOff = document.getElementById("btnOff");
-  const pinInput = document.getElementById("pinInput");
-  const unlockBtn = document.getElementById("unlockBtn");
-  const accessStatus = document.getElementById("accessStatus");
-  const controlSection = document.getElementById("controlSection");
+  // Ambil semua element dengan safety check
+  const getEl = (id) => {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`Element #${id} not found!`);
+    return el;
+  };
+
+  const tempEl = getEl("temp");
+  const lightEl = getEl("light");
+  const lightBar = getEl("lightBar");
+  const connStatus = getEl("connStatus");
+  const lampStatus = getEl("lampStatus");
+  const monitorTemp = getEl("monitorTemp");
+  const monitorLight = getEl("monitorLight");
+  const monitorLampStatus = getEl("monitorLampStatus");
+  const dimmer = getEl("dimmer");
+  const dimmerInput = getEl("dimmerInput");
+  const dimmerValue = getEl("dimmerValue");
+  const btnOn = getEl("btnOn");
+  const btnOff = getEl("btnOff");
+  const pinInput = getEl("pinInput");
+  const unlockBtn = getEl("unlockBtn");
+  const accessStatus = getEl("accessStatus");
+  const controlSection = getEl("controlSection");
 
   /* ========================================
      CHART DATA
@@ -56,9 +63,10 @@ document.addEventListener("DOMContentLoaded", () => {
      TEMPERATURE CHART
   ======================================== */
 
-  const tempChart = new Chart(
-    document.getElementById("tempChart"),
-    {
+  const tempChartEl = document.getElementById("tempChart");
+  let tempChart = null;
+  if (tempChartEl) {
+    tempChart = new Chart(tempChartEl, {
       type: "line",
       data: {
         labels: tempLabels,
@@ -97,16 +105,17 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
       }
-    }
-  );
+    });
+  }
 
   /* ========================================
      LIGHT CHART
   ======================================== */
 
-  const lightChart = new Chart(
-    document.getElementById("lightChart"),
-    {
+  const lightChartEl = document.getElementById("lightChart");
+  let lightChart = null;
+  if (lightChartEl) {
+    lightChart = new Chart(lightChartEl, {
       type: "line",
       data: {
         labels: lightLabels,
@@ -155,14 +164,16 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         }
       }
-    }
-  );
+    });
+  }
 
   /* ========================================
      ACCESS UI
   ======================================== */
 
   function updateAccessUI() {
+    if (!controlSection || !accessStatus) return;
+    
     const controls = controlSection.querySelectorAll("button, input");
     controls.forEach((el) => {
       if (el.id !== "pinInput" && el.id !== "unlockBtn") {
@@ -182,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateAccessUI();
 
   function animateValue(el, start, end, duration = 300) {
-    if (!el) return; // Safety check
+    if (!el) return;
     let startTime = null;
 
     function animate(currentTime) {
@@ -201,8 +212,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderUI() {
     // Dashboard cards
-    animateValue(tempEl, Number(tempEl.innerText) || 0, state.temperature);
-    animateValue(lightEl, Number(lightEl.innerText) || 0, state.sensorLight);
+    if (tempEl) {
+      animateValue(tempEl, Number(tempEl.innerText) || 0, state.temperature);
+    }
+    if (lightEl) {
+      animateValue(lightEl, Number(lightEl.innerText) || 0, state.sensorLight);
+    }
     
     // Monitoring cards
     if (monitorTemp) {
@@ -226,12 +241,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const lampStatusText = state.lampState ? "ON" : "OFF";
     const lampColor = state.lampState ? "#22c55e" : "#ef4444";
     
-    // Update all elements with lamp status
-    const allLampStatus = document.querySelectorAll('#lampStatus, #monitorLampStatus');
-    allLampStatus.forEach(el => {
-      el.innerText = lampStatusText;
-      el.style.color = lampColor;
-    });
+    // Update specific elements
+    if (lampStatus) {
+      lampStatus.innerText = lampStatusText;
+      lampStatus.style.color = lampColor;
+    }
+    if (monitorLampStatus) {
+      monitorLampStatus.innerText = lampStatusText;
+      monitorLampStatus.style.color = lampColor;
+    }
 
     // Connection status
     if (connStatus) {
@@ -266,24 +284,28 @@ document.addEventListener("DOMContentLoaded", () => {
       const time = new Date().toLocaleTimeString();
 
       // Update temp chart
-      tempLabels.push(time);
-      tempData.push(state.temperature);
-      if (tempLabels.length > 10) {
-        tempLabels.shift();
-        tempData.shift();
+      if (tempChart) {
+        tempLabels.push(time);
+        tempData.push(state.temperature);
+        if (tempLabels.length > 10) {
+          tempLabels.shift();
+          tempData.shift();
+        }
+        tempChart.update();
       }
-      tempChart.update();
 
       // Update light chart
-      lightLabels.push(time);
-      lampData.push(state.brightness);
-      sensorData.push(state.sensorLight);
-      if (lightLabels.length > 10) {
-        lightLabels.shift();
-        lampData.shift();
-        sensorData.shift();
+      if (lightChart) {
+        lightLabels.push(time);
+        lampData.push(state.brightness);
+        sensorData.push(state.sensorLight);
+        if (lightLabels.length > 10) {
+          lightLabels.shift();
+          lampData.shift();
+          sensorData.shift();
+        }
+        lightChart.update();
       }
-      lightChart.update();
 
       renderUI();
     },
@@ -302,7 +324,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function setBrightness(value) {
     const val = Math.max(0, Math.min(100, value));
-    set(ref(db, "control/lamp/brightness"), Number(val));
+    set(ref(db, "control/lamp/brightness"), Number(val))
+      .catch(err => console.error("Set brightness error:", err));
   }
 
   /* ========================================
@@ -327,14 +350,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
   if (btnOn) {
     btnOn.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), true);
+      set(ref(db, "control/lamp/state"), true)
+        .catch(err => console.error("Set state error:", err));
     });
   }
 
   if (btnOff) {
     btnOff.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), false);
-      set(ref(db, "control/lamp/brightness"), 0);
+      set(ref(db, "control/lamp/state"), false)
+        .catch(err => console.error("Set state error:", err));
+      set(ref(db, "control/lamp/brightness"), 0)
+        .catch(err => console.error("Set brightness error:", err));
     });
   }
 
@@ -342,9 +368,9 @@ document.addEventListener("DOMContentLoaded", () => {
      PIN ACCESS
   ======================================== */
 
-  if (unlockBtn) {
+  if (unlockBtn && pinInput) {
     unlockBtn.addEventListener("click", () => {
-      const pin = pinInput ? pinInput.value : "";
+      const pin = pinInput.value;
       const pinRef = ref(db, "system/adminpin");
 
       onValue(
@@ -354,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
           if (pin === String(correctPin)) {
             state.unlocked = true;
             updateAccessUI();
-            if (pinInput) pinInput.value = "";
+            pinInput.value = "";
           } else {
             alert("Wrong PIN");
           }
@@ -418,5 +444,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
   updateClock();
   setInterval(updateClock, 1000);
+
+  // Log semua element yang ditemukan
+  console.log("✅ Elements loaded:", {
+    tempEl: !!tempEl,
+    lightEl: !!lightEl,
+    lightBar: !!lightBar,
+    connStatus: !!connStatus,
+    lampStatus: !!lampStatus,
+    monitorTemp: !!monitorTemp,
+    monitorLight: !!monitorLight,
+    monitorLampStatus: !!monitorLampStatus,
+    dimmer: !!dimmer,
+    dimmerInput: !!dimmerInput,
+    dimmerValue: !!dimmerValue,
+    btnOn: !!btnOn,
+    btnOff: !!btnOff,
+    pinInput: !!pinInput,
+    unlockBtn: !!unlockBtn,
+    accessStatus: !!accessStatus,
+    controlSection: !!controlSection
+  });
 
 });
