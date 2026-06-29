@@ -1074,260 +1074,235 @@ canvas{
 
   pointer-events:auto;
 }
-
-/* =========================
-   RESPONSIVE
-========================= */
-/* =========================
-   PAGE HIDE
-========================= */
-
-.hidden{
-  display:none;
-}
-@media (max-width:1200px){
-
-  .hero-live{
-
-    grid-template-columns:
-      1fr;
-  }
-
-  .monitor-grid{
-
-    grid-template-columns:
-      1fr 1fr;
-  }
-}
-
-@media (max-width:950px){
-
-  .dashboard{
-
-    flex-direction:column;
-  }
-
-  .sidebar{
-
-    position:fixed;
-
-    left:0;
-    top:0;
-
-    width:280px;
-
-    transform:
-      translateX(-100%);
-
-    transition:
-      transform .35s ease;
-
-    z-index:999;
-  }
-
-  .sidebar.active{
-
-    transform:
-      translateX(0);
-  }
-
-  .main-content{
-
-    width:100%;
-
-    padding:20px;
-  }
-
-  .topbar{
-
-    flex-direction:column;
-
-    align-items:flex-start;
-  }
-
-  .topbar-right{
-
-    width:100%;
-
-    flex-direction:column;
-  }
-
-  .status-card,
-  .clock-card{
-
-    width:100%;
-  }
-
-  .monitor-grid,
-  .analytics-grid,
-  .control-grid,
-  .security-grid{
-
-    grid-template-columns:
-      1fr;
-  }
-}
-
-@media (max-width:600px){
-
-  .main-content{
-
-    padding:16px;
-  }
-
-  .section{
-
-    margin-bottom:24px;
-  }
-
-  .topbar h1{
-
-    font-size:28px;
-  }
-
-  .monitor-card,
-  .analytics-card,
-  .control-card,
-  .security-card{
-
-    padding:18px;
-
-    border-radius:22px;
-  }
-
-  .metric{
-
-    font-size:34px;
-  }
-
-  .live-value{
-
-    font-size:54px;
-  }
-
-  .button-row{
-
-    flex-direction:column;
-  }
-
-  .dimmer-row{
-
-    flex-wrap:wrap;
-  }
-}
-```
 /* ========================================
-   MOBILE NAVBAR
+   RESPONSIVE - FIX VERSION
 ======================================== */
 
-/* Tombol Hamburger */
+/* Tombol Hamburger - SELALU TAMPIL DI MOBILE */
 .menu-toggle {
   display: none;
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   font-size: 28px;
   color: #e2e8f0;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.2s;
+  padding: 8px 14px;
+  border-radius: 12px;
+  transition: all 0.2s;
+  line-height: 1;
 }
 
-.menu-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
+.menu-toggle:hover,
+.menu-toggle:active {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 /* Mobile overlay */
 .mobile-overlay {
-  display: none;
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
   z-index: 998;
+  transition: opacity 0.3s ease;
 }
 
 .mobile-overlay.active {
-  display: block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ========================================
-   RESPONSIVE - TABLET & MOBILE
+   RESPONSIVE BREAKPOINTS
 ======================================== */
 
+/* TABLET & MOBILE */
+@media (max-width: 992px) {
+  .monitor-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 768px) {
-  /* Tampilkan tombol hamburger */
+  /* TAMPILKAN TOMBOL HAMBURGER */
   .menu-toggle {
-    display: block;
+    display: block !important;
     order: -1;
   }
 
-  /* Sidebar menjadi off-canvas */
+  /* SIDEBAR JADI SLIDE-IN */
   .sidebar {
-    position: fixed;
+    position: fixed !important;
     top: 0;
     left: 0;
     width: 280px;
-    height: 100%;
+    height: 100vh;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    z-index: 999;
-    background: #0f172a;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 999 !important;
+    background: #0f172a !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.6);
+    overflow-y: auto;
+    padding: 20px 16px;
   }
 
   .sidebar.active {
-    transform: translateX(0);
+    transform: translateX(0) !important;
   }
 
-  /* Main content full width */
+  /* MAIN CONTENT FULL WIDTH */
   .main-content {
     margin-left: 0 !important;
-    padding: 16px;
+    padding: 14px !important;
+    width: 100%;
   }
 
-  /* Topbar adjustment */
+  /* TOPBAR */
   .topbar {
+    display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
   }
 
   .topbar h1 {
-    font-size: 18px;
+    font-size: 20px !important;
+    margin-bottom: 2px;
+  }
+
+  .subtitle {
+    font-size: 12px;
   }
 
   .topbar-right {
     width: 100%;
+    display: flex;
+    flex-direction: row;
     justify-content: space-between;
+    gap: 8px;
   }
 
-  /* Grid cards menjadi 1 kolom */
-  .monitor-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .analytics-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .control-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .security-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* Clock card lebih kecil */
+  .status-card,
   .clock-card {
-    padding: 8px 12px;
+    padding: 10px 14px;
+    min-width: auto;
+    flex: 1;
+  }
+
+  .status-card {
+    font-size: 12px;
   }
   .clock-card h3 {
-    font-size: 20px;
+    font-size: 18px;
   }
   .clock-card p {
-    font-size: 12px;
+    font-size: 11px;
+  }
+
+  /* GRID 1 KOLOM */
+  .monitor-grid,
+  .analytics-grid,
+  .control-grid,
+  .security-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  /* CARDS */
+  .monitor-card,
+  .analytics-card,
+  .control-card,
+  .security-card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .metric {
+    font-size: 32px;
+  }
+
+  .live-value {
+    font-size: 44px;
+  }
+
+  /* BUTTONS */
+  .button-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .big-btn {
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  .dimmer-row {
+    flex-wrap: wrap;
+  }
+
+  .adjust-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  #dimmerInput {
+    width: 60px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 17px;
+    margin-bottom: 12px;
+  }
+
+  /* CHART */
+  canvas {
+    max-height: 140px;
+  }
+}
+
+/* HP KECIL */
+@media (max-width: 480px) {
+  .main-content {
+    padding: 10px !important;
+  }
+
+  .topbar h1 {
+    font-size: 17px !important;
+  }
+
+  .status-card,
+  .clock-card {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .clock-card h3 {
+    font-size: 15px;
+  }
+
+  .metric {
+    font-size: 26px;
+  }
+
+  .card-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .menu-toggle {
+    font-size: 22px;
+    padding: 6px 10px;
+  }
+
+  .sidebar {
+    width: 250px;
   }
 }
