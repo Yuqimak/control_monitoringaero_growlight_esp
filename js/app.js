@@ -238,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
     rootRef,
     (snapshot) => {
       const data = snapshot.val();
-      console.log("Firebase Data:", data); // Debug
+      console.log("Firebase Data:", data);
 
       if (!data) return;
 
@@ -246,22 +246,13 @@ document.addEventListener("DOMContentLoaded", () => {
       const control = data.control || {};
       const lamp = control.lamp || {};
 
-      /* =========================
-         UPDATE STATE
-      ========================= */
-
       state.temperature = sensor.suhu || 0;
       state.sensorLight = sensor.cahaya || 0;
       state.brightness = lamp.brightness || 0;
       state.lampState = lamp.state || false;
 
-      /* =========================
-         UPDATE CHART
-      ========================= */
-
       const time = new Date().toLocaleTimeString();
 
-      // TEMP CHART
       tempLabels.push(time);
       tempData.push(state.temperature);
       if (tempLabels.length > 10) {
@@ -270,7 +261,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       tempChart.update();
 
-      // LIGHT CHART
       lightLabels.push(time);
       lampData.push(state.brightness);
       sensorData.push(state.sensorLight);
@@ -360,20 +350,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   menuItems.forEach((item) => {
     item.addEventListener("click", () => {
-      // remove active menu
       menuItems.forEach((menu) => {
         menu.classList.remove("active");
       });
 
-      // active current menu
       item.classList.add("active");
 
-      // hide all section
       sections.forEach((section) => {
         section.classList.add("hidden");
       });
 
-      // show selected section
       const target = item.dataset.target;
       const targetSection = document.getElementById(target);
       if (targetSection) {
@@ -382,4 +368,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-}); // <-- TUTUP DOMContentLoaded - HANYA 1
+}); // <-- TUTUP DOMContentLoaded
