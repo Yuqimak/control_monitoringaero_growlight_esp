@@ -391,34 +391,132 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     });
   }
-
   /* ========================================
-     SIDEBAR NAVIGATION
+     MOBILE SIDEBAR TOGGLE
+  ======================================== */
+
+  const menuToggle = document.getElementById("menuToggle");
+  const sidebar = document.querySelector(".sidebar");
+
+  // Buat overlay jika belum ada
+  let overlay = document.querySelector(".mobile-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "mobile-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  // Fungsi buka menu
+  function openMenu() {
+    sidebar.classList.add("active");
+    overlay.classList.add("active");
+    document.body.style.overflow = "hidden";
+  }
+
+  // Fungsi tutup menu (DIPANGGIL OLEH NAVIGASI)
+  function closeMenu() {
+    sidebar.classList.remove("active");
+    overlay.classList.remove("active");
+    document.body.style.overflow = "";
+  }
+
+  // Fungsi toggle menu
+  function toggleMenu() {
+    if (sidebar.classList.contains("active")) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  // Event listener tombol hamburger
+  if (menuToggle) {
+    menuToggle.addEventListener("click", toggleMenu);
+    menuToggle.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      toggleMenu();
+    }, { passive: false });
+  }
+
+  // Klik overlay → tutup menu
+  overlay.addEventListener("click", closeMenu);
+  overlay.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    closeMenu();
+  }, { passive: false });
+
+  // Resize ke desktop → tutup menu
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 768) {
+      closeMenu();
+    }
+  });
+
+  console.log("✅ Mobile sidebar toggle ready!");
+   /* ========================================
+     SIDEBAR NAVIGATION - FIX MOBILE
   ======================================== */
 
   const menuItems = document.querySelectorAll(".menu-item");
   const sections = document.querySelectorAll(".page-section");
 
+  // Fungsi navigasi yang lebih robust
+  function navigateTo(targetId) {
+    console.log("🔍 Navigasi ke:", targetId);
+    
+    // Hide semua section
+    sections.forEach((section) => {
+      section.classList.add("hidden");
+    });
+    
+    // Show target section
+    const targetSection = document.getElementById(targetId);
+    if (targetSection) {
+      targetSection.classList.remove("hidden");
+      console.log("✅ Berhasil ke:", targetId);
+    } else {
+      console.warn("⚠️ Section tidak ditemukan:", targetId);
+    }
+    
+    // Tutup sidebar (untuk mobile)
+    closeMenu();
+  }
+
+  // Event listener untuk setiap menu item - support click & touch
   menuItems.forEach((item) => {
-    item.addEventListener("click", () => {
+    // Handler yang sama untuk click dan touch
+    const handleNavigation = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Debug: log item yang diklik
+      console.log("📌 Menu diklik:", item.textContent.trim());
+      
+      // Update active state
       menuItems.forEach((menu) => {
         menu.classList.remove("active");
       });
-
       item.classList.add("active");
-
-      sections.forEach((section) => {
-        section.classList.add("hidden");
-      });
-
+      
+      // Ambil target dari data-target
       const target = item.dataset.target;
-      const targetSection = document.getElementById(target);
-      if (targetSection) {
-        targetSection.classList.remove("hidden");
+      if (target) {
+        navigateTo(target);
+      } else {
+        console.warn("⚠️ Menu tidak punya data-target:", item);
       }
-    });
+    };
+    
+    // Pasang event listener ganda untuk mobile support
+    item.addEventListener("click", handleNavigation);
+    item.addEventListener("touchstart", handleNavigation, { passive: false });
   });
 
+  // Debug: tampilkan semua menu dan targetnya
+  console.log("📋 Menu items terdaftar:");
+  menuItems.forEach(item => {
+    console.log(`  - ${item.textContent.trim()} → target: ${item.dataset.target}`);
+  });
   /* ========================================
      CLOCK
   ======================================== */
