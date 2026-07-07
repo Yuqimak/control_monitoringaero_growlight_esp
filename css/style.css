@@ -1506,3 +1506,39 @@ canvas{
     width: 250px;
   }
 }
+/* ========================================
+   PAGE NAVIGATION - HIDE SECTION
+======================================== */
+
+/* Sembunyikan semua section dengan class hidden */
+.hidden {
+  display: none !important;
+}
+
+/* Tampilkan section yang aktif (tanpa hidden) */
+.page-section:not(.hidden) {
+  display: block !important;
+}
+
+/* Pastikan grid di dalam section tetap jalan */
+.page-section:not(.hidden) .monitor-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+.page-section:not(.hidden) .analytics-grid,
+.page-section:not(.hidden) .control-grid,
+.page-section:not(.hidden) .security-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
+/* Mobile version */
+@media (max-width: 768px) {
+  .page-section:not(.hidden) .monitor-grid,
+  .page-section:not(.hidden) .analytics-grid,
+  .page-section:not(.hidden) .control-grid,
+  .page-section:not(.hidden) .security-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
