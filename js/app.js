@@ -48,6 +48,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const accessStatus = getEl("accessStatus");
   const controlSection = getEl("controlSection");
 
+  // Dashboard elements
+  const dashTemp = getEl("dashTemp");
+  const dashLight = getEl("dashLight");
+  const dashLampStatus = getEl("dashLampStatus");
+  const dashTempStatus = getEl("dashTempStatus");
+  const dashLightStatus = getEl("dashLightStatus");
+  const dashLampLabel = getEl("dashLampLabel");
+  const dashConnStatus = getEl("dashConnStatus");
+  const dashDataCount = getEl("dashDataCount");
+  const dashLastUpdate = getEl("dashLastUpdate");
+  const dashDimmer = getEl("dashDimmer");
+  const dashDimmerValue = getEl("dashDimmerValue");
+  const dashBtnOn = getEl("dashBtnOn");
+  const dashBtnOff = getEl("dashBtnOff");
+
   /* ========================================
      CHART
   ======================================== */
@@ -126,6 +141,42 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
+     DASHBOARD CHART (MINI)
+  ======================================== */
+
+  const dashTempLabels = [];
+  const dashTempData = [];
+
+  const dashTempChartEl = document.getElementById("dashTempChart");
+  let dashTempChart = null;
+  if (dashTempChartEl) {
+    dashTempChart = new Chart(dashTempChartEl, {
+      type: "line",
+      data: {
+        labels: dashTempLabels,
+        datasets: [{
+          label: "Suhu (°C)",
+          data: dashTempData,
+          borderColor: "#22c55e",
+          backgroundColor: "rgba(34,197,94,0.15)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false }
+        }
+      }
+    });
+  }
+
+  /* ========================================
      ACCESS UI
   ======================================== */
 
@@ -166,45 +217,26 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   function updateStatusText() {
-    // Status Suhu
     const tempStatus = document.getElementById("tempStatus");
     if (tempStatus) {
       const temp = state.temperature;
-      if (temp > 35) {
-        tempStatus.innerText = "🔥 Sangat Panas";
-        tempStatus.style.color = "#ef4444";
-      } else if (temp > 28) {
-        tempStatus.innerText = "🔥 Panas";
-        tempStatus.style.color = "#f59e0b";
-      } else if (temp > 20) {
-        tempStatus.innerText = "🌤️ Normal";
-        tempStatus.style.color = "#22c55e";
-      } else {
-        tempStatus.innerText = "❄️ Dingin";
-        tempStatus.style.color = "#3b82f6";
-      }
+      if (temp > 35) { tempStatus.innerText = "🔥 Sangat Panas";
+        tempStatus.style.color = "#ef4444"; } else if (temp > 28) { tempStatus.innerText = "🔥 Panas";
+        tempStatus.style.color = "#f59e0b"; } else if (temp > 20) { tempStatus.innerText = "🌤️ Normal";
+        tempStatus.style.color = "#22c55e"; } else { tempStatus.innerText = "❄️ Dingin";
+        tempStatus.style.color = "#3b82f6"; }
     }
 
-    // Status Cahaya
     const lightStatus = document.getElementById("lightStatus");
     if (lightStatus) {
       const light = state.sensorLight;
-      if (light > 80) {
-        lightStatus.innerText = "☀️ Sangat Terang";
-        lightStatus.style.color = "#facc15";
-      } else if (light > 50) {
-        lightStatus.innerText = "🌤️ Intensitas Sedang";
-        lightStatus.style.color = "#f59e0b";
-      } else if (light > 20) {
-        lightStatus.innerText = "🌥️ Redup";
-        lightStatus.style.color = "#94a3b8";
-      } else {
-        lightStatus.innerText = "🌙 Gelap";
-        lightStatus.style.color = "#64748b";
-      }
+      if (light > 80) { lightStatus.innerText = "☀️ Sangat Terang";
+        lightStatus.style.color = "#facc15"; } else if (light > 50) { lightStatus.innerText = "🌤️ Intensitas Sedang";
+        lightStatus.style.color = "#f59e0b"; } else if (light > 20) { lightStatus.innerText = "🌥️ Redup";
+        lightStatus.style.color = "#94a3b8"; } else { lightStatus.innerText = "🌙 Gelap";
+        lightStatus.style.color = "#64748b"; }
     }
 
-    // Status Lampu
     const lampStatusText = document.getElementById("lampStatusText");
     if (lampStatusText) {
       if (state.lampState) {
@@ -256,8 +288,75 @@ document.addEventListener("DOMContentLoaded", () => {
       connStatus.style.color = "#22c55e";
     }
 
-    // Update status text dinamis
     updateStatusText();
+    updateDashboard();
+    updateDashChart();
+  }
+
+  /* ========================================
+     DASHBOARD - FUNGSI UPDATE
+  ======================================== */
+
+  function updateDashboard() {
+    if (dashTemp) dashTemp.innerText = state.temperature;
+    if (dashLight) dashLight.innerText = state.sensorLight;
+    if (dashLampStatus) {
+      dashLampStatus.innerText = state.lampState ? "ON" : "OFF";
+      dashLampStatus.style.color = state.lampState ? "#22c55e" : "#ef4444";
+    }
+
+    if (dashTempStatus) {
+      const temp = state.temperature;
+      if (temp > 35) { dashTempStatus.innerText = "🔥 Panas";
+        dashTempStatus.style.color = "#ef4444"; } else if (temp > 28) { dashTempStatus.innerText = "🌤️ Hangat";
+        dashTempStatus.style.color = "#f59e0b"; } else if (temp > 20) { dashTempStatus.innerText = "🌿 Normal";
+        dashTempStatus.style.color = "#22c55e"; } else { dashTempStatus.innerText = "❄️ Dingin";
+        dashTempStatus.style.color = "#3b82f6"; }
+    }
+
+    if (dashLightStatus) {
+      const light = state.sensorLight;
+      if (light > 80) { dashLightStatus.innerText = "☀️ Terang";
+        dashLightStatus.style.color = "#facc15"; } else if (light > 50) { dashLightStatus.innerText = "🌤️ Sedang";
+        dashLightStatus.style.color = "#f59e0b"; } else if (light > 20) { dashLightStatus.innerText = "🌥️ Redup";
+        dashLightStatus.style.color = "#94a3b8"; } else { dashLightStatus.innerText = "🌙 Gelap";
+        dashLightStatus.style.color = "#64748b"; }
+    }
+
+    if (dashLampLabel) {
+      dashLampLabel.innerText = state.lampState ? "Aktif" : "Mati";
+      dashLampLabel.style.color = state.lampState ? "#22c55e" : "#ef4444";
+    }
+
+    if (dashDimmer) dashDimmer.value = state.brightness;
+    if (dashDimmerValue) dashDimmerValue.innerText = state.brightness;
+
+    if (dashConnStatus) {
+      dashConnStatus.innerText = "● Online";
+      dashConnStatus.style.color = "#22c55e";
+    }
+
+    if (dashDataCount) dashDataCount.innerText = tempLabels.length;
+    if (dashLastUpdate) {
+      const now = new Date();
+      dashLastUpdate.innerText = now.toLocaleTimeString('id-ID');
+    }
+  }
+
+  /* ========================================
+     DASHBOARD - UPDATE CHART
+  ======================================== */
+
+  function updateDashChart() {
+    if (!dashTempChart) return;
+    const time = new Date().toLocaleTimeString();
+    dashTempLabels.push(time);
+    dashTempData.push(state.temperature);
+    if (dashTempLabels.length > 10) {
+      dashTempLabels.shift();
+      dashTempData.shift();
+    }
+    dashTempChart.update();
   }
 
   /* ========================================
@@ -299,7 +398,6 @@ document.addEventListener("DOMContentLoaded", () => {
       lightChart.update();
     }
     renderUI();
-    updateStatusText();
   }, (error) => {
     console.error("Firebase Error:", error);
     if (connStatus) {
@@ -328,6 +426,14 @@ document.addEventListener("DOMContentLoaded", () => {
       setBrightness(e.target.value);
     });
   }
+
+  // Dashboard Dimmer
+  if (dashDimmer) {
+    dashDimmer.addEventListener("input", (e) => {
+      setBrightness(e.target.value);
+    });
+  }
+
   if (btnOn) {
     btnOn.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), true)
@@ -342,6 +448,20 @@ document.addEventListener("DOMContentLoaded", () => {
         .catch(err => console.error("Set brightness error:", err));
     });
   }
+
+  // Dashboard Controls
+  if (dashBtnOn) {
+    dashBtnOn.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), true);
+    });
+  }
+  if (dashBtnOff) {
+    dashBtnOff.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), false);
+      set(ref(db, "control/lamp/brightness"), 0);
+    });
+  }
+
   if (unlockBtn && pinInput) {
     unlockBtn.addEventListener("click", () => {
       const pin = pinInput.value;
@@ -416,7 +536,7 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ Mobile sidebar toggle ready!");
 
   /* ========================================
-     SIDEBAR NAVIGATION - SUPER SIMPLE
+     SIDEBAR NAVIGATION
   ======================================== */
 
   console.log("🔧 INIT: Simple Navigation");
@@ -427,17 +547,17 @@ document.addEventListener("DOMContentLoaded", () => {
   menuItems.forEach((item) => {
     item.addEventListener("click", function(e) {
       e.preventDefault();
-      
+
       console.log("🖱️ KLIK:", this.textContent.trim());
-      
+
       menuItems.forEach(m => m.classList.remove("active"));
       this.classList.add("active");
-      
+
       const target = this.getAttribute("data-target");
       console.log("🎯 Target:", target);
-      
+
       sections.forEach(s => s.classList.add("hidden"));
-      
+
       const targetSection = document.getElementById(target);
       if (targetSection) {
         targetSection.classList.remove("hidden");
@@ -445,7 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         console.error("❌ GAGAL! Section", target, "tidak ditemukan!");
       }
-      
+
       const sidebarEl = document.querySelector(".sidebar");
       if (sidebarEl && window.innerWidth <= 768) {
         sidebarEl.classList.remove("active");
