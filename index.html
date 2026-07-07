@@ -4,635 +4,251 @@
 <head>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
   <meta charset="UTF-8" />
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-
-  <title>
-    IoT Greenhouse Dashboard
-  </title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>IoT Greenhouse Dashboard</title>
 
   <!-- FONT -->
-  <link
-    rel="preconnect"
-    href="https://fonts.googleapis.com"
-  />
-
-  <link
-    rel="preconnect"
-    href="https://fonts.gstatic.com"
-    crossorigin
-  />
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet"
-  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <!-- CSS -->
-  <link
-    rel="stylesheet"
-    href="css/style.css"
-  />
+  <link rel="stylesheet" href="css/style.css" />
 
   <!-- CHART -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 </head>
 
 <body>
-
-  <!-- ================= APP ================= -->
 
   <div class="dashboard">
 
     <!-- ======================================
          SIDEBAR
     ======================================= -->
-
     <aside class="sidebar">
-
-      <!-- LOGO -->
-
       <div class="logo">
-
-        <div class="logo-icon">
-          🌱
-        </div>
-
+        <div class="logo-icon">🌱</div>
         <div>
-
           <h2>IoT</h2>
-
           <p>Greenhouse</p>
-
         </div>
-
       </div>
 
-      <!-- MENU -->
-
-     <nav class="menu">
-
-  <button class="menu-item active" data-target="dashboard">
-    🏠 Dashboard
-  </button>
-
-  <button class="menu-item" data-target="monitoring">
-    🌡 Monitoring
-  </button>
-
-  <button class="menu-item" data-target="analytics">
-    📈 Analytics
-  </button>
-
-  <button class="menu-item" data-target="control">
-    🎛 Control
-  </button>
-
-  <button class="menu-item" data-target="security">
-    🔒 Security
-  </button>
-
-</nav>
-      <!-- SYSTEM STATUS -->
+      <nav class="menu">
+        <button class="menu-item active" data-target="dashboard">🏠 Dashboard</button>
+        <button class="menu-item" data-target="monitoring">🌡 Monitoring</button>
+        <button class="menu-item" data-target="analytics">📈 Analytics</button>
+        <button class="menu-item" data-target="control">🎛 Control</button>
+        <button class="menu-item" data-target="security">🔒 Security</button>
+      </nav>
 
       <div class="system-box">
-
-        <p class="system-title">
-          ● System Status
-        </p>
-
-        <p class="system-online">
-          ● All Systems Operational
-        </p>
-
+        <p class="system-title">● System Status</p>
+        <p class="system-online">● All Systems Operational</p>
       </div>
-
     </aside>
 
     <!-- ======================================
          MAIN CONTENT
     ======================================= -->
-
     <main class="main-content">
 
       <!-- ======================================
            TOPBAR
       ======================================= -->
-<header class="topbar">
-
-  <!-- WRAPPER KIRI: Tombol + Title -->
-  <div style="display:flex; align-items:center; gap:12px; flex:1;">
-    <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">
-      ☰
-    </button>
-
-    <div>
-      <h1>🌱 IoT Greenhouse</h1>
-      <p class="subtitle">Smart Monitoring & Control System</p>
-    </div>
-  </div>
-
-  <!-- STATUS (tetap di kanan) -->
-  <div class="topbar-right">
-    <div class="status-card">
-      <p class="online-text">● Online</p>
-      <p class="firebase-text">
-        Firebase : <span id="connStatus">Connecting...</span>
-      </p>
-    </div>
-    <div class="clock-card">
-      <p id="dateText">--</p>
-      <h3 id="clockText">--:--:--</h3>
-    </div>
-  </div>
-
-</header>
-  
-<!-- ======================================
-     DASHBOARD
-====================================== -->
-
-<section class="section page-section" id="dashboard">
-
-  <h2 class="section-title green">
-    🏠 DASHBOARD
-  </h2>
-
-  <div class="monitor-grid">
-
-    <!-- CARD 1 -->
-
-    <div class="monitor-card">
-
-      <div class="card-head">
-
-        <div class="card-icon green-box">
-          🌡
+      <header class="topbar">
+        <div style="display:flex; align-items:center; gap:12px; flex:1;">
+          <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
+          <div>
+            <h1>🌱 IoT Greenhouse</h1>
+            <p class="subtitle">Smart Monitoring & Control System</p>
+          </div>
         </div>
-
-        <div>
-          <h3>Suhu</h3>
-          <p class="card-sub">
-            Temperature
-          </p>
+        <div class="topbar-right">
+          <div class="status-card">
+            <p class="online-text">● Online</p>
+            <p class="firebase-text">Firebase : <span id="connStatus">Connecting...</span></p>
+          </div>
+          <div class="clock-card">
+            <p id="dateText">--</p>
+            <h3 id="clockText">--:--:--</h3>
+          </div>
         </div>
+      </header>
 
-      </div>
-
-      <div class="metric">
-        <span id="temp">
-          --
-        </span>°C
-      </div>
-
-    </div>
-
-    <!-- CARD 2 -->
-
-    <div class="monitor-card">
-
-      <div class="card-head">
-
-        <div class="card-icon yellow-box">
-          💡
+      <!-- ======================================
+           DASHBOARD
+      ======================================= -->
+      <section class="section page-section" id="dashboard">
+        <h2 class="section-title green">🏠 DASHBOARD</h2>
+        <div class="monitor-grid">
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon green-box">🌡</div>
+              <div>
+                <h3>Suhu</h3>
+                <p class="card-sub">Temperature</p>
+              </div>
+            </div>
+            <div class="metric"><span id="temp">--</span>°C</div>
+          </div>
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon yellow-box">💡</div>
+              <div>
+                <h3>Cahaya</h3>
+                <p class="card-sub">Light</p>
+              </div>
+            </div>
+            <div class="metric"><span id="light">--</span>%</div>
+          </div>
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon purple-box">⚡</div>
+              <div>
+                <h3>Status Lampu</h3>
+                <p class="card-sub">Lamp Status</p>
+              </div>
+            </div>
+            <div class="metric green-text" id="lampStatus">OFF</div>
+          </div>
         </div>
+      </section>
 
-        <div>
-          <h3>Cahaya</h3>
-          <p class="card-sub">
-            Light
-          </p>
-        </div>
-
-      </div>
-
-      <div class="metric">
-        <span id="light">
-          --
-        </span>%
-      </div>
-
-    </div>
-
-    <!-- CARD 3 -->
-
-    <div class="monitor-card">
-
-      <div class="card-head">
-
-        <div class="card-icon purple-box">
-          ⚡
-        </div>
-
-        <div>
-          <h3>Status Lampu</h3>
-          <p class="card-sub">
-            Lamp Status
-          </p>
-        </div>
-
-      </div>
-
-      <div
-        class="metric green-text"
-        id="lampStatus"
-      >
-        OFF
-      </div>
-
-    </div>
-
-  </div>
-
-</section>
       <!-- ======================================
            MONITORING
       ======================================= -->
-
       <section class="section page-section hidden" id="monitoring">
-
-        <h2 class="section-title green">
-          🌱 MONITORING
-        </h2>
-
+        <h2 class="section-title green">🌱 MONITORING</h2>
         <div class="monitor-grid">
-
           <!-- TEMPERATURE -->
-
           <div class="monitor-card">
-
             <div class="card-head">
-
-              <div class="card-icon green-box">
-                🌡
-              </div>
-
+              <div class="card-icon green-box">🌡</div>
               <div>
-
                 <h3>Suhu</h3>
-
-                <p class="card-sub">
-                  Temperature
-                </p>
-
+                <p class="card-sub">Temperature</p>
               </div>
-
             </div>
-
-            <div class="metric">
-  <span id="monitorTemp">
-    --
-  </span>°C
-</div>
-
-            <p class="metric-status hot">
-              🔥 Panas
-            </p>
-
+            <div class="metric"><span id="monitorTemp">--</span>°C</div>
+            <p class="metric-status" id="tempStatus">🔥 Panas</p>
             <canvas id="tempMiniChart"></canvas>
-
           </div>
 
           <!-- LIGHT -->
-
           <div class="monitor-card">
-
             <div class="card-head">
-
-              <div class="card-icon yellow-box">
-                💡
-              </div>
-
+              <div class="card-icon yellow-box">💡</div>
               <div>
-
                 <h3>Intensitas Lampu</h3>
-
-                <p class="card-sub">
-                  Light Intensity
-                </p>
-
+                <p class="card-sub">Light Intensity</p>
               </div>
-
             </div>
-
-            <div class="metric">
-  <span id="monitorLight">
-    --
-  </span>%
-</div>
-
-            <p class="metric-status warning">
-              Intensitas Sedang
-            </p>
-
+            <div class="metric"><span id="monitorLight">--</span>%</div>
+            <p class="metric-status" id="lightStatus">Intensitas Sedang</p>
             <div class="bar">
-
-              <div
-                class="fill"
-                id="lightBar"
-              ></div>
-
+              <div class="fill" id="lightBar"></div>
             </div>
-
           </div>
 
-          <!-- STATUS -->
-
+          <!-- LAMP STATUS -->
           <div class="monitor-card">
-
             <div class="card-head">
-
-              <div class="card-icon purple-box">
-                💡
-              </div>
-
+              <div class="card-icon purple-box">💡</div>
               <div>
-
                 <h3>Status Lampu</h3>
-
-                <p class="card-sub">
-                  Lamp Status
-                </p>
-
+                <p class="card-sub">Lamp Status</p>
               </div>
-
             </div>
-        <div
-  class="metric green-text"
-  id="monitorLampStatus"
->
-  OFF
-</div>
-
-            <p class="metric-status success">
-              Lampu Aktif
-            </p>
-
+            <div class="metric green-text" id="monitorLampStatus">OFF</div>
+            <p class="metric-status" id="lampStatusText">Lampu Aktif</p>
           </div>
-
         </div>
-
       </section>
 
       <!-- ======================================
            ANALYTICS
       ======================================= -->
-
       <section class="section page-section hidden" id="analytics">
-
-        <h2 class="section-title blue">
-          📊 ANALYTICS
-        </h2>
-
+        <h2 class="section-title blue">📊 ANALYTICS</h2>
         <div class="analytics-grid">
-
-          <!-- TEMP -->
-
           <div class="analytics-card">
-
             <div class="analytics-head">
-
-              <h3>
-                Suhu Realtime
-              </h3>
-
-              <button class="time-btn">
-                10 Menit Terakhir
-              </button>
-
+              <h3>Suhu Realtime</h3>
+              <button class="time-btn">10 Menit Terakhir</button>
             </div>
-
             <canvas id="tempChart"></canvas>
-
           </div>
-
-          <!-- LIGHT -->
-
           <div class="analytics-card">
-
             <div class="analytics-head">
-
-              <h3>
-                History Intensitas
-              </h3>
-
-              <button class="time-btn">
-                10 Menit Terakhir
-              </button>
-
+              <h3>History Intensitas</h3>
+              <button class="time-btn">10 Menit Terakhir</button>
             </div>
-
             <canvas id="lightChart"></canvas>
-
           </div>
-
         </div>
-
       </section>
 
       <!-- ======================================
            CONTROL
       ======================================= -->
-
       <section class="section page-section hidden" id="control">
-
-        <h2 class="section-title orange">
-          🎛 CONTROL
-        </h2>
-
-        <div
-          class="control-grid"
-          id="controlSection"
-        >
-
-          <!-- BUTTON CONTROL -->
-
+        <h2 class="section-title orange">🎛 CONTROL</h2>
+        <div class="control-grid" id="controlSection">
           <div class="control-card">
-
-            <h3>
-              🚨 Emergency Control
-            </h3>
-
+            <h3>🚨 Emergency Control</h3>
             <div class="button-row">
-
-              <button
-                id="btnOn"
-                class="big-btn on"
-              >
-                ON
-              </button>
-
-              <button
-                id="btnOff"
-                class="big-btn off"
-              >
-                OFF
-              </button>
-
+              <button id="btnOn" class="big-btn on">ON</button>
+              <button id="btnOff" class="big-btn off">OFF</button>
             </div>
-
-            <p class="info-text">
-
-              Status Lampu :
-
-              <span id="lampStateText">
-                ON
-              </span>
-
-            </p>
-
+            <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
           </div>
-
-          <!-- DIMMING -->
-
           <div class="control-card">
-
-            <h3>
-              🎚 Dimming Control
-            </h3>
-
-            <input
-              id="dimmer"
-              type="range"
-              min="0"
-              max="100"
-              value="0"
-            />
-
+            <h3>🎚 Dimming Control</h3>
+            <input id="dimmer" type="range" min="0" max="100" value="0" />
             <div class="dimmer-row">
-
-              <button
-                class="adjust-btn"
-                id="minusBtn"
-              >
-                −
-              </button>
-
-              <input
-                id="dimmerInput"
-                type="number"
-                min="0"
-                max="100"
-                value="0"
-              />
-
-              <button
-                class="adjust-btn"
-                id="plusBtn"
-              >
-                +
-              </button>
-
+              <button class="adjust-btn" id="minusBtn">−</button>
+              <input id="dimmerInput" type="number" min="0" max="100" value="0" />
+              <button class="adjust-btn" id="plusBtn">+</button>
               <span>%</span>
-
             </div>
-
-            <p class="info-text">
-
-              Current :
-
-              <span id="dimmerValue">
-                0
-              </span>%
-
-            </p>
-
+            <p class="info-text">Current : <span id="dimmerValue">0</span>%</p>
           </div>
-
         </div>
-
       </section>
 
       <!-- ======================================
            SECURITY
       ======================================= -->
-
       <section class="section page-section hidden" id="security">
-
-        <h2 class="section-title purple">
-          🔒 SECURITY ACCESS
-        </h2>
-
+        <h2 class="section-title purple">🔒 SECURITY ACCESS</h2>
         <div class="security-grid">
-
-          <!-- ACCESS -->
-
           <div class="security-card">
-
-            <h3>
-              Akses Kontrol
-            </h3>
-
-            <p class="security-sub">
-              Masukkan PIN untuk
-              mengakses sistem
-            </p>
-
-            <input
-              type="password"
-              id="pinInput"
-              placeholder="Enter PIN"
-            />
-
-            <button
-              id="unlockBtn"
-              class="unlock-btn"
-            >
-              🔓 Unlock Control
-            </button>
-
+            <h3>Akses Kontrol</h3>
+            <p class="security-sub">Masukkan PIN untuk mengakses sistem</p>
+            <input type="password" id="pinInput" placeholder="Enter PIN" />
+            <button id="unlockBtn" class="unlock-btn">🔓 Unlock Control</button>
           </div>
-
-          <!-- STATUS -->
-
           <div class="security-card">
-
             <div class="unlock-status">
-
-              <div class="lock-icon">
-                🔐
-              </div>
-
+              <div class="lock-icon">🔐</div>
               <div>
-
-                <h3
-                  class="green-text"
-                  id="accessStatus"
-                >
-                  Control Locked
-                </h3>
-
-                <p>
-                  Sistem keamanan aktif
-                </p>
-
+                <h3 class="green-text" id="accessStatus">Control Locked</h3>
+                <p>Sistem keamanan aktif</p>
               </div>
-
             </div>
-
           </div>
-
         </div>
-
       </section>
 
     </main>
-
   </div>
 
   <!-- ======================================
        APP JS
   ======================================= -->
-
-  <script
-    type="module"
-    src="js/app.js?v=200"
-  ></script>
+  <script type="module" src="js/app.js?v=200"></script>
 
 </body>
-
 </html>
