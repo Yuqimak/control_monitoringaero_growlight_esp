@@ -162,6 +162,62 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
+     UPDATE STATUS TEXT - DINAMIS
+  ======================================== */
+
+  function updateStatusText() {
+    // Status Suhu
+    const tempStatus = document.getElementById("tempStatus");
+    if (tempStatus) {
+      const temp = state.temperature;
+      if (temp > 35) {
+        tempStatus.innerText = "🔥 Sangat Panas";
+        tempStatus.style.color = "#ef4444";
+      } else if (temp > 28) {
+        tempStatus.innerText = "🔥 Panas";
+        tempStatus.style.color = "#f59e0b";
+      } else if (temp > 20) {
+        tempStatus.innerText = "🌤️ Normal";
+        tempStatus.style.color = "#22c55e";
+      } else {
+        tempStatus.innerText = "❄️ Dingin";
+        tempStatus.style.color = "#3b82f6";
+      }
+    }
+
+    // Status Cahaya
+    const lightStatus = document.getElementById("lightStatus");
+    if (lightStatus) {
+      const light = state.sensorLight;
+      if (light > 80) {
+        lightStatus.innerText = "☀️ Sangat Terang";
+        lightStatus.style.color = "#facc15";
+      } else if (light > 50) {
+        lightStatus.innerText = "🌤️ Intensitas Sedang";
+        lightStatus.style.color = "#f59e0b";
+      } else if (light > 20) {
+        lightStatus.innerText = "🌥️ Redup";
+        lightStatus.style.color = "#94a3b8";
+      } else {
+        lightStatus.innerText = "🌙 Gelap";
+        lightStatus.style.color = "#64748b";
+      }
+    }
+
+    // Status Lampu
+    const lampStatusText = document.getElementById("lampStatusText");
+    if (lampStatusText) {
+      if (state.lampState) {
+        lampStatusText.innerText = "💡 Lampu Aktif";
+        lampStatusText.style.color = "#22c55e";
+      } else {
+        lampStatusText.innerText = "⛔ Lampu Mati";
+        lampStatusText.style.color = "#ef4444";
+      }
+    }
+  }
+
+  /* ========================================
      RENDER UI
   ======================================== */
 
@@ -199,6 +255,9 @@ document.addEventListener("DOMContentLoaded", () => {
       connStatus.innerText = "Realtime Connected";
       connStatus.style.color = "#22c55e";
     }
+
+    // Update status text dinamis
+    updateStatusText();
   }
 
   /* ========================================
@@ -240,6 +299,7 @@ document.addEventListener("DOMContentLoaded", () => {
       lightChart.update();
     }
     renderUI();
+    updateStatusText();
   }, (error) => {
     console.error("Firebase Error:", error);
     if (connStatus) {
