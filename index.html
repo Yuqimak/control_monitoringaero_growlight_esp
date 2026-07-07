@@ -77,44 +77,100 @@
         </div>
       </header>
 
-      <!-- ======================================
-           DASHBOARD
-      ======================================= -->
-      <section class="section page-section" id="dashboard">
-        <h2 class="section-title green">🏠 DASHBOARD</h2>
-        <div class="monitor-grid">
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon green-box">🌡</div>
-              <div>
-                <h3>Suhu</h3>
-                <p class="card-sub">Temperature</p>
-              </div>
-            </div>
-            <div class="metric"><span id="temp">--</span>°C</div>
-          </div>
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon yellow-box">💡</div>
-              <div>
-                <h3>Cahaya</h3>
-                <p class="card-sub">Light</p>
-              </div>
-            </div>
-            <div class="metric"><span id="light">--</span>%</div>
-          </div>
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon purple-box">⚡</div>
-              <div>
-                <h3>Status Lampu</h3>
-                <p class="card-sub">Lamp Status</p>
-              </div>
-            </div>
-            <div class="metric green-text" id="lampStatus">OFF</div>
-          </div>
+     <!-- ======================================
+     DASHBOARD - RANGKUMAN SEMUA FITUR
+======================================= -->
+<section class="section page-section" id="dashboard">
+  <h2 class="section-title green">🏠 DASHBOARD</h2>
+
+  <div class="dashboard-grid">
+
+    <!-- CARD 1: SENSOR MONITORING -->
+    <div class="dashboard-card">
+      <div class="card-head">
+        <div class="card-icon green-box">🌡️</div>
+        <div>
+          <h3>Sensor Monitoring</h3>
+          <p class="card-sub">Data Realtime</p>
         </div>
-      </section>
+      </div>
+      <div class="dashboard-sensor-grid">
+        <div class="sensor-item">
+          <span class="sensor-label">🌡 Suhu</span>
+          <span class="sensor-value"><span id="dashTemp">--</span>°C</span>
+          <span class="sensor-status" id="dashTempStatus">Normal</span>
+        </div>
+        <div class="sensor-item">
+          <span class="sensor-label">💡 Cahaya</span>
+          <span class="sensor-value"><span id="dashLight">--</span>%</span>
+          <span class="sensor-status" id="dashLightStatus">Sedang</span>
+        </div>
+        <div class="sensor-item">
+          <span class="sensor-label">⚡ Lampu</span>
+          <span class="sensor-value" id="dashLampStatus">OFF</span>
+          <span class="sensor-status" id="dashLampLabel">Mati</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2: KONTROL CEPAT -->
+    <div class="dashboard-card">
+      <div class="card-head">
+        <div class="card-icon orange-box">🎛️</div>
+        <div>
+          <h3>Kontrol Cepat</h3>
+          <p class="card-sub">Emergency Control</p>
+        </div>
+      </div>
+      <div class="dashboard-control-row">
+        <button id="dashBtnOn" class="big-btn on">ON</button>
+        <button id="dashBtnOff" class="big-btn off">OFF</button>
+      </div>
+      <div class="dashboard-dimmer">
+        <label>Dimmer: <span id="dashDimmerValue">0</span>%</label>
+        <input id="dashDimmer" type="range" min="0" max="100" value="0" />
+      </div>
+    </div>
+
+    <!-- CARD 3: GRAFIK RINGKAS -->
+    <div class="dashboard-card dashboard-chart-card">
+      <div class="card-head">
+        <div class="card-icon blue-box">📊</div>
+        <div>
+          <h3>Grafik Cepat</h3>
+          <p class="card-sub">10 Data Terakhir</p>
+        </div>
+      </div>
+      <canvas id="dashTempChart"></canvas>
+    </div>
+
+    <!-- CARD 4: STATUS SISTEM -->
+    <div class="dashboard-card">
+      <div class="card-head">
+        <div class="card-icon purple-box">🔄</div>
+        <div>
+          <h3>Status Sistem</h3>
+          <p class="card-sub">Koneksi & Performa</p>
+        </div>
+      </div>
+      <div class="dashboard-status-grid">
+        <div class="status-item">
+          <span class="status-label">Firebase</span>
+          <span class="status-badge online" id="dashConnStatus">● Online</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Data Point</span>
+          <span class="status-badge" id="dashDataCount">0</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Last Update</span>
+          <span class="status-badge" id="dashLastUpdate">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
 
       <!-- ======================================
            MONITORING
