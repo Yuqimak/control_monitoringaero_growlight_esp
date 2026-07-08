@@ -3,12 +3,40 @@ import { db } from "./firebase.js";
 import {
   ref,
   onValue,
-  set
+  set,
+  get
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-/* ========================================
+/* ============================================
+   SESSION & AUTH CHECK
+============================================ */
+
+// Cek session login
+const sessionData = localStorage.getItem('iot_user');
+if (!sessionData) {
+  // Belum login → redirect ke login
+  window.location.href = 'login.html';
+} else {
+  try {
+    const user = JSON.parse(sessionData);
+    console.log('👤 Login sebagai:', user.nama, '(', user.email, ')');
+    
+    // Session expired setelah 8 jam
+    const loginTime = user.loginTime || 0;
+    const expired = (Date.now() - loginTime) > 8 * 60 * 60 * 1000;
+    if (expired) {
+      localStorage.removeItem('iot_user');
+      window.location.href = 'login.html';
+    }
+  } catch(e) {
+    localStorage.removeItem('iot_user');
+    window.location.href = 'login.html';
+  }
+}
+
+/* ============================================
    APP START
-======================================== */
+============================================ */
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -65,6 +93,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashDimmerValue = getEl("dashDimmerValue");
   const dashBtnOn = getEl("dashBtnOn");
   const dashBtnOff = getEl("dashBtnOff");
+
+  // User info
+  const userNameEl = document.getElementById("userName");
 
   /* ========================================
      CHART
@@ -180,6 +211,28 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
+     USER INFO
+  ======================================== */
+
+  function showUserInfo() {
+    try {
+      const user = JSON.parse(localStorage.getItem('iot_user') || '{}');
+      if (userNameEl) {
+        userNameEl.textContent = `👋 ${user.nama || 'User'}`;
+      }
+    } catch(e) {}
+  }
+  showUserInfo();
+
+  // Logout function (global)
+  window.logout = function() {
+    if (confirm('Yakin mau logout?')) {
+      localStorage.removeItem('iot_user');
+      window.location.href = 'login.html';
+    }
+  };
+
+  /* ========================================
      ACCESS UI
   ======================================== */
 
@@ -256,43 +309,42 @@ document.addEventListener("DOMContentLoaded", () => {
      RENDER UI
   ======================================== */
 
-function renderUI() {
-  if (monitorTemp) {
-    animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
-  }
-  if (monitorLight) {
-    animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
-  }
-  if (lightBar) {
-    lightBar.style.width = `${state.brightness}%`;
-  }
-  if (dimmer) dimmer.value = state.brightness;
-  if (dimmerInput) dimmerInput.value = state.brightness;
-  if (dimmerValue) dimmerValue.innerText = state.brightness;
+  function renderUI() {
+    if (monitorTemp) {
+      animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
+    }
+    if (monitorLight) {
+      animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
+    }
+    if (lightBar) {
+      lightBar.style.width = `${state.brightness}%`;
+    }
+    if (dimmer) dimmer.value = state.brightness;
+    if (dimmerInput) dimmerInput.value = state.brightness;
+    if (dimmerValue) dimmerValue.innerText = state.brightness;
 
-  const lampStatusText = state.lampState ? "ON" : "OFF";
-  const lampColor = state.lampState ? "#22c55e" : "#ef4444";
-  
-  if (lampStatus) {
-    lampStatus.innerText = lampStatusText;
-    lampStatus.style.color = lampColor;
-  }
-  if (monitorLampStatus) {
-    monitorLampStatus.innerText = lampStatusText;
-    monitorLampStatus.style.color = lampColor;
-  }
-  if (connStatus) {
-    connStatus.innerText = "Realtime Connected";
-    connStatus.style.color = "#22c55e";
+    const lampStatusText = state.lampState ? "ON" : "OFF";
+    const lampColor = state.lampState ? "#22c55e" : "#ef4444";
+    
+    if (lampStatus) {
+      lampStatus.innerText = lampStatusText;
+      lampStatus.style.color = lampColor;
+    }
+    if (monitorLampStatus) {
+      monitorLampStatus.innerText = lampStatusText;
+      monitorLampStatus.style.color = lampColor;
+    }
+    if (connStatus) {
+      connStatus.innerText = "Realtime Connected";
+      connStatus.style.color = "#22c55e";
+    }
+
+    updateAccessUI();
+    updateStatusText();
+    updateDashboard();
+    updateDashChart();
   }
 
-  // 🔥 TAMBAHKAN INI
-  updateAccessUI();
-
-  updateStatusText();
-  updateDashboard();
-  updateDashChart();
-}
   /* ========================================
      DASHBOARD - FUNGSI UPDATE
   ======================================== */
@@ -462,6 +514,7 @@ function renderUI() {
     });
   }
 
+  // PIN unlock (tetap ada, tapi nanti bisa dihapus jika semua user sudah pakai login)
   if (unlockBtn && pinInput) {
     unlockBtn.addEventListener("click", () => {
       const pin = pinInput.value;
@@ -626,5 +679,7 @@ function renderUI() {
     accessStatus: !!accessStatus,
     controlSection: !!controlSection
   });
+
+  console.log("🚀 App siap!");
 
 });
