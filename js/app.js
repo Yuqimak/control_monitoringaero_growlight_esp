@@ -256,43 +256,43 @@ document.addEventListener("DOMContentLoaded", () => {
      RENDER UI
   ======================================== */
 
-  function renderUI() {
-    // Dashboard - sudah diupdate oleh updateDashboard()
-    // Tapi tetap update element lain
-    
-    if (monitorTemp) {
-      animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
-    }
-    if (monitorLight) {
-      animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
-    }
-    if (lightBar) {
-      lightBar.style.width = `${state.brightness}%`;
-    }
-    if (dimmer) dimmer.value = state.brightness;
-    if (dimmerInput) dimmerInput.value = state.brightness;
-    if (dimmerValue) dimmerValue.innerText = state.brightness;
-
-    const lampStatusText = state.lampState ? "ON" : "OFF";
-    const lampColor = state.lampState ? "#22c55e" : "#ef4444";
-    
-    if (lampStatus) {
-      lampStatus.innerText = lampStatusText;
-      lampStatus.style.color = lampColor;
-    }
-    if (monitorLampStatus) {
-      monitorLampStatus.innerText = lampStatusText;
-      monitorLampStatus.style.color = lampColor;
-    }
-    if (connStatus) {
-      connStatus.innerText = "Realtime Connected";
-      connStatus.style.color = "#22c55e";
-    }
-
-    updateStatusText();
-    updateDashboard();
-    updateDashChart();
+ function renderUI() {
+  if (monitorTemp) {
+    animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
   }
+  if (monitorLight) {
+    animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
+  }
+  if (lightBar) {
+    lightBar.style.width = `${state.brightness}%`;
+  }
+  if (dimmer) dimmer.value = state.brightness;
+  if (dimmerInput) dimmerInput.value = state.brightness;
+  if (dimmerValue) dimmerValue.innerText = state.brightness;
+
+  const lampStatusText = state.lampState ? "ON" : "OFF";
+  const lampColor = state.lampState ? "#22c55e" : "#ef4444";
+  
+  if (lampStatus) {
+    lampStatus.innerText = lampStatusText;
+    lampStatus.style.color = lampColor;
+  }
+  if (monitorLampStatus) {
+    monitorLampStatus.innerText = lampStatusText;
+    monitorLampStatus.style.color = lampColor;
+  }
+  if (connStatus) {
+    connStatus.innerText = "Realtime Connected";
+    connStatus.style.color = "#22c55e";
+  }
+
+  // 🔥 TAMBAHKAN INI
+  updateAccessUI();
+
+  updateStatusText();
+  updateDashboard();
+  updateDashChart();
+}
 
   /* ========================================
      DASHBOARD - FUNGSI UPDATE
