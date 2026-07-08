@@ -271,8 +271,10 @@
           <div class="security-card">
             <h3>Akses Kontrol</h3>
             <p class="security-sub">Masukkan PIN untuk mengakses sistem</p>
-            <input type="password" id="pinInput" placeholder="Enter PIN" />
-            <button id="unlockBtn" class="unlock-btn">🔓 Unlock Control</button>
+            <form id="pinForm" onsubmit="return false;">
+  <input type="password" id="pinInput" placeholder="Enter PIN" />
+  <button id="unlockBtn" class="unlock-btn" type="button">🔓 Unlock Control</button>
+</form>
           </div>
           <div class="security-card">
             <div class="unlock-status">
