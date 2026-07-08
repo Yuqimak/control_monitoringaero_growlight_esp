@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>🔐 Login - IoT Greenhouse</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -78,13 +79,13 @@
     <p class="sub">Smart Monitoring & Control System</p>
     
     <form id="loginForm">
-      <input type="email" id="loginEmail" placeholder="📧 Email" required autofocus>
-      <input type="password" id="loginPassword" placeholder="🔒 Password" required>
+      <input type="email" id="loginEmail" placeholder="📧 Email" required autocomplete="email">
+      <input type="password" id="loginPassword" placeholder="🔒 Password" required autocomplete="current-password">
       <button type="submit">🔓 Login</button>
       <p id="errorMsg" class="error"></p>
     </form>
     
-    <a class="register-link" onclick="showRegister()">📝 Belum punya akun? Daftar</a>
+    <a class="register-link" id="registerLink">📝 Belum punya akun? Daftar</a>
     <p class="footer">© 2026 IoT Greenhouse TA</p>
   </div>
 
@@ -98,6 +99,7 @@
 
     const form = document.getElementById('loginForm');
     const errorMsg = document.getElementById('errorMsg');
+    const registerLink = document.getElementById('registerLink');
 
     // === LOGIN ===
     form.addEventListener('submit', async (e) => {
@@ -113,7 +115,7 @@
       }
 
       try {
-        // Cek user di database
+        // Cek user di database (ganti titik dengan koma karena Firebase tidak support titik di path)
         const userRef = ref(db, `users/${email.replace(/\./g, ',')}`);
         const snapshot = await get(userRef);
         const userData = snapshot.val();
@@ -142,8 +144,8 @@
       }
     });
 
-    // === REGISTER SEDERHANA ===
-    window.showRegister = function() {
+    // === REGISTER ===
+    function showRegister() {
       const email = prompt('📧 Masukkan email untuk daftar:');
       if (!email) return;
       if (!email.includes('@')) {
@@ -173,19 +175,24 @@
       .catch((err) => {
         alert('❌ Gagal daftar: ' + err.message);
       });
-    };
+    }
 
-    // === CEK SESSION ===
+    // Hubungkan fungsi register ke tombol
+    registerLink.addEventListener('click', showRegister);
+
+    // === CEK SESSION (jika sudah login, redirect ke dashboard) ===
     const session = localStorage.getItem('iot_user');
     if (session) {
       try {
         const user = JSON.parse(session);
-        // Kalau sudah login, langsung ke dashboard
         if (user.email && user.loginTime) {
           window.location.href = 'index.html';
         }
       } catch(e) {}
     }
+
+    // Ekspos showRegister ke global (untuk berjaga-jaga)
+    window.showRegister = showRegister;
   </script>
 </body>
 </html>
