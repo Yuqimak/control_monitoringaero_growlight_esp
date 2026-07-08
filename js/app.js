@@ -30,11 +30,14 @@ document.addEventListener("DOMContentLoaded", () => {
     return el;
   };
 
-  const tempEl = getEl("temp");
-  const lightEl = getEl("light");
+  // Dashboard elements
+  const tempEl = document.getElementById("dashTemp");
+  const lightEl = document.getElementById("dashLight");
+  const lampStatus = document.getElementById("dashLampStatus");
+  
+  // Other elements
   const lightBar = getEl("lightBar");
   const connStatus = getEl("connStatus");
-  const lampStatus = getEl("lampStatus");
   const monitorTemp = getEl("monitorTemp");
   const monitorLight = getEl("monitorLight");
   const monitorLampStatus = getEl("monitorLampStatus");
@@ -48,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const accessStatus = getEl("accessStatus");
   const controlSection = getEl("controlSection");
 
-  // Dashboard elements
+  // Dashboard additional elements
   const dashTemp = getEl("dashTemp");
   const dashLight = getEl("dashLight");
   const dashLampStatus = getEl("dashLampStatus");
@@ -254,12 +257,9 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   function renderUI() {
-    if (tempEl) {
-      animateValue(tempEl, Number(tempEl.innerText) || 0, state.temperature);
-    }
-    if (lightEl) {
-      animateValue(lightEl, Number(lightEl.innerText) || 0, state.sensorLight);
-    }
+    // Dashboard - sudah diupdate oleh updateDashboard()
+    // Tapi tetap update element lain
+    
     if (monitorTemp) {
       animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
     }
@@ -275,6 +275,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const lampStatusText = state.lampState ? "ON" : "OFF";
     const lampColor = state.lampState ? "#22c55e" : "#ef4444";
+    
     if (lampStatus) {
       lampStatus.innerText = lampStatusText;
       lampStatus.style.color = lampColor;
