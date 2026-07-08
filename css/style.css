@@ -203,7 +203,31 @@ body::after {
   display: flex;
   gap: 16px;
 }
-
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(20,28,40,.92), rgba(10,15,25,.82));
+  border: 1px solid var(--border);
+  padding: 10px 16px;
+  border-radius: 22px;
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+}
+.logout-btn {
+  background: rgba(239,68,68,.15);
+  border: none;
+  color: #ef4444;
+  padding: 4px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background .2s;
+}
+.logout-btn:hover {
+  background: rgba(239,68,68,.3);
+}
 .status-card,
 .clock-card {
   background: linear-gradient(180deg, rgba(20, 28, 40, .92), rgba(10, 15, 25, .82));
