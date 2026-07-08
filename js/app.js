@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
      RENDER UI
   ======================================== */
 
- function renderUI() {
+function renderUI() {
   if (monitorTemp) {
     animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
   }
@@ -293,7 +293,6 @@ document.addEventListener("DOMContentLoaded", () => {
   updateDashboard();
   updateDashChart();
 }
-
   /* ========================================
      DASHBOARD - FUNGSI UPDATE
   ======================================== */
