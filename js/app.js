@@ -1,4 +1,4 @@
-import { db } from "./js/firebase.js";
+import { db } from "./firebase.js";
 import {
   ref,
   onValue,
