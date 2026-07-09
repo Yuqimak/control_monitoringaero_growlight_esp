@@ -36,7 +36,6 @@
         <button class="menu-item" data-target="analytics">📈 Analytics</button>
         <button class="menu-item" data-target="control">🎛 Control</button>
         <button class="menu-item" data-target="security">🔒 Security</button>
-        <!-- ADMIN MENU (hanya tampil jika role admin) -->
         <button class="menu-item" data-target="admin" id="adminMenu" style="display:none;">👑 Admin</button>
       </nav>
 
@@ -111,22 +110,28 @@
               </div>
             </div>
           </div>
-          <!-- CARD 2: KONTROL CEPAT -->
+          <!-- CARD 2: MODE PERTUMBUHAN (BARU!) -->
           <div class="dashboard-card">
             <div class="card-head">
-              <div class="card-icon orange-box">🎛️</div>
+              <div class="card-icon orange-box">🌱</div>
               <div>
-                <h3>Kontrol Cepat</h3>
-                <p class="card-sub">Emergency Control</p>
+                <h3>Mode Pertumbuhan</h3>
+                <p class="card-sub">Fase Tanaman Kentang</p>
               </div>
             </div>
-            <div class="dashboard-control-row">
-              <button id="dashBtnOn" class="big-btn on">ON</button>
-              <button id="dashBtnOff" class="big-btn off">OFF</button>
-            </div>
-            <div class="dashboard-dimmer">
-              <label>Dimmer: <span id="dashDimmerValue">0</span>%</label>
-              <input id="dashDimmer" type="range" min="0" max="100" value="0" />
+            <div class="dashboard-mode-display">
+              <div class="mode-status">
+                <span class="mode-icon" id="modeIcon">🌱</span>
+                <span class="mode-name" id="modeName">Bibit</span>
+              </div>
+              <div class="mode-details">
+                <span>💡 <span id="modeDuration">4</span> jam</span>
+                <span>🎚️ <span id="modeBrightness">45</span>%</span>
+              </div>
+              <div class="mode-timeline">
+                <span>📅 Hari ke-<span id="dayCounter">0</span></span>
+                <span id="timelineMessage" style="font-size:12px; color:var(--muted);">Mulai tanam untuk tracking</span>
+              </div>
             </div>
           </div>
           <!-- CARD 3: GRAFIK RINGKAS -->
@@ -168,7 +173,7 @@
       </section>
 
       <!-- ======================================
-           MONITORING
+           MONITORING (TIDAK BERUBAH)
       ======================================= -->
       <section class="section page-section hidden" id="monitoring">
         <h2 class="section-title green">🌱 MONITORING</h2>
@@ -212,7 +217,7 @@
       </section>
 
       <!-- ======================================
-           ANALYTICS
+           ANALYTICS (TIDAK BERUBAH)
       ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
@@ -235,11 +240,12 @@
       </section>
 
       <!-- ======================================
-           CONTROL
+           CONTROL (DENGAN MODE)
       ======================================= -->
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
         <div class="control-grid" id="controlSection">
+          <!-- KONTROL LAMPU -->
           <div class="control-card">
             <h3>🚨 Emergency Control</h3>
             <div class="button-row">
@@ -248,6 +254,8 @@
             </div>
             <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
           </div>
+
+          <!-- DIMMING -->
           <div class="control-card">
             <h3>🎚 Dimming Control</h3>
             <input id="dimmer" type="range" min="0" max="100" value="0" />
@@ -259,11 +267,32 @@
             </div>
             <p class="info-text">Current : <span id="dimmerValue">0</span>%</p>
           </div>
+
+          <!-- MODE PERTUMBUHAN (BARU!) -->
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>🌱 Mode Pertumbuhan Kentang</h3>
+            <div class="mode-selector">
+              <select id="growthMode" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px;">
+                <option value="bibit">🌱 Bibit (3-5 jam, 45%)</option>
+                <option value="vegetatif">🌿 Vegetatif (12-16 jam, 90%)</option>
+                <option value="generatif">🥔 Generatif (12 jam, 70%)</option>
+                <option value="panen">🌾 Panen (8-10 jam, 40%)</option>
+                <option value="manual">🎛 Manual (User kontrol)</option>
+              </select>
+              <button id="applyModeBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 24px;">Terapkan</button>
+            </div>
+            <div class="mode-info" style="margin-top:12px; display:flex; gap:20px; font-size:13px; color:var(--muted); flex-wrap:wrap;">
+              <span id="currentModeDisplay">Mode: Manual</span>
+              <span id="modeDurationDisplay">Durasi: -</span>
+              <span id="modeBrightnessDisplay">Intensitas: -</span>
+            </div>
+            <button id="resetPlantBtn" class="unlock-btn" style="margin-top:12px; background:rgba(239,68,68,.2); color:#ef4444;">🔄 Reset Tanam (Mulai Baru)</button>
+          </div>
         </div>
       </section>
 
       <!-- ======================================
-           SECURITY
+           SECURITY (TIDAK BERUBAH)
       ======================================= -->
       <section class="section page-section hidden" id="security">
         <h2 class="section-title purple">🔒 SECURITY ACCESS</h2>
@@ -289,21 +318,17 @@
       </section>
 
       <!-- ======================================
-           ADMIN PANEL (HANYA UNTUK ADMIN)
+           ADMIN PANEL (TIDAK BERUBAH)
       ======================================= -->
       <section class="section page-section hidden" id="admin">
         <h2 class="section-title purple">👑 ADMIN PANEL</h2>
-
         <div class="admin-grid">
-          <!-- Daftar User -->
           <div class="admin-card">
             <h3>📋 Daftar User</h3>
             <div id="userList" style="max-height:400px; overflow-y:auto;">
               <p style="color:var(--muted); text-align:center; padding:20px;">Memuat data user...</p>
             </div>
           </div>
-
-          <!-- Tambah User -->
           <div class="admin-card">
             <h3>➕ Tambah User</h3>
             <form id="addUserForm" style="display:flex; flex-direction:column; gap:12px;">
