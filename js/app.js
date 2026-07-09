@@ -1,4 +1,4 @@
-import { db } from "./firebase.js"; // ✅ PATH BENAR (selevel dengan app.js)
+import { db } from "./firebase.js";
 
 import {
   ref,
@@ -86,6 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashConnStatus = getEl("dashConnStatus");
   const dashDataCount = getEl("dashDataCount");
   const dashLastUpdate = getEl("dashLastUpdate");
+  // Dashboard dimmer & btn (opsional, tidak wajib)
   const dashDimmer = getEl("dashDimmer");
   const dashDimmerValue = getEl("dashDimmerValue");
   const dashBtnOn = getEl("dashBtnOn");
@@ -421,6 +422,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dashLampLabel.style.color = state.lampState ? "#22c55e" : "#ef4444";
     }
 
+    // Dimmer dashboard (opsional)
     if (dashDimmer) dashDimmer.value = state.brightness;
     if (dashDimmerValue) dashDimmerValue.innerText = state.brightness;
 
@@ -461,14 +463,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const config = getModeConfig(modeKey);
     const days = getDaysSincePlanting();
 
-    // Dashboard mode card
     if (modeIcon) modeIcon.textContent = config.icon;
     if (modeName) modeName.textContent = config.label;
     if (modeDuration) modeDuration.textContent = config.duration !== null ? config.duration : '-';
     if (modeBrightness) modeBrightness.textContent = config.brightness !== null ? config.brightness : '-';
     if (dayCounter) dayCounter.textContent = days;
 
-    // Timeline message
     if (timelineMessage) {
       const reminder = getReminderMessage(days);
       if (reminder) {
@@ -483,7 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    // Control page mode display
     if (currentModeDisplay) {
       currentModeDisplay.textContent = `Mode: ${config.icon} ${config.label}`;
     }
@@ -494,7 +493,6 @@ document.addEventListener("DOMContentLoaded", () => {
       modeBrightnessDisplay.textContent = `Intensitas: ${config.brightness !== null ? config.brightness + '%' : 'Manual'}`;
     }
 
-    // Sync select dropdown
     if (growthModeSelect) {
       growthModeSelect.value = modeKey;
     }
@@ -552,7 +550,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     SAVE HISTORY TO FIREBASE
+     SAVE HISTORY TO FIREBASE (FIXED)
   ======================================== */
 
   let lastSaveTime = 0;
@@ -563,8 +561,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (now - lastSaveTime < SAVE_INTERVAL) return;
     lastSaveTime = now;
 
-    const timestamp = new Date().toISOString();
-    const historyRef = ref(db, 'sensor_history');
+    // 🔥 FIX: Ganti titik dan titik dua dengan strip agar path valid di Firebase
+    const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
+    // Hasil: "2026-07-09T12-12-43-993Z" (tanpa titik)
 
     // Simpan suhu
     set(ref(db, `sensor_history/suhu/${timestamp}`), {
@@ -597,7 +596,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (status) status.textContent = '⏳ Mengambil data...';
 
     try {
-      // Tentukan rentang waktu
       const now = new Date();
       let startDate;
       if (period === 'week') {
@@ -610,22 +608,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const startStr = startDate.toISOString();
 
-      // Ambil data suhu
       const suhuRef = ref(db, 'sensor_history/suhu');
       const suhuSnapshot = await get(suhuRef);
       const suhuData = suhuSnapshot.val() || {};
 
-      // Ambil data cahaya
       const cahayaRef = ref(db, 'sensor_history/cahaya');
       const cahayaSnapshot = await get(cahayaRef);
       const cahayaData = cahayaSnapshot.val() || {};
 
-      // Gabungkan berdasarkan timestamp
       const timestamps = new Set();
       Object.keys(suhuData).forEach(t => timestamps.add(t));
       Object.keys(cahayaData).forEach(t => timestamps.add(t));
 
-      // Filter berdasarkan periode
       const filtered = [];
       timestamps.forEach(t => {
         if (t >= startStr) {
@@ -637,7 +631,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
 
-      // Urutkan dari yang paling lama ke terbaru
       filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
       if (filtered.length === 0) {
@@ -645,13 +638,11 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Buat CSV
       let csv = 'Timestamp,Suhu (°C),Cahaya (%)\n';
       filtered.forEach(row => {
         csv += `${row.timestamp},${row.suhu ?? ''},${row.cahaya ?? ''}\n`;
       });
 
-      // Download file
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -669,7 +660,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Event listener export
   if (exportBtn && exportPeriod) {
     exportBtn.addEventListener('click', () => {
       const period = exportPeriod.value;
@@ -940,6 +930,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Dashboard dimmer (opsional)
   if (dashDimmer) {
     dashDimmer.addEventListener("input", (e) => {
       setBrightness(e.target.value);
@@ -961,6 +952,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Dashboard buttons (opsional)
   if (dashBtnOn) {
     dashBtnOn.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), true);
@@ -1120,7 +1112,6 @@ document.addEventListener("DOMContentLoaded", () => {
     controlSection: !!controlSection
   });
 
-  // Inisialisasi mode UI
   updateModeUI();
 
   console.log("🚀 App siap!");
