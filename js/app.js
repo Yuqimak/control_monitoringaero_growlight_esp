@@ -6,7 +6,11 @@ import {
   set,
   get,
   update,
-  push
+  push,
+  query,
+  orderByKey,
+  limitToLast,
+  startAfter
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ============================================
@@ -44,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
     sensorLight: 0,
     brightness: 0,
     lampState: false,
-    unlocked: false,
     mode: 'manual',
     plantStartDate: null
   };
@@ -73,9 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const dimmerValue = getEl("dimmerValue");
   const btnOn = getEl("btnOn");
   const btnOff = getEl("btnOff");
-  const pinInput = getEl("pinInput");
-  const unlockBtn = getEl("unlockBtn");
-  const accessStatus = getEl("accessStatus");
   const controlSection = getEl("controlSection");
   const dashTemp = getEl("dashTemp");
   const dashLight = getEl("dashLight");
@@ -96,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const addUserMsg = document.getElementById('addUserMsg');
   const userNameEl = document.getElementById("userName");
 
-  // Mode elements (BARU)
+  // Mode elements
   const growthModeSelect = getEl("growthMode");
   const applyModeBtn = getEl("applyModeBtn");
   const currentModeDisplay = getEl("currentModeDisplay");
@@ -109,6 +109,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const dayCounter = getEl("dayCounter");
   const timelineMessage = getEl("timelineMessage");
   const resetPlantBtn = getEl("resetPlantBtn");
+
+  // Export elements
+  const exportPeriod = getEl("exportPeriod");
+  const exportBtn = getEl("exportBtn");
+  const exportStatus = getEl("exportStatus");
 
   // Tampilkan menu admin jika role = admin
   if (currentUser && currentUser.role === 'admin') {
@@ -155,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     CHART (EXISTING)
+     CHART
   ======================================== */
 
   const tempLabels = [];
@@ -289,26 +294,8 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /* ========================================
-     ACCESS UI (PIN UNLOCK)
+     ANIMATE VALUE
   ======================================== */
-
-  function updateAccessUI() {
-    if (!controlSection || !accessStatus) return;
-    const controls = controlSection.querySelectorAll("button, input");
-    controls.forEach((el) => {
-      if (el.id !== "pinInput" && el.id !== "unlockBtn") {
-        el.disabled = !state.unlocked;
-      }
-    });
-    if (state.unlocked) {
-      accessStatus.innerText = "🔓 Control Unlocked";
-      accessStatus.style.color = "#22c55e";
-    } else {
-      accessStatus.innerText = "🔒 Control Locked";
-      accessStatus.style.color = "#ef4444";
-    }
-  }
-  updateAccessUI();
 
   function animateValue(el, start, end, duration = 300) {
     if (!el) return;
@@ -393,7 +380,6 @@ document.addEventListener("DOMContentLoaded", () => {
       connStatus.style.color = "#22c55e";
     }
 
-    updateAccessUI();
     updateStatusText();
     updateDashboard();
     updateDashChart();
@@ -518,14 +504,12 @@ document.addEventListener("DOMContentLoaded", () => {
      MODE - APPLY & RESET
   ======================================== */
 
-  // Terapkan mode
   if (applyModeBtn && growthModeSelect) {
     applyModeBtn.addEventListener('click', async () => {
       const mode = growthModeSelect.value;
       const config = getModeConfig(mode);
       
       if (mode === 'manual') {
-        // Mode manual: user kontrol sendiri
         await update(ref(db, 'control/lamp'), { mode: 'manual' });
         state.mode = 'manual';
         updateModeUI();
@@ -533,14 +517,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Auto mode: set brightness & mode
       await update(ref(db, 'control/lamp'), {
         mode: mode,
         brightness: config.brightness,
-        state: true // nyalakan lampu
+        state: true
       });
 
-      // Jika belum ada tanggal tanam, set sekarang
       if (!state.plantStartDate) {
         const now = new Date().toISOString();
         await set(ref(db, 'system/plant_start_date'), now);
@@ -556,7 +538,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Reset tanaman (mulai baru)
   if (resetPlantBtn) {
     resetPlantBtn.addEventListener('click', async () => {
       if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
@@ -567,6 +548,132 @@ document.addEventListener("DOMContentLoaded", () => {
       updateModeUI();
       renderUI();
       alert('✅ Tanaman di-reset! Silakan mulai mode baru.');
+    });
+  }
+
+  /* ========================================
+     SAVE HISTORY TO FIREBASE
+  ======================================== */
+
+  let lastSaveTime = 0;
+  const SAVE_INTERVAL = 60000; // 1 menit
+
+  function saveHistory() {
+    const now = Date.now();
+    if (now - lastSaveTime < SAVE_INTERVAL) return;
+    lastSaveTime = now;
+
+    const timestamp = new Date().toISOString();
+    const historyRef = ref(db, 'sensor_history');
+
+    // Simpan suhu
+    set(ref(db, `sensor_history/suhu/${timestamp}`), {
+      value: state.temperature,
+      timestamp: timestamp
+    });
+
+    // Simpan cahaya
+    set(ref(db, `sensor_history/cahaya/${timestamp}`), {
+      value: state.sensorLight,
+      timestamp: timestamp
+    });
+
+    // Simpan status lampu
+    set(ref(db, `sensor_history/lampu/${timestamp}`), {
+      state: state.lampState,
+      brightness: state.brightness,
+      timestamp: timestamp
+    });
+
+    console.log('📊 History saved at', timestamp);
+  }
+
+  /* ========================================
+     EXPORT DATA - CSV
+  ======================================== */
+
+  async function exportData(period) {
+    const status = exportStatus;
+    if (status) status.textContent = '⏳ Mengambil data...';
+
+    try {
+      // Tentukan rentang waktu
+      const now = new Date();
+      let startDate;
+      if (period === 'week') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+      } else { // month
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+      }
+
+      const startStr = startDate.toISOString();
+
+      // Ambil data suhu
+      const suhuRef = ref(db, 'sensor_history/suhu');
+      const suhuSnapshot = await get(suhuRef);
+      const suhuData = suhuSnapshot.val() || {};
+
+      // Ambil data cahaya
+      const cahayaRef = ref(db, 'sensor_history/cahaya');
+      const cahayaSnapshot = await get(cahayaRef);
+      const cahayaData = cahayaSnapshot.val() || {};
+
+      // Gabungkan berdasarkan timestamp
+      const timestamps = new Set();
+      Object.keys(suhuData).forEach(t => timestamps.add(t));
+      Object.keys(cahayaData).forEach(t => timestamps.add(t));
+
+      // Filter berdasarkan periode
+      const filtered = [];
+      timestamps.forEach(t => {
+        if (t >= startStr) {
+          filtered.push({
+            timestamp: t,
+            suhu: suhuData[t]?.value ?? null,
+            cahaya: cahayaData[t]?.value ?? null
+          });
+        }
+      });
+
+      // Urutkan dari yang paling lama ke terbaru
+      filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+      if (filtered.length === 0) {
+        if (status) status.textContent = '⚠️ Tidak ada data untuk periode ini.';
+        return;
+      }
+
+      // Buat CSV
+      let csv = 'Timestamp,Suhu (°C),Cahaya (%)\n';
+      filtered.forEach(row => {
+        csv += `${row.timestamp},${row.suhu ?? ''},${row.cahaya ?? ''}\n`;
+      });
+
+      // Download file
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sensor_data_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (status) status.textContent = `✅ Berhasil ekspor ${filtered.length} data.`;
+    } catch (error) {
+      console.error('Export error:', error);
+      if (status) status.textContent = '❌ Gagal ekspor data. Cek console.';
+    }
+  }
+
+  // Event listener export
+  if (exportBtn && exportPeriod) {
+    exportBtn.addEventListener('click', () => {
+      const period = exportPeriod.value;
+      exportData(period);
     });
   }
 
@@ -759,20 +866,22 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       lightChart.update();
     }
+
+    // Simpan history setiap 1 menit
+    saveHistory();
+
     renderUI();
     updateModeUI();
 
-    // CEK REMINDER (setiap update)
+    // CEK REMINDER
     const days = getDaysSincePlanting();
     const reminder = getReminderMessage(days);
     if (reminder && days > 0) {
-      // Kirim notifikasi jika belum pernah dikirim untuk hari ini
       const notifKey = `reminder_${days}`;
       const lastNotif = localStorage.getItem(notifKey);
       if (!lastNotif) {
         showToast('🔔 ' + reminder);
         localStorage.setItem(notifKey, Date.now());
-        // Simpan ke Firebase untuk history
         push(ref(db, 'notifications'), { message: reminder, timestamp: Date.now(), read: false });
       }
     }
@@ -861,23 +970,6 @@ document.addEventListener("DOMContentLoaded", () => {
     dashBtnOff.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), false);
       set(ref(db, "control/lamp/brightness"), 0);
-    });
-  }
-
-  if (unlockBtn && pinInput) {
-    unlockBtn.addEventListener("click", () => {
-      const pin = pinInput.value;
-      const pinRef = ref(db, "system/adminpin");
-      onValue(pinRef, (snapshot) => {
-        const correctPin = snapshot.val();
-        if (pin === String(correctPin)) {
-          state.unlocked = true;
-          updateAccessUI();
-          pinInput.value = "";
-        } else {
-          alert("PIN salah!");
-        }
-      }, { onlyOnce: true });
     });
   }
 
@@ -1025,9 +1117,6 @@ document.addEventListener("DOMContentLoaded", () => {
     dimmerValue: !!dimmerValue,
     btnOn: !!btnOn,
     btnOff: !!btnOff,
-    pinInput: !!pinInput,
-    unlockBtn: !!unlockBtn,
-    accessStatus: !!accessStatus,
     controlSection: !!controlSection
   });
 
