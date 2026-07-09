@@ -35,7 +35,7 @@
         <button class="menu-item" data-target="monitoring">🌡 Monitoring</button>
         <button class="menu-item" data-target="analytics">📈 Analytics</button>
         <button class="menu-item" data-target="control">🎛 Control</button>
-        <button class="menu-item" data-target="security">🔒 Security</button>
+        <!-- HAPUS MENU SECURITY -->
         <button class="menu-item" data-target="admin" id="adminMenu" style="display:none;">👑 Admin</button>
       </nav>
 
@@ -51,7 +51,7 @@
     <main class="main-content">
 
       <!-- ======================================
-           TOPBAR
+           TOPBAR (TIDAK BERUBAH)
       ======================================= -->
       <header class="topbar">
         <div style="display:flex; align-items:center; gap:12px; flex:1;">
@@ -78,7 +78,7 @@
       </header>
 
       <!-- ======================================
-           DASHBOARD
+           DASHBOARD (TIDAK BERUBAH)
       ======================================= -->
       <section class="section page-section" id="dashboard">
         <h2 class="section-title green">🏠 DASHBOARD</h2>
@@ -110,7 +110,7 @@
               </div>
             </div>
           </div>
-          <!-- CARD 2: MODE PERTUMBUHAN (BARU!) -->
+          <!-- CARD 2: MODE PERTUMBUHAN -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon orange-box">🌱</div>
@@ -217,11 +217,12 @@
       </section>
 
       <!-- ======================================
-           ANALYTICS (TIDAK BERUBAH)
+           ANALYTICS (DENGAN EXPORT DATA)
       ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
         <div class="analytics-grid">
+          <!-- GRAFIK SUHU -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>Suhu Realtime</h3>
@@ -229,12 +230,28 @@
             </div>
             <canvas id="tempChart"></canvas>
           </div>
+          <!-- GRAFIK CAHAYA -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>History Intensitas</h3>
               <button class="time-btn">10 Menit Terakhir</button>
             </div>
             <canvas id="lightChart"></canvas>
+          </div>
+          <!-- EXPORT DATA CARD (BARU) -->
+          <div class="analytics-card" style="grid-column: span 2;">
+            <div class="analytics-head">
+              <h3>📥 Export Data</h3>
+              <span style="color:var(--muted); font-size:13px;">Unduh data sensor dalam format CSV</span>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <select id="exportPeriod" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:14px; min-width:150px;">
+                <option value="week">📅 1 Minggu Terakhir</option>
+                <option value="month">📅 1 Bulan Terakhir</option>
+              </select>
+              <button id="exportBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 28px;">⬇️ Download CSV</button>
+            </div>
+            <p id="exportStatus" style="margin-top:10px; font-size:13px; color:var(--muted);">Klik tombol untuk mengunduh data.</p>
           </div>
         </div>
       </section>
@@ -268,7 +285,7 @@
             <p class="info-text">Current : <span id="dimmerValue">0</span>%</p>
           </div>
 
-          <!-- MODE PERTUMBUHAN (BARU!) -->
+          <!-- MODE PERTUMBUHAN -->
           <div class="control-card" style="grid-column: span 2;">
             <h3>🌱 Mode Pertumbuhan Kentang</h3>
             <div class="mode-selector">
@@ -292,33 +309,7 @@
       </section>
 
       <!-- ======================================
-           SECURITY (TIDAK BERUBAH)
-      ======================================= -->
-      <section class="section page-section hidden" id="security">
-        <h2 class="section-title purple">🔒 SECURITY ACCESS</h2>
-        <div class="security-grid">
-          <div class="security-card">
-            <h3>Akses Kontrol</h3>
-            <p class="security-sub">Masukkan PIN untuk mengakses sistem</p>
-            <form id="pinForm" onsubmit="return false;">
-              <input type="password" id="pinInput" placeholder="Enter PIN" autocomplete="new-password">
-              <button id="unlockBtn" class="unlock-btn" type="button">🔓 Unlock Control</button>
-            </form>
-          </div>
-          <div class="security-card">
-            <div class="unlock-status">
-              <div class="lock-icon">🔐</div>
-              <div>
-                <h3 class="green-text" id="accessStatus">Control Locked</h3>
-                <p>Sistem keamanan aktif</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ======================================
-           ADMIN PANEL (TIDAK BERUBAH)
+           ADMIN PANEL
       ======================================= -->
       <section class="section page-section hidden" id="admin">
         <h2 class="section-title purple">👑 ADMIN PANEL</h2>
