@@ -94,7 +94,7 @@
     // LOGIN VIA FIREBASE REALTIME DATABASE
     // ============================================
     
-    import { db } from "./js/firebase.js";
+    import { db } from "./js/firebase.js";  // ✅ PATH BENAR!
     import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const form = document.getElementById('loginForm');
@@ -115,7 +115,6 @@
       }
 
       try {
-        // Cek user di database (username langsung, tanpa replace)
         const userRef = ref(db, `users/${username}`);
         const snapshot = await get(userRef);
         const userData = snapshot.val();
@@ -126,7 +125,6 @@
         }
 
         if (userData.password === password) {
-          // ✅ Login berhasil
           const session = {
             username: username,
             nama: userData.nama || username,
@@ -161,7 +159,6 @@
       
       const nama = prompt('👤 Masukkan nama lengkap Anda:') || username;
       
-      // Cek apakah username sudah ada
       const userRef = ref(db, `users/${username}`);
       get(userRef).then((snapshot) => {
         if (snapshot.exists()) {
@@ -169,7 +166,6 @@
           return;
         }
         
-        // Simpan ke Firebase
         set(userRef, {
           password: password,
           nama: nama,
@@ -185,10 +181,9 @@
       });
     }
 
-    // Hubungkan fungsi register ke tombol
     registerLink.addEventListener('click', showRegister);
 
-    // === CEK SESSION (jika sudah login, redirect ke dashboard) ===
+    // CEK SESSION
     const session = localStorage.getItem('iot_user');
     if (session) {
       try {
