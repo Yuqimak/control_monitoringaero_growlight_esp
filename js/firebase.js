@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSy...", // Ganti dengan API Key asli
+  apiKey: "AIzaSy...", // GANTI DENGAN API KEY ASLI
   authDomain: "growlightta.firebaseapp.com",
   databaseURL: "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "growlightta",
