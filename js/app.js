@@ -1,10 +1,13 @@
-import { db } from "./firebase.js";
+import { db } from "./firebase.js";  // ✅ PATH BENAR (karena app.js di folder js)
+
 import {
   ref,
   onValue,
   set,
   get
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ... sisanya tetap sama
 
 /* ============================================
    SESSION & AUTH CHECK
