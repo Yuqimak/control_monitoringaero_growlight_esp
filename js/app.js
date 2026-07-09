@@ -1,25 +1,27 @@
-import { db } from "./firebase.js";  // ✅ PATH BENAR
+import { db } from "./firebase.js";
 
 import {
   ref,
   onValue,
   set,
-  get
+  get,
+  update
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ============================================
    SESSION & AUTH CHECK
 ============================================ */
 
+let currentUser = null;
 const sessionData = localStorage.getItem('iot_user');
 if (!sessionData) {
   window.location.href = 'login.html';
 } else {
   try {
-    const user = JSON.parse(sessionData);
-    console.log('👤 Login sebagai:', user.nama, '(', user.username, ')');
+    currentUser = JSON.parse(sessionData);
+    console.log('👤 Login sebagai:', currentUser.nama, '(', currentUser.username, ')');
     
-    const loginTime = user.loginTime || 0;
+    const loginTime = currentUser.loginTime || 0;
     const expired = (Date.now() - loginTime) > 8 * 60 * 60 * 1000;
     if (expired) {
       localStorage.removeItem('iot_user');
@@ -91,8 +93,19 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashBtnOn = getEl("dashBtnOn");
   const dashBtnOff = getEl("dashBtnOff");
 
+  // Admin elements
+  const adminMenu = document.getElementById('adminMenu');
+  const userList = document.getElementById('userList');
+  const addUserForm = document.getElementById('addUserForm');
+  const addUserMsg = document.getElementById('addUserMsg');
+
   // User info
   const userNameEl = document.getElementById("userName");
+
+  // Tampilkan menu admin jika role = admin
+  if (currentUser && currentUser.role === 'admin') {
+    if (adminMenu) adminMenu.style.display = 'block';
+  }
 
   /* ========================================
      CHART
@@ -208,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     USER INFO
+     USER INFO & LOGOUT
   ======================================== */
 
   function showUserInfo() {
@@ -229,7 +242,7 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   /* ========================================
-     ACCESS UI
+     ACCESS UI (PIN UNLOCK)
   ======================================== */
 
   function updateAccessUI() {
@@ -408,7 +421,159 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     FIREBASE
+     ADMIN PANEL - FUNGSI
+  ======================================== */
+
+  // Load daftar user (hanya untuk admin)
+  function loadUserList() {
+    if (!userList) return;
+    const userListRef = ref(db, 'users');
+    onValue(userListRef, (snapshot) => {
+      const users = snapshot.val();
+      if (!users) {
+        userList.innerHTML = '<p style="color:var(--muted); text-align:center; padding:20px;">Belum ada user terdaftar.</p>';
+        return;
+      }
+      
+      let html = `<table style="width:100%; text-align:left; border-collapse:collapse; font-size:14px;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.1);">
+            <th style="padding:8px 4px;">Username</th>
+            <th style="padding:8px 4px;">Nama</th>
+            <th style="padding:8px 4px;">Role</th>
+            <th style="padding:8px 4px;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>`;
+      
+      for (const [username, data] of Object.entries(users)) {
+        const isCurrent = (username === currentUser.username);
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+          <td style="padding:8px 4px;">${username}${isCurrent ? ' 👑' : ''}</td>
+          <td style="padding:8px 4px;">${data.nama || '-'}</td>
+          <td style="padding:8px 4px;"><span style="background:${data.role === 'admin' ? 'rgba(139,92,246,.2)' : 'rgba(34,197,94,.2)'}; padding:2px 10px; border-radius:12px; font-size:12px;">${data.role}</span></td>
+          <td style="padding:8px 4px;">
+            ${!isCurrent ? `
+              <button onclick="window.changeRole('${username}', 'admin')" class="small-btn" style="background:rgba(139,92,246,.2); border:none; color:#a78bfa; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; margin-right:4px;">⬆ Admin</button>
+              <button onclick="window.changeRole('${username}', 'petani')" class="small-btn" style="background:rgba(34,197,94,.2); border:none; color:#4ade80; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; margin-right:4px;">⬇ Petani</button>
+              <button onclick="window.deleteUser('${username}')" class="small-btn danger" style="background:rgba(239,68,68,.2); border:none; color:#f87171; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">🗑 Hapus</button>
+            ` : '<span style="color:var(--muted); font-size:11px;">(Anda)</span>'}
+          </td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      userList.innerHTML = html;
+    });
+  }
+
+  // Fungsi ubah role (exposed ke global)
+  window.changeRole = function(username, newRole) {
+    if (!confirm(`Ubah role ${username} menjadi ${newRole}?`)) return;
+    update(ref(db, `users/${username}`), { role: newRole })
+      .then(() => {
+        if (addUserMsg) {
+          addUserMsg.textContent = '✅ Role berhasil diubah!';
+          addUserMsg.style.color = '#22c55e';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Gagal mengubah role.';
+          addUserMsg.style.color = '#ef4444';
+        }
+      });
+  };
+
+  // Fungsi hapus user (exposed ke global)
+  window.deleteUser = function(username) {
+    if (!confirm(`Hapus user ${username}?`)) return;
+    set(ref(db, `users/${username}`), null)
+      .then(() => {
+        if (addUserMsg) {
+          addUserMsg.textContent = '✅ User berhasil dihapus!';
+          addUserMsg.style.color = '#22c55e';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Gagal menghapus user.';
+          addUserMsg.style.color = '#ef4444';
+        }
+      });
+  };
+
+  // Tambah user via form
+  if (addUserForm) {
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value.trim();
+      const nama = document.getElementById('newNama').value.trim() || username;
+      const role = document.getElementById('newRole').value;
+
+      if (!username || !password) {
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Username dan password wajib diisi!';
+          addUserMsg.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      if (username.length < 3) {
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Username minimal 3 karakter!';
+          addUserMsg.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      if (password.length < 4) {
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Password minimal 4 karakter!';
+          addUserMsg.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      const userRef = ref(db, `users/${username}`);
+      try {
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+          if (addUserMsg) {
+            addUserMsg.textContent = '❌ Username sudah terdaftar!';
+            addUserMsg.style.color = '#ef4444';
+          }
+          return;
+        }
+        await set(userRef, {
+          password: password,
+          nama: nama,
+          role: role,
+          createdAt: new Date().toISOString()
+        });
+        if (addUserMsg) {
+          addUserMsg.textContent = '✅ User berhasil ditambahkan!';
+          addUserMsg.style.color = '#22c55e';
+        }
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('newNama').value = '';
+        document.getElementById('newRole').value = 'petani';
+        // Reload user list otomatis via onValue
+      } catch (err) {
+        console.error(err);
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Gagal menambahkan user: ' + err.message;
+          addUserMsg.style.color = '#ef4444';
+        }
+      }
+    });
+  }
+
+  /* ========================================
+     FIREBASE REALTIME
   ======================================== */
 
   const rootRef = ref(db);
@@ -652,6 +817,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   updateClock();
   setInterval(updateClock, 1000);
+
+  /* ========================================
+     LOAD ADMIN PANEL (jika admin)
+  ======================================== */
+  if (currentUser && currentUser.role === 'admin') {
+    loadUserList();
+  }
 
   console.log("✅ Elements loaded:", {
     tempEl: !!tempEl,
