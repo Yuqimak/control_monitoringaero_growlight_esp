@@ -1,4 +1,4 @@
-import { db } from "./firebase.js";  // ✅ PATH BENAR (karena app.js di folder js)
+import { db } from "./firebase.js";  // ✅ PATH BENAR
 
 import {
   ref,
@@ -7,23 +7,18 @@ import {
   get
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-// ... sisanya tetap sama
-
 /* ============================================
    SESSION & AUTH CHECK
 ============================================ */
 
-// Cek session login
 const sessionData = localStorage.getItem('iot_user');
 if (!sessionData) {
-  // Belum login → redirect ke login
   window.location.href = 'login.html';
 } else {
   try {
     const user = JSON.parse(sessionData);
-    console.log('👤 Login sebagai:', user.nama, '(', user.email, ')');
+    console.log('👤 Login sebagai:', user.nama, '(', user.username, ')');
     
-    // Session expired setelah 8 jam
     const loginTime = user.loginTime || 0;
     const expired = (Date.now() - loginTime) > 8 * 60 * 60 * 1000;
     if (expired) {
@@ -226,7 +221,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   showUserInfo();
 
-  // Logout function (global)
   window.logout = function() {
     if (confirm('Yakin mau logout?')) {
       localStorage.removeItem('iot_user');
@@ -481,7 +475,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Dashboard Dimmer
   if (dashDimmer) {
     dashDimmer.addEventListener("input", (e) => {
       setBrightness(e.target.value);
@@ -503,7 +496,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Dashboard Controls
   if (dashBtnOn) {
     dashBtnOn.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), true);
@@ -516,7 +508,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // PIN unlock (tetap ada, tapi nanti bisa dihapus jika semua user sudah pakai login)
   if (unlockBtn && pinInput) {
     unlockBtn.addEventListener("click", () => {
       const pin = pinInput.value;
@@ -528,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
           updateAccessUI();
           pinInput.value = "";
         } else {
-          alert("Wrong PIN");
+          alert("PIN salah!");
         }
       }, { onlyOnce: true });
     });
