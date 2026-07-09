@@ -58,18 +58,20 @@
           <div>
             <h1>🌱 IoT Greenhouse</h1>
             <p class="subtitle">Smart Monitoring & Control System</p>
-            <!-- User info & logout -->
-<div class="user-card">
-  <span id="userName">👋 User</span>
-  <button onclick="logout()" class="logout-btn">🚪</button>
-</div>
           </div>
         </div>
         <div class="topbar-right">
+          <!-- Status Card -->
           <div class="status-card">
             <p class="online-text">● Online</p>
             <p class="firebase-text">Firebase : <span id="connStatus">Connecting...</span></p>
           </div>
+          <!-- User Card -->
+          <div class="user-card">
+            <span id="userName">👋 User</span>
+            <button onclick="logout()" class="logout-btn">🚪</button>
+          </div>
+          <!-- Clock Card -->
           <div class="clock-card">
             <p id="dateText">--</p>
             <h3 id="clockText">--:--:--</h3>
@@ -277,9 +279,9 @@
             <h3>Akses Kontrol</h3>
             <p class="security-sub">Masukkan PIN untuk mengakses sistem</p>
             <form id="pinForm" onsubmit="return false;">
-  <input type="password" id="pinInput" placeholder="Enter PIN" />
-  <button id="unlockBtn" class="unlock-btn" type="button">🔓 Unlock Control</button>
-</form>
+              <input type="password" id="pinInput" placeholder="Enter PIN" />
+              <button id="unlockBtn" class="unlock-btn" type="button">🔓 Unlock Control</button>
+            </form>
           </div>
           <div class="security-card">
             <div class="unlock-status">
