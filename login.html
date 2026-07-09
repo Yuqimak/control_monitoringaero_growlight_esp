@@ -79,7 +79,7 @@
     <p class="sub">Smart Monitoring & Control System</p>
     
     <form id="loginForm">
-      <input type="email" id="loginEmail" placeholder="📧 Email" required autocomplete="email">
+      <input type="text" id="loginUsername" placeholder="👤 Username" required autocomplete="username">
       <input type="password" id="loginPassword" placeholder="🔒 Password" required autocomplete="current-password">
       <button type="submit">🔓 Login</button>
       <p id="errorMsg" class="error"></p>
@@ -94,7 +94,7 @@
     // LOGIN VIA FIREBASE REALTIME DATABASE
     // ============================================
     
-    import { db } from "./firebase.js";
+    import { db } from "./js/firebase.js";
     import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const form = document.getElementById('loginForm');
@@ -106,30 +106,30 @@
       e.preventDefault();
       errorMsg.textContent = '⏳ Memeriksa...';
       
-      const email = document.getElementById('loginEmail').value.trim();
+      const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value.trim();
       
-      if (!email || !password) {
-        errorMsg.textContent = '❌ Email dan password wajib diisi!';
+      if (!username || !password) {
+        errorMsg.textContent = '❌ Username dan password wajib diisi!';
         return;
       }
 
       try {
-        // Cek user di database (ganti titik dengan koma karena Firebase tidak support titik di path)
-        const userRef = ref(db, `users/${email.replace(/\./g, ',')}`);
+        // Cek user di database (username langsung, tanpa replace)
+        const userRef = ref(db, `users/${username}`);
         const snapshot = await get(userRef);
         const userData = snapshot.val();
 
         if (!userData) {
-          errorMsg.textContent = '❌ Email tidak terdaftar!';
+          errorMsg.textContent = '❌ Username tidak terdaftar!';
           return;
         }
 
         if (userData.password === password) {
           // ✅ Login berhasil
           const session = {
-            email: email,
-            nama: userData.nama || email.split('@')[0],
+            username: username,
+            nama: userData.nama || username,
             role: userData.role || 'petani',
             loginTime: Date.now()
           };
@@ -146,10 +146,10 @@
 
     // === REGISTER ===
     function showRegister() {
-      const email = prompt('📧 Masukkan email untuk daftar:');
-      if (!email) return;
-      if (!email.includes('@')) {
-        alert('Email tidak valid!');
+      const username = prompt('👤 Masukkan username untuk daftar:');
+      if (!username) return;
+      if (username.length < 3) {
+        alert('Username minimal 3 karakter!');
         return;
       }
       
@@ -159,21 +159,29 @@
         return;
       }
       
-      const nama = prompt('👤 Masukkan nama Anda:') || email.split('@')[0];
+      const nama = prompt('👤 Masukkan nama lengkap Anda:') || username;
       
-      // Simpan ke Firebase
-      const userRef = ref(db, `users/${email.replace(/\./g, ',')}`);
-      set(userRef, {
-        password: password,
-        nama: nama,
-        role: 'petani',
-        createdAt: new Date().toISOString()
-      })
-      .then(() => {
-        alert('✅ Akun berhasil dibuat! Silakan login.');
-      })
-      .catch((err) => {
-        alert('❌ Gagal daftar: ' + err.message);
+      // Cek apakah username sudah ada
+      const userRef = ref(db, `users/${username}`);
+      get(userRef).then((snapshot) => {
+        if (snapshot.exists()) {
+          alert('❌ Username sudah terdaftar!');
+          return;
+        }
+        
+        // Simpan ke Firebase
+        set(userRef, {
+          password: password,
+          nama: nama,
+          role: 'petani',
+          createdAt: new Date().toISOString()
+        })
+        .then(() => {
+          alert('✅ Akun berhasil dibuat! Silakan login.');
+        })
+        .catch((err) => {
+          alert('❌ Gagal daftar: ' + err.message);
+        });
       });
     }
 
@@ -185,13 +193,12 @@
     if (session) {
       try {
         const user = JSON.parse(session);
-        if (user.email && user.loginTime) {
+        if (user.username && user.loginTime) {
           window.location.href = 'index.html';
         }
       } catch(e) {}
     }
 
-    // Ekspos showRegister ke global (untuk berjaga-jaga)
     window.showRegister = showRegister;
   </script>
 </body>
