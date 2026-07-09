@@ -61,17 +61,14 @@
           </div>
         </div>
         <div class="topbar-right">
-          <!-- Status Card -->
           <div class="status-card">
             <p class="online-text">● Online</p>
             <p class="firebase-text">Firebase : <span id="connStatus">Connecting...</span></p>
           </div>
-          <!-- User Card -->
           <div class="user-card">
             <span id="userName">👋 User</span>
             <button onclick="logout()" class="logout-btn">🚪</button>
           </div>
-          <!-- Clock Card -->
           <div class="clock-card">
             <p id="dateText">--</p>
             <h3 id="clockText">--:--:--</h3>
@@ -80,14 +77,13 @@
       </header>
 
       <!-- ======================================
-           DASHBOARD - RANGKUMAN SEMUA FITUR
+           DASHBOARD
       ======================================= -->
       <section class="section page-section" id="dashboard">
         <h2 class="section-title green">🏠 DASHBOARD</h2>
 
         <div class="dashboard-grid">
 
-          <!-- CARD 1: SENSOR MONITORING -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡️</div>
@@ -115,7 +111,6 @@
             </div>
           </div>
 
-          <!-- CARD 2: KONTROL CEPAT -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon orange-box">🎛️</div>
@@ -134,7 +129,6 @@
             </div>
           </div>
 
-          <!-- CARD 3: GRAFIK RINGKAS -->
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
               <div class="card-icon blue-box">📊</div>
@@ -146,7 +140,6 @@
             <canvas id="dashTempChart"></canvas>
           </div>
 
-          <!-- CARD 4: STATUS SISTEM -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon purple-box">🔄</div>
@@ -279,7 +272,7 @@
             <h3>Akses Kontrol</h3>
             <p class="security-sub">Masukkan PIN untuk mengakses sistem</p>
             <form id="pinForm" onsubmit="return false;">
-              <input type="password" id="pinInput" placeholder="Enter PIN" />
+              <input type="password" id="pinInput" placeholder="Enter PIN" autocomplete="new-password">
               <button id="unlockBtn" class="unlock-btn" type="button">🔓 Unlock Control</button>
             </form>
           </div>
