@@ -5,7 +5,8 @@ import {
   onValue,
   set,
   get,
-  update
+  update,
+  push
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ============================================
@@ -20,7 +21,6 @@ if (!sessionData) {
   try {
     currentUser = JSON.parse(sessionData);
     console.log('👤 Login sebagai:', currentUser.nama, '(', currentUser.username, ')');
-    
     const loginTime = currentUser.loginTime || 0;
     const expired = (Date.now() - loginTime) > 8 * 60 * 60 * 1000;
     if (expired) {
@@ -44,7 +44,9 @@ document.addEventListener("DOMContentLoaded", () => {
     sensorLight: 0,
     brightness: 0,
     lampState: false,
-    unlocked: false
+    unlocked: false,
+    mode: 'manual',
+    plantStartDate: null
   };
 
   /* ========================================
@@ -57,12 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
     return el;
   };
 
-  // Dashboard elements
+  // Existing elements
   const tempEl = document.getElementById("dashTemp");
   const lightEl = document.getElementById("dashLight");
   const lampStatus = document.getElementById("dashLampStatus");
-  
-  // Other elements
   const lightBar = getEl("lightBar");
   const connStatus = getEl("connStatus");
   const monitorTemp = getEl("monitorTemp");
@@ -77,8 +77,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const unlockBtn = getEl("unlockBtn");
   const accessStatus = getEl("accessStatus");
   const controlSection = getEl("controlSection");
-
-  // Dashboard additional elements
   const dashTemp = getEl("dashTemp");
   const dashLight = getEl("dashLight");
   const dashLampStatus = getEl("dashLampStatus");
@@ -92,15 +90,25 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashDimmerValue = getEl("dashDimmerValue");
   const dashBtnOn = getEl("dashBtnOn");
   const dashBtnOff = getEl("dashBtnOff");
-
-  // Admin elements
   const adminMenu = document.getElementById('adminMenu');
   const userList = document.getElementById('userList');
   const addUserForm = document.getElementById('addUserForm');
   const addUserMsg = document.getElementById('addUserMsg');
-
-  // User info
   const userNameEl = document.getElementById("userName");
+
+  // Mode elements (BARU)
+  const growthModeSelect = getEl("growthMode");
+  const applyModeBtn = getEl("applyModeBtn");
+  const currentModeDisplay = getEl("currentModeDisplay");
+  const modeDurationDisplay = getEl("modeDurationDisplay");
+  const modeBrightnessDisplay = getEl("modeBrightnessDisplay");
+  const modeIcon = getEl("modeIcon");
+  const modeName = getEl("modeName");
+  const modeDuration = getEl("modeDuration");
+  const modeBrightness = getEl("modeBrightness");
+  const dayCounter = getEl("dayCounter");
+  const timelineMessage = getEl("timelineMessage");
+  const resetPlantBtn = getEl("resetPlantBtn");
 
   // Tampilkan menu admin jika role = admin
   if (currentUser && currentUser.role === 'admin') {
@@ -108,7 +116,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     CHART
+     MODE CONFIGURATION
+  ======================================== */
+
+  const MODE_CONFIG = {
+    bibit:   { icon: '🌱', label: 'Bibit', duration: 4, brightness: 45, maxTemp: 25 },
+    vegetatif: { icon: '🌿', label: 'Vegetatif', duration: 14, brightness: 90, maxTemp: 28 },
+    generatif: { icon: '🥔', label: 'Generatif', duration: 12, brightness: 70, maxTemp: 25 },
+    panen:   { icon: '🌾', label: 'Panen', duration: 9, brightness: 40, maxTemp: 20 },
+    manual:  { icon: '🎛', label: 'Manual', duration: null, brightness: null, maxTemp: 30 }
+  };
+
+  function getModeLabel(modeKey) {
+    return MODE_CONFIG[modeKey]?.label || modeKey;
+  }
+
+  function getModeIcon(modeKey) {
+    return MODE_CONFIG[modeKey]?.icon || '❓';
+  }
+
+  function getModeConfig(modeKey) {
+    return MODE_CONFIG[modeKey] || MODE_CONFIG.manual;
+  }
+
+  function getDaysSincePlanting() {
+    if (!state.plantStartDate) return 0;
+    const start = new Date(state.plantStartDate);
+    const now = new Date();
+    return Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  }
+
+  function getReminderMessage(days) {
+    if (days >= 7 && days < 10) return '🌱 Bibit siap pindah ke Vegetatif!';
+    if (days >= 28 && days < 31) return '🌿 Vegetatif siap pindah ke Generatif!';
+    if (days >= 56 && days < 59) return '🥔 Generatif siap pindah ke Panen!';
+    if (days >= 70) return '🌾 Waktunya panen! Kentang siap dipetik!';
+    return null;
+  }
+
+  /* ========================================
+     CHART (EXISTING)
   ======================================== */
 
   const tempLabels = [];
@@ -261,7 +308,6 @@ document.addEventListener("DOMContentLoaded", () => {
       accessStatus.style.color = "#ef4444";
     }
   }
-
   updateAccessUI();
 
   function animateValue(el, start, end, duration = 300) {
@@ -334,7 +380,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const lampStatusText = state.lampState ? "ON" : "OFF";
     const lampColor = state.lampState ? "#22c55e" : "#ef4444";
-    
     if (lampStatus) {
       lampStatus.innerText = lampStatusText;
       lampStatus.style.color = lampColor;
@@ -352,6 +397,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateStatusText();
     updateDashboard();
     updateDashChart();
+    updateModeUI();
   }
 
   /* ========================================
@@ -418,6 +464,110 @@ document.addEventListener("DOMContentLoaded", () => {
       dashTempData.shift();
     }
     dashTempChart.update();
+  }
+
+  /* ========================================
+     MODE UI - UPDATE
+  ======================================== */
+
+  function updateModeUI() {
+    const modeKey = state.mode || 'manual';
+    const config = getModeConfig(modeKey);
+    const days = getDaysSincePlanting();
+
+    // Dashboard mode card
+    if (modeIcon) modeIcon.textContent = config.icon;
+    if (modeName) modeName.textContent = config.label;
+    if (modeDuration) modeDuration.textContent = config.duration !== null ? config.duration : '-';
+    if (modeBrightness) modeBrightness.textContent = config.brightness !== null ? config.brightness : '-';
+    if (dayCounter) dayCounter.textContent = days;
+
+    // Timeline message
+    if (timelineMessage) {
+      const reminder = getReminderMessage(days);
+      if (reminder) {
+        timelineMessage.textContent = '🔔 ' + reminder;
+        timelineMessage.style.color = '#facc15';
+      } else if (days === 0) {
+        timelineMessage.textContent = '🌱 Mulai tanam untuk tracking';
+        timelineMessage.style.color = 'var(--muted)';
+      } else {
+        timelineMessage.textContent = `✅ Mode ${config.label} aktif (hari ke-${days})`;
+        timelineMessage.style.color = '#22c55e';
+      }
+    }
+
+    // Control page mode display
+    if (currentModeDisplay) {
+      currentModeDisplay.textContent = `Mode: ${config.icon} ${config.label}`;
+    }
+    if (modeDurationDisplay) {
+      modeDurationDisplay.textContent = `Durasi: ${config.duration !== null ? config.duration + ' jam' : 'Manual'}`;
+    }
+    if (modeBrightnessDisplay) {
+      modeBrightnessDisplay.textContent = `Intensitas: ${config.brightness !== null ? config.brightness + '%' : 'Manual'}`;
+    }
+
+    // Sync select dropdown
+    if (growthModeSelect) {
+      growthModeSelect.value = modeKey;
+    }
+  }
+
+  /* ========================================
+     MODE - APPLY & RESET
+  ======================================== */
+
+  // Terapkan mode
+  if (applyModeBtn && growthModeSelect) {
+    applyModeBtn.addEventListener('click', async () => {
+      const mode = growthModeSelect.value;
+      const config = getModeConfig(mode);
+      
+      if (mode === 'manual') {
+        // Mode manual: user kontrol sendiri
+        await update(ref(db, 'control/lamp'), { mode: 'manual' });
+        state.mode = 'manual';
+        updateModeUI();
+        alert('🎛 Mode Manual aktif. Kontrol lampu sepenuhnya oleh user.');
+        return;
+      }
+
+      // Auto mode: set brightness & mode
+      await update(ref(db, 'control/lamp'), {
+        mode: mode,
+        brightness: config.brightness,
+        state: true // nyalakan lampu
+      });
+
+      // Jika belum ada tanggal tanam, set sekarang
+      if (!state.plantStartDate) {
+        const now = new Date().toISOString();
+        await set(ref(db, 'system/plant_start_date'), now);
+        state.plantStartDate = now;
+      }
+
+      state.mode = mode;
+      state.brightness = config.brightness;
+      updateModeUI();
+      renderUI();
+
+      alert(`✅ Mode ${config.icon} ${config.label} diterapkan! Lampu menyala ${config.duration} jam/hari dengan intensitas ${config.brightness}%.`);
+    });
+  }
+
+  // Reset tanaman (mulai baru)
+  if (resetPlantBtn) {
+    resetPlantBtn.addEventListener('click', async () => {
+      if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
+      await set(ref(db, 'system/plant_start_date'), null);
+      await set(ref(db, 'control/lamp/mode'), 'manual');
+      state.plantStartDate = null;
+      state.mode = 'manual';
+      updateModeUI();
+      renderUI();
+      alert('✅ Tanaman di-reset! Silakan mulai mode baru.');
+    });
   }
 
   /* ========================================
@@ -579,10 +729,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const sensor = data.sensor || {};
     const control = data.control || {};
     const lamp = control.lamp || {};
+    const system = data.system || {};
+
     state.temperature = sensor.suhu || 0;
     state.sensorLight = sensor.cahaya || 0;
     state.brightness = lamp.brightness || 0;
     state.lampState = lamp.state || false;
+    state.mode = lamp.mode || 'manual';
+    state.plantStartDate = system.plant_start_date || null;
 
     const time = new Date().toLocaleTimeString();
     if (tempChart) {
@@ -606,6 +760,22 @@ document.addEventListener("DOMContentLoaded", () => {
       lightChart.update();
     }
     renderUI();
+    updateModeUI();
+
+    // CEK REMINDER (setiap update)
+    const days = getDaysSincePlanting();
+    const reminder = getReminderMessage(days);
+    if (reminder && days > 0) {
+      // Kirim notifikasi jika belum pernah dikirim untuk hari ini
+      const notifKey = `reminder_${days}`;
+      const lastNotif = localStorage.getItem(notifKey);
+      if (!lastNotif) {
+        showToast('🔔 ' + reminder);
+        localStorage.setItem(notifKey, Date.now());
+        // Simpan ke Firebase untuk history
+        push(ref(db, 'notifications'), { message: reminder, timestamp: Date.now(), read: false });
+      }
+    }
   }, (error) => {
     console.error("Firebase Error:", error);
     if (connStatus) {
@@ -613,6 +783,32 @@ document.addEventListener("DOMContentLoaded", () => {
       connStatus.style.color = "#ef4444";
     }
   });
+
+  /* ========================================
+     TOAST NOTIFICATION
+  ======================================== */
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: white; padding: 16px 24px;
+      border-radius: 16px; font-weight: 600; z-index: 9999;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      border-left: 4px solid #facc15;
+      max-width: 90%;
+      text-align: center;
+      animation: slideUp 0.4s ease;
+      font-size: 15px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.5s';
+      setTimeout(() => toast.remove(), 500);
+    }, 5000);
+  }
 
   /* ========================================
      CONTROLS
@@ -753,17 +949,12 @@ document.addEventListener("DOMContentLoaded", () => {
   menuItems.forEach((item) => {
     item.addEventListener("click", function(e) {
       e.preventDefault();
-
       console.log("🖱️ KLIK:", this.textContent.trim());
-
       menuItems.forEach(m => m.classList.remove("active"));
       this.classList.add("active");
-
       const target = this.getAttribute("data-target");
       console.log("🎯 Target:", target);
-
       sections.forEach(s => s.classList.add("hidden"));
-
       const targetSection = document.getElementById(target);
       if (targetSection) {
         targetSection.classList.remove("hidden");
@@ -771,7 +962,6 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         console.error("❌ GAGAL! Section", target, "tidak ditemukan!");
       }
-
       const sidebarEl = document.querySelector(".sidebar");
       if (sidebarEl && window.innerWidth <= 768) {
         sidebarEl.classList.remove("active");
@@ -816,6 +1006,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ========================================
      LOAD ADMIN PANEL (jika admin)
   ======================================== */
+
   if (currentUser && currentUser.role === 'admin') {
     loadUserList();
   }
@@ -839,6 +1030,9 @@ document.addEventListener("DOMContentLoaded", () => {
     accessStatus: !!accessStatus,
     controlSection: !!controlSection
   });
+
+  // Inisialisasi mode UI
+  updateModeUI();
 
   console.log("🚀 App siap!");
 
