@@ -36,34 +36,8 @@
         <button class="menu-item" data-target="analytics">📈 Analytics</button>
         <button class="menu-item" data-target="control">🎛 Control</button>
         <button class="menu-item" data-target="security">🔒 Security</button>
+        <!-- ADMIN MENU (hanya tampil jika role admin) -->
         <button class="menu-item" data-target="admin" id="adminMenu" style="display:none;">👑 Admin</button>
-        <!-- ======================================
-     ADMIN PANEL
-======================================= -->
-<section class="section page-section hidden" id="admin">
-  <h2 class="section-title purple">👑 ADMIN PANEL</h2>
-  
-  <div class="admin-grid">
-    <!-- Daftar User -->
-    <div class="admin-card">
-      <h3>📋 Daftar User</h3>
-      <div id="userList" style="max-height:400px; overflow-y:auto;"></div>
-    </div>
-    
-    <!-- Tambah User -->
-    <div class="admin-card">
-      <h3>➕ Tambah User</h3>
-      <input type="text" id="newUsername" placeholder="Username" style="margin-bottom:10px;">
-      <input type="password" id="newPassword" placeholder="Password" style="margin-bottom:10px;">
-      <input type="text" id="newNama" placeholder="Nama" style="margin-bottom:10px;">
-      <select id="newRole" style="margin-bottom:10px; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); color:white; border:1px solid var(--border); width:100%;">
-        <option value="petani">Petani</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button id="addUserBtn" class="unlock-btn">➕ Tambah User</button>
-    </div>
-  </div>
-</section>
       </nav>
 
       <div class="system-box">
@@ -109,9 +83,8 @@
       ======================================= -->
       <section class="section page-section" id="dashboard">
         <h2 class="section-title green">🏠 DASHBOARD</h2>
-
         <div class="dashboard-grid">
-
+          <!-- CARD 1: SENSOR MONITORING -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡️</div>
@@ -138,7 +111,7 @@
               </div>
             </div>
           </div>
-
+          <!-- CARD 2: KONTROL CEPAT -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon orange-box">🎛️</div>
@@ -156,7 +129,7 @@
               <input id="dashDimmer" type="range" min="0" max="100" value="0" />
             </div>
           </div>
-
+          <!-- CARD 3: GRAFIK RINGKAS -->
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
               <div class="card-icon blue-box">📊</div>
@@ -167,7 +140,7 @@
             </div>
             <canvas id="dashTempChart"></canvas>
           </div>
-
+          <!-- CARD 4: STATUS SISTEM -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon purple-box">🔄</div>
@@ -191,7 +164,6 @@
               </div>
             </div>
           </div>
-
         </div>
       </section>
 
@@ -312,6 +284,39 @@
                 <p>Sistem keamanan aktif</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======================================
+           ADMIN PANEL (HANYA UNTUK ADMIN)
+      ======================================= -->
+      <section class="section page-section hidden" id="admin">
+        <h2 class="section-title purple">👑 ADMIN PANEL</h2>
+
+        <div class="admin-grid">
+          <!-- Daftar User -->
+          <div class="admin-card">
+            <h3>📋 Daftar User</h3>
+            <div id="userList" style="max-height:400px; overflow-y:auto;">
+              <p style="color:var(--muted); text-align:center; padding:20px;">Memuat data user...</p>
+            </div>
+          </div>
+
+          <!-- Tambah User -->
+          <div class="admin-card">
+            <h3>➕ Tambah User</h3>
+            <form id="addUserForm" style="display:flex; flex-direction:column; gap:12px;">
+              <input type="text" id="newUsername" placeholder="Username" required>
+              <input type="password" id="newPassword" placeholder="Password" required>
+              <input type="text" id="newNama" placeholder="Nama Lengkap">
+              <select id="newRole">
+                <option value="petani">Petani</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button type="submit" class="unlock-btn">➕ Tambah User</button>
+            </form>
+            <p id="addUserMsg" style="margin-top:10px; font-size:14px;"></p>
           </div>
         </div>
       </section>
