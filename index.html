@@ -36,6 +36,34 @@
         <button class="menu-item" data-target="analytics">📈 Analytics</button>
         <button class="menu-item" data-target="control">🎛 Control</button>
         <button class="menu-item" data-target="security">🔒 Security</button>
+        <button class="menu-item" data-target="admin" id="adminMenu" style="display:none;">👑 Admin</button>
+        <!-- ======================================
+     ADMIN PANEL
+======================================= -->
+<section class="section page-section hidden" id="admin">
+  <h2 class="section-title purple">👑 ADMIN PANEL</h2>
+  
+  <div class="admin-grid">
+    <!-- Daftar User -->
+    <div class="admin-card">
+      <h3>📋 Daftar User</h3>
+      <div id="userList" style="max-height:400px; overflow-y:auto;"></div>
+    </div>
+    
+    <!-- Tambah User -->
+    <div class="admin-card">
+      <h3>➕ Tambah User</h3>
+      <input type="text" id="newUsername" placeholder="Username" style="margin-bottom:10px;">
+      <input type="password" id="newPassword" placeholder="Password" style="margin-bottom:10px;">
+      <input type="text" id="newNama" placeholder="Nama" style="margin-bottom:10px;">
+      <select id="newRole" style="margin-bottom:10px; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); color:white; border:1px solid var(--border); width:100%;">
+        <option value="petani">Petani</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button id="addUserBtn" class="unlock-btn">➕ Tambah User</button>
+    </div>
+  </div>
+</section>
       </nav>
 
       <div class="system-box">
