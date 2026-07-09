@@ -424,7 +424,6 @@ document.addEventListener("DOMContentLoaded", () => {
      ADMIN PANEL - FUNGSI
   ======================================== */
 
-  // Load daftar user (hanya untuk admin)
   function loadUserList() {
     if (!userList) return;
     const userListRef = ref(db, 'users');
@@ -466,7 +465,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Fungsi ubah role (exposed ke global)
   window.changeRole = function(username, newRole) {
     if (!confirm(`Ubah role ${username} menjadi ${newRole}?`)) return;
     update(ref(db, `users/${username}`), { role: newRole })
@@ -485,7 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   };
 
-  // Fungsi hapus user (exposed ke global)
   window.deleteUser = function(username) {
     if (!confirm(`Hapus user ${username}?`)) return;
     set(ref(db, `users/${username}`), null)
@@ -504,7 +501,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
   };
 
-  // Tambah user via form
   if (addUserForm) {
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -561,7 +557,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById('newPassword').value = '';
         document.getElementById('newNama').value = '';
         document.getElementById('newRole').value = 'petani';
-        // Reload user list otomatis via onValue
       } catch (err) {
         console.error(err);
         if (addUserMsg) {
