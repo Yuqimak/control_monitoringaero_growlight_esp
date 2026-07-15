@@ -1,332 +1,1118 @@
-<!DOCTYPE html>
-<html lang="en">
+import { db } from "./firebase.js";
 
-<head>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>IoT Greenhouse Dashboard</title>
+import {
+  ref,
+  onValue,
+  set,
+  get,
+  update,
+  push
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=2" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Library untuk Export PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-</head>
+/* ============================================
+   SESSION & AUTH CHECK
+============================================ */
 
-<body>
+let currentUser = null;
+const sessionData = localStorage.getItem('iot_user');
+if (!sessionData) {
+  window.location.href = 'login.html';
+} else {
+  try {
+    currentUser = JSON.parse(sessionData);
+    console.log('👤 Login sebagai:', currentUser.nama, '(', currentUser.username, ')');
+    const loginTime = currentUser.loginTime || 0;
+    const expired = (Date.now() - loginTime) > 8 * 60 * 60 * 1000;
+    if (expired) {
+      localStorage.removeItem('iot_user');
+      window.location.href = 'login.html';
+    }
+  } catch(e) {
+    localStorage.removeItem('iot_user');
+    window.location.href = 'login.html';
+  }
+}
 
-  <div class="dashboard">
+/* ============================================
+   APP START
+============================================ */
 
-    <!-- ======================================
-         SIDEBAR
-    ======================================= -->
-    <aside class="sidebar">
-      <div class="logo">
-        <div class="logo-icon">🌱</div>
-        <div>
-          <h2>IoT</h2>
-          <p>Greenhouse</p>
-        </div>
-      </div>
+document.addEventListener("DOMContentLoaded", () => {
 
-      <nav class="menu">
-        <button class="menu-item active" data-target="dashboard">🏠 Dashboard</button>
-        <button class="menu-item" data-target="monitoring">🌡 Monitoring</button>
-        <button class="menu-item" data-target="analytics">📈 Analytics</button>
-        <button class="menu-item" data-target="control">🎛 Control</button>
-        <button class="menu-item" data-target="admin" id="adminMenu" style="display:none;">👑 Admin</button>
-      </nav>
+  const state = {
+    temperature: 0,
+    sensorLight: 0,
+    lampState: false,
+    mode: 'manual',
+    plantStartDate: null,
+    alert: ''
+  };
 
-      <div class="system-box">
-        <p class="system-title">● System Status</p>
-        <p class="system-online">● All Systems Operational</p>
-      </div>
-    </aside>
+  /* ========================================
+     DOM
+  ======================================== */
 
-    <!-- ======================================
-         MAIN CONTENT
-    ======================================= -->
-    <main class="main-content">
+  const getEl = (id) => {
+    const el = document.getElementById(id);
+    if (!el) console.warn(`Element #${id} not found!`);
+    return el;
+  };
 
-      <!-- ======================================
-           TOPBAR
-      ======================================= -->
-      <header class="topbar">
-        <div style="display:flex; align-items:center; gap:12px; flex:1;">
-          <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
-          <div>
-            <h1>🌱 IoT Greenhouse</h1>
-            <p class="subtitle">Smart Monitoring & Control System</p>
-          </div>
-        </div>
-        <div class="topbar-right">
-          <div class="status-card">
-            <p class="online-text">● Online</p>
-            <p class="firebase-text">Firebase : <span id="connStatus">Connecting...</span></p>
-          </div>
-          <div class="user-card">
-            <span id="userName">👋 User</span>
-            <button onclick="logout()" class="logout-btn">🚪</button>
-          </div>
-          <div class="clock-card">
-            <p id="dateText">--</p>
-            <h3 id="clockText">--:--:--</h3>
-          </div>
-        </div>
-      </header>
+  // Existing elements
+  const connStatus = getEl("connStatus");
+  const monitorTemp = getEl("monitorTemp");
+  const monitorLight = getEl("monitorLight");
+  const monitorLampStatus = getEl("monitorLampStatus");
+  const btnOn = getEl("btnOn");
+  const btnOff = getEl("btnOff");
+  const controlSection = getEl("controlSection");
+  const dashTemp = getEl("dashTemp");
+  const dashLight = getEl("dashLight");
+  const dashLampStatus = getEl("dashLampStatus");
+  const dashTempStatus = getEl("dashTempStatus");
+  const dashLightStatus = getEl("dashLightStatus");
+  const dashLampLabel = getEl("dashLampLabel");
+  const dashConnStatus = getEl("dashConnStatus");
+  const dashDataCount = getEl("dashDataCount");
+  const dashLastUpdate = getEl("dashLastUpdate");
+  const adminMenu = document.getElementById('adminMenu');
+  const userList = document.getElementById('userList');
+  const addUserForm = document.getElementById('addUserForm');
+  const addUserMsg = document.getElementById('addUserMsg');
+  const userNameEl = document.getElementById("userName");
 
-      <!-- ======================================
-           DASHBOARD
-      ======================================= -->
-      <section class="section page-section" id="dashboard">
-        <h2 class="section-title green">🏠 DASHBOARD</h2>
-        <div class="dashboard-grid">
-          <div class="dashboard-card">
-            <div class="card-head">
-              <div class="card-icon green-box">🌡️</div>
-              <div>
-                <h3>Sensor Monitoring</h3>
-                <p class="card-sub">Data Realtime</p>
-              </div>
-            </div>
-            <div class="dashboard-sensor-grid">
-              <div class="sensor-item">
-                <span class="sensor-label">🌡 Suhu</span>
-                <span class="sensor-value"><span id="dashTemp">--</span>°C</span>
-                <span class="sensor-status" id="dashTempStatus">Normal</span>
-              </div>
-              <div class="sensor-item">
-                <span class="sensor-label">💡 Cahaya</span>
-                <span class="sensor-value"><span id="dashLight">--</span>%</span>
-                <span class="sensor-status" id="dashLightStatus">Sedang</span>
-              </div>
-              <div class="sensor-item">
-                <span class="sensor-label">⚡ Lampu</span>
-                <span class="sensor-value" id="dashLampStatus">OFF</span>
-                <span class="sensor-status" id="dashLampLabel">Mati</span>
-              </div>
-            </div>
-          </div>
-          <div class="dashboard-card">
-            <div class="card-head">
-              <div class="card-icon orange-box">🌱</div>
-              <div>
-                <h3>Mode Pertumbuhan</h3>
-                <p class="card-sub">Fase Tanaman Kentang</p>
-              </div>
-            </div>
-            <div class="dashboard-mode-display">
-              <div class="mode-status">
-                <span class="mode-icon" id="modeIcon">🌱</span>
-                <span class="mode-name" id="modeName">Bibit</span>
-              </div>
-              <div class="mode-details">
-                <span>⏰ <span id="modeDuration">4</span> jam/hari</span>
-              </div>
-              <div class="mode-timeline">
-                <span>📅 Hari ke-<span id="dayCounter">0</span></span>
-                <span id="timelineMessage" style="font-size:12px; color:var(--muted);">Mulai tanam untuk tracking</span>
-              </div>
-            </div>
-          </div>
-          <div class="dashboard-card dashboard-chart-card">
-            <div class="card-head">
-              <div class="card-icon blue-box">📊</div>
-              <div>
-                <h3>Grafik Cepat</h3>
-                <p class="card-sub">10 Data Terakhir</p>
-              </div>
-            </div>
-            <canvas id="dashTempChart"></canvas>
-          </div>
-          <div class="dashboard-card">
-            <div class="card-head">
-              <div class="card-icon purple-box">🔄</div>
-              <div>
-                <h3>Status Sistem</h3>
-                <p class="card-sub">Koneksi & Performa</p>
-              </div>
-            </div>
-            <div class="dashboard-status-grid">
-              <div class="status-item">
-                <span class="status-label">Firebase</span>
-                <span class="status-badge online" id="dashConnStatus">● Online</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">Data Point</span>
-                <span class="status-badge" id="dashDataCount">0</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">Last Update</span>
-                <span class="status-badge" id="dashLastUpdate">--:--:--</span>
-              </div>
-            </div>
-            <div id="overheatContainer" style="margin-top:12px; display:none; background:rgba(239,68,68,0.15); border:1px solid #ef4444; border-radius:12px; padding:10px 14px;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:24px;">🔥</span>
-                <div>
-                  <div style="font-weight:700; color:#ef4444;">⚠️ OVERHEAT DETECTED!</div>
-                  <div id="overheatMessage" style="font-size:13px; color:#fca5a5;">Suhu melewati batas aman. Lampu dimatikan otomatis.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+  // Mode elements
+  const growthModeSelect = getEl("growthMode");
+  const applyModeBtn = getEl("applyModeBtn");
+  const currentModeDisplay = getEl("currentModeDisplay");
+  const modeDurationDisplay = getEl("modeDurationDisplay");
+  const modeIcon = getEl("modeIcon");
+  const modeName = getEl("modeName");
+  const modeDuration = getEl("modeDuration");
+  const dayCounter = getEl("dayCounter");
+  const timelineMessage = getEl("timelineMessage");
+  const resetPlantBtn = getEl("resetPlantBtn");
 
-      <!-- ======================================
-           MONITORING
-      ======================================= -->
-      <section class="section page-section hidden" id="monitoring">
-        <h2 class="section-title green">🌱 MONITORING</h2>
-        <div class="monitor-grid">
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon green-box">🌡</div>
-              <div>
-                <h3>Suhu</h3>
-                <p class="card-sub">Temperature</p>
-              </div>
-            </div>
-            <div class="metric"><span id="monitorTemp">--</span>°C</div>
-            <p class="metric-status" id="tempStatus">🔥 Panas</p>
-            <canvas id="tempMiniChart"></canvas>
-          </div>
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon yellow-box">💡</div>
-              <div>
-                <h3>Intensitas Cahaya</h3>
-                <p class="card-sub">Light Intensity</p>
-              </div>
-            </div>
-            <div class="metric"><span id="monitorLight">--</span>%</div>
-            <p class="metric-status" id="lightStatus">Intensitas Sedang</p>
-          </div>
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon purple-box">💡</div>
-              <div>
-                <h3>Status Lampu</h3>
-                <p class="card-sub">Lamp Status</p>
-              </div>
-            </div>
-            <div class="metric green-text" id="monitorLampStatus">OFF</div>
-            <p class="metric-status" id="lampStatusText">Lampu Aktif</p>
-          </div>
-        </div>
-      </section>
+  // Export elements
+  const exportPeriod = getEl("exportPeriod");
+  const exportBtn = getEl("exportBtn");
+  const exportStatus = getEl("exportStatus");
+  const exportPdfBtn = getEl("exportPdfBtn");
 
-      <!-- ======================================
-           ANALYTICS (DENGAN EXPORT CSV & PDF)
-      ======================================= -->
-      <section class="section page-section hidden" id="analytics">
-        <h2 class="section-title blue">📊 ANALYTICS</h2>
-        <div class="analytics-grid">
-          <div class="analytics-card">
-            <div class="analytics-head">
-              <h3>Suhu Realtime</h3>
-              <button class="time-btn">10 Menit Terakhir</button>
-            </div>
-            <canvas id="tempChart"></canvas>
-          </div>
-          <div class="analytics-card">
-            <div class="analytics-head">
-              <h3>History Intensitas</h3>
-              <button class="time-btn">10 Menit Terakhir</button>
-            </div>
-            <canvas id="lightChart"></canvas>
-          </div>
-          <div class="analytics-card" style="grid-column: span 2;">
-            <div class="analytics-head">
-              <h3>📥 Export Data</h3>
-              <span style="color:var(--muted); font-size:13px;">Unduh data sensor</span>
-            </div>
-            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
-              <select id="exportPeriod" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:14px; min-width:150px;">
-                <option value="week">📅 1 Minggu Terakhir</option>
-                <option value="month">📅 1 Bulan Terakhir</option>
-              </select>
-              <button id="exportBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 28px;">⬇️ CSV</button>
-              <button id="exportPdfBtn" class="big-btn" style="flex:0 0 auto; padding:12px 28px; background:linear-gradient(135deg,#8b5cf6,#6d28d9);">📄 PDF</button>
-            </div>
-            <p id="exportStatus" style="margin-top:10px; font-size:13px; color:var(--muted);">Klik tombol untuk mengunduh data.</p>
-          </div>
-        </div>
-      </section>
+  // Overheat elements
+  const overheatContainer = document.getElementById('overheatContainer');
+  const overheatMessage = document.getElementById('overheatMessage');
 
-      <!-- ======================================
-           CONTROL
-      ======================================= -->
-      <section class="section page-section hidden" id="control">
-        <h2 class="section-title orange">🎛 CONTROL</h2>
-        <div class="control-grid" id="controlSection">
-          <div class="control-card">
-            <h3>🚨 Emergency Control</h3>
-            <div class="button-row">
-              <button id="btnOn" class="big-btn on">ON</button>
-              <button id="btnOff" class="big-btn off">OFF</button>
-            </div>
-            <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
-          </div>
+  // Tampilkan menu admin jika role = admin
+  if (currentUser && currentUser.role === 'admin') {
+    if (adminMenu) adminMenu.style.display = 'block';
+  }
 
-          <div class="control-card" style="grid-column: span 2;">
-            <h3>🌱 Mode Pertumbuhan Kentang</h3>
-            <div class="mode-selector">
-              <select id="growthMode" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px;">
-                <option value="bibit">🌱 Bibit (3-5 jam)</option>
-                <option value="vegetatif">🌿 Vegetatif (12-16 jam)</option>
-                <option value="generatif">🥔 Generatif (12 jam)</option>
-                <option value="panen">🌾 Panen (8-10 jam)</option>
-                <option value="manual">🎛 Manual (User kontrol)</option>
-              </select>
-              <button id="applyModeBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 24px;">Terapkan</button>
-            </div>
-            <div class="mode-info" style="margin-top:12px; display:flex; gap:20px; font-size:13px; color:var(--muted); flex-wrap:wrap;">
-              <span id="currentModeDisplay">Mode: Manual</span>
-              <span id="modeDurationDisplay">Durasi: -</span>
-            </div>
-            <button id="resetPlantBtn" class="unlock-btn" style="margin-top:12px; background:rgba(239,68,68,.2); color:#ef4444;">🔄 Reset Tanam (Mulai Baru)</button>
-          </div>
-        </div>
-      </section>
+  /* ========================================
+     MODE CONFIGURATION
+  ======================================== */
 
-      <!-- ======================================
-           ADMIN PANEL
-      ======================================= -->
-      <section class="section page-section hidden" id="admin">
-        <h2 class="section-title purple">👑 ADMIN PANEL</h2>
-        <div class="admin-grid">
-          <div class="admin-card">
-            <h3>📋 Daftar User</h3>
-            <div id="userList" style="max-height:400px; overflow-y:auto;">
-              <p style="color:var(--muted); text-align:center; padding:20px;">Memuat data user...</p>
-            </div>
-          </div>
-          <div class="admin-card">
-            <h3>➕ Tambah User</h3>
-            <form id="addUserForm" style="display:flex; flex-direction:column; gap:12px;">
-              <input type="text" id="newUsername" placeholder="Username" required>
-              <input type="password" id="newPassword" placeholder="Password" required>
-              <input type="text" id="newNama" placeholder="Nama Lengkap">
-              <select id="newRole">
-                <option value="petani">Petani</option>
-                <option value="admin">Admin</option>
-              </select>
-              <button type="submit" class="unlock-btn">➕ Tambah User</button>
-            </form>
-            <p id="addUserMsg" style="margin-top:10px; font-size:14px;"></p>
-          </div>
-        </div>
-      </section>
+  const MODE_CONFIG = {
+    bibit:   { icon: '🌱', label: 'Bibit', duration: 4 },
+    vegetatif: { icon: '🌿', label: 'Vegetatif', duration: 14 },
+    generatif: { icon: '🥔', label: 'Generatif', duration: 12 },
+    panen:   { icon: '🌾', label: 'Panen', duration: 9 },
+    manual:  { icon: '🎛', label: 'Manual', duration: null }
+  };
 
-    </main>
-  </div>
+  function getModeConfig(modeKey) {
+    return MODE_CONFIG[modeKey] || MODE_CONFIG.manual;
+  }
 
-  <script type="module" src="js/app.js?v=208"></script>
-</body>
-</html>
+  function getDaysSincePlanting() {
+    if (!state.plantStartDate) return 0;
+    const start = new Date(state.plantStartDate);
+    const now = new Date();
+    return Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  }
+
+  function getReminderMessage(days) {
+    if (days >= 7 && days < 10) return '🌱 Bibit siap pindah ke Vegetatif!';
+    if (days >= 28 && days < 31) return '🌿 Vegetatif siap pindah ke Generatif!';
+    if (days >= 56 && days < 59) return '🥔 Generatif siap pindah ke Panen!';
+    if (days >= 70) return '🌾 Waktunya panen! Kentang siap dipetik!';
+    return null;
+  }
+
+  /* ========================================
+     CHART
+  ======================================== */
+
+  const MAX_DATA_POINTS = 15;
+  const tempLabels = [];
+  const tempData = [];
+  const lightLabels = [];
+  const lampData = [];
+  const sensorData = [];
+
+  const tempChartEl = document.getElementById("tempChart");
+  let tempChart = null;
+  if (tempChartEl) {
+    tempChart = new Chart(tempChartEl, {
+      type: "line",
+      data: {
+        labels: tempLabels,
+        datasets: [{
+          label: "Temperature (°C)",
+          data: tempData,
+          borderColor: "#22c55e",
+          backgroundColor: "rgba(34,197,94,0.2)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#cbd5e1" } } },
+        scales: {
+          x: { ticks: { color: "#94a3b8" } },
+          y: { ticks: { color: "#94a3b8" } }
+        }
+      }
+    });
+  }
+
+  const lightChartEl = document.getElementById("lightChart");
+  let lightChart = null;
+  if (lightChartEl) {
+    lightChart = new Chart(lightChartEl, {
+      type: "line",
+      data: {
+        labels: lightLabels,
+        datasets: [{
+          label: "Lamp Output (%)",
+          data: lampData,
+          borderColor: "#facc15",
+          backgroundColor: "rgba(250,204,21,0.2)",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.4,
+          pointRadius: 2
+        }, {
+          label: "Sensor Light (%)",
+          data: sensorData,
+          borderColor: "#38bdf8",
+          backgroundColor: "rgba(56,189,248,0.2)",
+          borderWidth: 2,
+          fill: false,
+          tension: 0.4,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#cbd5e1" } } },
+        scales: {
+          x: { ticks: { color: "#94a3b8" } },
+          y: { ticks: { color: "#94a3b8" } }
+        }
+      }
+    });
+  }
+
+  /* ========================================
+     DASHBOARD CHART (MINI)
+  ======================================== */
+
+  const dashTempLabels = [];
+  const dashTempData = [];
+
+  const dashTempChartEl = document.getElementById("dashTempChart");
+  let dashTempChart = null;
+  if (dashTempChartEl) {
+    dashTempChart = new Chart(dashTempChartEl, {
+      type: "line",
+      data: {
+        labels: dashTempLabels,
+        datasets: [{
+          label: "Suhu (°C)",
+          data: dashTempData,
+          borderColor: "#22c55e",
+          backgroundColor: "rgba(34,197,94,0.15)",
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { display: false },
+          y: { display: false }
+        }
+      }
+    });
+  }
+
+  /* ========================================
+     USER INFO & LOGOUT
+  ======================================== */
+
+  function showUserInfo() {
+    try {
+      const user = JSON.parse(localStorage.getItem('iot_user') || '{}');
+      if (userNameEl) {
+        userNameEl.textContent = `👋 ${user.nama || 'User'}`;
+      }
+    } catch(e) {}
+  }
+  showUserInfo();
+
+  window.logout = function() {
+    if (confirm('Yakin mau logout?')) {
+      localStorage.removeItem('iot_user');
+      window.location.href = 'login.html';
+    }
+  };
+
+  /* ========================================
+     ANIMATE VALUE
+  ======================================== */
+
+  function animateValue(el, start, end, duration = 300) {
+    if (!el) return;
+    let startTime = null;
+    function animate(currentTime) {
+      if (!startTime) startTime = currentTime;
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+      const value = Math.floor(progress * (end - start) + start);
+      el.innerText = value;
+      if (progress < 1) requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  }
+
+  /* ========================================
+     UPDATE STATUS TEXT - DINAMIS
+  ======================================== */
+
+  function updateStatusText() {
+    const tempStatus = document.getElementById("tempStatus");
+    if (tempStatus) {
+      const temp = state.temperature;
+      if (temp > 35) { tempStatus.innerText = "🔥 Sangat Panas";
+        tempStatus.style.color = "#ef4444"; } else if (temp > 28) { tempStatus.innerText = "🔥 Panas";
+        tempStatus.style.color = "#f59e0b"; } else if (temp > 20) { tempStatus.innerText = "🌤️ Normal";
+        tempStatus.style.color = "#22c55e"; } else { tempStatus.innerText = "❄️ Dingin";
+        tempStatus.style.color = "#3b82f6"; }
+    }
+
+    const lightStatus = document.getElementById("lightStatus");
+    if (lightStatus) {
+      const light = state.sensorLight;
+      if (light > 80) { lightStatus.innerText = "☀️ Sangat Terang";
+        lightStatus.style.color = "#facc15"; } else if (light > 50) { lightStatus.innerText = "🌤️ Intensitas Sedang";
+        lightStatus.style.color = "#f59e0b"; } else if (light > 20) { lightStatus.innerText = "🌥️ Redup";
+        lightStatus.style.color = "#94a3b8"; } else { lightStatus.innerText = "🌙 Gelap";
+        lightStatus.style.color = "#64748b"; }
+    }
+
+    const lampStatusText = document.getElementById("lampStatusText");
+    if (lampStatusText) {
+      if (state.lampState) {
+        lampStatusText.innerText = "💡 Lampu Aktif";
+        lampStatusText.style.color = "#22c55e";
+      } else {
+        lampStatusText.innerText = "⛔ Lampu Mati";
+        lampStatusText.style.color = "#ef4444";
+      }
+    }
+  }
+
+  /* ========================================
+     OVERHEAT - UPDATE
+  ======================================== */
+
+  function updateOverheat() {
+    if (!overheatContainer || !overheatMessage) return;
+    if (state.alert && state.alert.includes('Overheat')) {
+      overheatContainer.style.display = 'block';
+      overheatMessage.textContent = state.alert;
+    } else {
+      overheatContainer.style.display = 'none';
+    }
+  }
+
+  /* ========================================
+     RENDER UI
+  ======================================== */
+
+  function renderUI() {
+    if (monitorTemp) {
+      animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
+    }
+    if (monitorLight) {
+      animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
+    }
+    const lampStatusText = state.lampState ? "ON" : "OFF";
+    const lampColor = state.lampState ? "#22c55e" : "#ef4444";
+    if (monitorLampStatus) {
+      monitorLampStatus.innerText = lampStatusText;
+      monitorLampStatus.style.color = lampColor;
+    }
+    if (connStatus) {
+      connStatus.innerText = "Realtime Connected";
+      connStatus.style.color = "#22c55e";
+    }
+
+    updateStatusText();
+    updateDashboard();
+    updateDashChart();
+    updateModeUI();
+    updateOverheat();
+  }
+
+  /* ========================================
+     DASHBOARD - FUNGSI UPDATE
+  ======================================== */
+
+  function updateDashboard() {
+    if (dashTemp) dashTemp.innerText = state.temperature;
+    if (dashLight) dashLight.innerText = state.sensorLight;
+    if (dashLampStatus) {
+      dashLampStatus.innerText = state.lampState ? "ON" : "OFF";
+      dashLampStatus.style.color = state.lampState ? "#22c55e" : "#ef4444";
+    }
+
+    if (dashTempStatus) {
+      const temp = state.temperature;
+      if (temp > 35) { dashTempStatus.innerText = "🔥 Panas";
+        dashTempStatus.style.color = "#ef4444"; } else if (temp > 28) { dashTempStatus.innerText = "🌤️ Hangat";
+        dashTempStatus.style.color = "#f59e0b"; } else if (temp > 20) { dashTempStatus.innerText = "🌿 Normal";
+        dashTempStatus.style.color = "#22c55e"; } else { dashTempStatus.innerText = "❄️ Dingin";
+        dashTempStatus.style.color = "#3b82f6"; }
+    }
+
+    if (dashLightStatus) {
+      const light = state.sensorLight;
+      if (light > 80) { dashLightStatus.innerText = "☀️ Terang";
+        dashLightStatus.style.color = "#facc15"; } else if (light > 50) { dashLightStatus.innerText = "🌤️ Sedang";
+        dashLightStatus.style.color = "#f59e0b"; } else if (light > 20) { dashLightStatus.innerText = "🌥️ Redup";
+        dashLightStatus.style.color = "#94a3b8"; } else { dashLightStatus.innerText = "🌙 Gelap";
+        dashLightStatus.style.color = "#64748b"; }
+    }
+
+    if (dashLampLabel) {
+      dashLampLabel.innerText = state.lampState ? "Aktif" : "Mati";
+      dashLampLabel.style.color = state.lampState ? "#22c55e" : "#ef4444";
+    }
+
+    if (dashConnStatus) {
+      dashConnStatus.innerText = "● Online";
+      dashConnStatus.style.color = "#22c55e";
+    }
+
+    if (dashDataCount) dashDataCount.innerText = tempLabels.length;
+    if (dashLastUpdate) {
+      const now = new Date();
+      dashLastUpdate.innerText = now.toLocaleTimeString('id-ID');
+    }
+  }
+
+  /* ========================================
+     DASHBOARD - UPDATE CHART
+  ======================================== */
+
+  function updateDashChart() {
+    if (!dashTempChart) return;
+    const time = new Date().toLocaleTimeString();
+    dashTempLabels.push(time);
+    dashTempData.push(state.temperature);
+    if (dashTempLabels.length > 10) {
+      dashTempLabels.shift();
+      dashTempData.shift();
+    }
+    dashTempChart.update();
+  }
+
+  /* ========================================
+     MODE UI - UPDATE
+  ======================================== */
+
+  function updateModeUI() {
+    const modeKey = state.mode || 'manual';
+    const config = getModeConfig(modeKey);
+    const days = getDaysSincePlanting();
+
+    if (modeIcon) modeIcon.textContent = config.icon;
+    if (modeName) modeName.textContent = config.label;
+    if (modeDuration) modeDuration.textContent = config.duration !== null ? config.duration : '-';
+    if (dayCounter) dayCounter.textContent = days;
+
+    if (timelineMessage) {
+      const reminder = getReminderMessage(days);
+      if (reminder) {
+        timelineMessage.textContent = '🔔 ' + reminder;
+        timelineMessage.style.color = '#facc15';
+      } else if (days === 0) {
+        timelineMessage.textContent = '🌱 Mulai tanam untuk tracking';
+        timelineMessage.style.color = 'var(--muted)';
+      } else {
+        timelineMessage.textContent = `✅ Mode ${config.label} aktif (hari ke-${days})`;
+        timelineMessage.style.color = '#22c55e';
+      }
+    }
+
+    if (currentModeDisplay) {
+      currentModeDisplay.textContent = `Mode: ${config.icon} ${config.label}`;
+    }
+    if (modeDurationDisplay) {
+      modeDurationDisplay.textContent = `Durasi: ${config.duration !== null ? config.duration + ' jam' : 'Manual'}`;
+    }
+
+    if (growthModeSelect) {
+      growthModeSelect.value = modeKey;
+    }
+  }
+
+  /* ========================================
+     MODE - APPLY & RESET
+  ======================================== */
+
+  if (applyModeBtn && growthModeSelect) {
+    applyModeBtn.addEventListener('click', async () => {
+      const mode = growthModeSelect.value;
+      const config = getModeConfig(mode);
+      
+      if (mode === 'manual') {
+        await update(ref(db, 'control/lamp'), { mode: 'manual' });
+        state.mode = 'manual';
+        updateModeUI();
+        alert('🎛 Mode Manual aktif. Kontrol lampu sepenuhnya oleh user.');
+        return;
+      }
+
+      await update(ref(db, 'control/lamp'), {
+        mode: mode,
+        state: true
+      });
+
+      if (!state.plantStartDate) {
+        const now = new Date().toISOString();
+        await set(ref(db, 'system/plant_start_date'), now);
+        state.plantStartDate = now;
+      }
+
+      state.mode = mode;
+      state.lampState = true;
+      updateModeUI();
+      renderUI();
+
+      alert(`✅ Mode ${config.icon} ${config.label} diterapkan! Lampu menyala ${config.duration} jam/hari.`);
+    });
+  }
+
+  if (resetPlantBtn) {
+    resetPlantBtn.addEventListener('click', async () => {
+      if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
+      await set(ref(db, 'system/plant_start_date'), null);
+      await set(ref(db, 'control/lamp/mode'), 'manual');
+      state.plantStartDate = null;
+      state.mode = 'manual';
+      updateModeUI();
+      renderUI();
+      alert('✅ Tanaman di-reset! Silakan mulai mode baru.');
+    });
+  }
+
+  /* ========================================
+     SAVE HISTORY TO FIREBASE (OPTIMASI)
+  ======================================== */
+
+  let lastSaveTime = 0;
+  const SAVE_INTERVAL = 300000; // 5 menit (optimasi)
+
+  function saveHistory() {
+    const now = Date.now();
+    if (now - lastSaveTime < SAVE_INTERVAL) return;
+    lastSaveTime = now;
+
+    const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
+
+    set(ref(db, `sensor_history/suhu/${timestamp}`), {
+      value: state.temperature,
+      timestamp: timestamp
+    });
+
+    set(ref(db, `sensor_history/cahaya/${timestamp}`), {
+      value: state.sensorLight,
+      timestamp: timestamp
+    });
+
+    set(ref(db, `sensor_history/lampu/${timestamp}`), {
+      state: state.lampState,
+      timestamp: timestamp
+    });
+
+    console.log('📊 History saved at', timestamp);
+  }
+
+  /* ========================================
+     EXPORT DATA - CSV
+  ======================================== */
+
+  async function exportData(period) {
+    const status = exportStatus;
+    if (status) status.textContent = '⏳ Mengambil data...';
+
+    try {
+      const now = new Date();
+      let startDate;
+      if (period === 'week') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+      } else {
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+      }
+
+      const startStr = startDate.toISOString();
+
+      const suhuRef = ref(db, 'sensor_history/suhu');
+      const suhuSnapshot = await get(suhuRef);
+      const suhuData = suhuSnapshot.val() || {};
+
+      const cahayaRef = ref(db, 'sensor_history/cahaya');
+      const cahayaSnapshot = await get(cahayaRef);
+      const cahayaData = cahayaSnapshot.val() || {};
+
+      const timestamps = new Set();
+      Object.keys(suhuData).forEach(t => timestamps.add(t));
+      Object.keys(cahayaData).forEach(t => timestamps.add(t));
+
+      const filtered = [];
+      timestamps.forEach(t => {
+        if (t >= startStr) {
+          filtered.push({
+            timestamp: t,
+            suhu: suhuData[t]?.value ?? null,
+            cahaya: cahayaData[t]?.value ?? null
+          });
+        }
+      });
+
+      filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+      if (filtered.length === 0) {
+        if (status) status.textContent = '⚠️ Tidak ada data untuk periode ini.';
+        return;
+      }
+
+      let csv = 'Timestamp,Suhu (°C),Cahaya (%)\n';
+      filtered.forEach(row => {
+        csv += `${row.timestamp},${row.suhu ?? ''},${row.cahaya ?? ''}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sensor_data_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      if (status) status.textContent = `✅ Berhasil ekspor ${filtered.length} data.`;
+    } catch (error) {
+      console.error('Export error:', error);
+      if (status) status.textContent = '❌ Gagal ekspor data. Cek console.';
+    }
+  }
+
+  if (exportBtn && exportPeriod) {
+    exportBtn.addEventListener('click', () => {
+      const period = exportPeriod.value;
+      exportData(period);
+    });
+  }
+
+  /* ========================================
+     EXPORT PDF - GRAFIK
+  ======================================== */
+
+  async function exportPDF() {
+    const status = exportStatus;
+    if (status) status.textContent = '⏳ Membuat PDF...';
+
+    try {
+      const tempCanvas = document.getElementById('tempChart');
+      const lightCanvas = document.getElementById('lightChart');
+
+      if (!tempCanvas || !lightCanvas) {
+        alert('Grafik tidak ditemukan!');
+        if (status) status.textContent = '❌ Grafik tidak ditemukan.';
+        return;
+      }
+
+      const tempImg = tempCanvas.toDataURL('image/png');
+      const lightImg = lightCanvas.toDataURL('image/png');
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Judul
+      doc.setFontSize(16);
+      doc.text('📊 Laporan Sensor Greenhouse', pageWidth / 2, 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, 28, { align: 'center' });
+
+      // Grafik
+      const imgWidth = (pageWidth - 20) / 2 - 4;
+      const imgHeight = imgWidth * 0.6;
+
+      // Suhu
+      doc.addImage(tempImg, 'PNG', 8, 35, imgWidth, imgHeight);
+      doc.setFontSize(11);
+      doc.text('🌡️ Suhu Realtime', 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
+
+      // Cahaya
+      doc.addImage(lightImg, 'PNG', 8 + imgWidth + 8, 35, imgWidth, imgHeight);
+      doc.text('💡 Intensitas Cahaya', 8 + imgWidth + 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
+
+      // Footer
+      const now = new Date();
+      doc.setFontSize(9);
+      doc.text(`🔄 Data terakhir: ${now.toLocaleString('id-ID')}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+      doc.text('Sistem IoT Greenhouse - Tugas Akhir', pageWidth / 2, pageHeight - 4, { align: 'center' });
+
+      // Download
+      const filename = `laporan_grafik_${now.toISOString().slice(0,10)}.pdf`;
+      doc.save(filename);
+
+      if (status) status.textContent = `✅ PDF berhasil diunduh! (${filename})`;
+    } catch (error) {
+      console.error('PDF export error:', error);
+      if (status) status.textContent = '❌ Gagal ekspor PDF. Cek console.';
+      alert('Gagal ekspor PDF. Pastikan grafik sudah dimuat.');
+    }
+  }
+
+  if (exportPdfBtn) {
+    exportPdfBtn.addEventListener('click', exportPDF);
+  }
+
+  /* ========================================
+     ADMIN PANEL - FUNGSI
+  ======================================== */
+
+  function loadUserList() {
+    if (!userList) return;
+    const userListRef = ref(db, 'users');
+    onValue(userListRef, (snapshot) => {
+      const users = snapshot.val();
+      if (!users) {
+        userList.innerHTML = '<p style="color:var(--muted); text-align:center; padding:20px;">Belum ada user terdaftar.</p>';
+        return;
+      }
+      
+      let html = `<table style="width:100%; text-align:left; border-collapse:collapse; font-size:14px;">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(255,255,255,.1);">
+            <th style="padding:8px 4px;">Username</th>
+            <th style="padding:8px 4px;">Nama</th>
+            <th style="padding:8px 4px;">Role</th>
+            <th style="padding:8px 4px;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>`;
+      
+      for (const [username, data] of Object.entries(users)) {
+        const isCurrent = (username === currentUser.username);
+        html += `<tr style="border-bottom:1px solid rgba(255,255,255,.05);">
+          <td style="padding:8px 4px;">${username}${isCurrent ? ' 👑' : ''}</td>
+          <td style="padding:8px 4px;">${data.nama || '-'}</td>
+          <td style="padding:8px 4px;"><span style="background:${data.role === 'admin' ? 'rgba(139,92,246,.2)' : 'rgba(34,197,94,.2)'}; padding:2px 10px; border-radius:12px; font-size:12px;">${data.role}</span></td>
+          <td style="padding:8px 4px;">
+            ${!isCurrent ? `
+              <button onclick="window.changeRole('${username}', 'admin')" class="small-btn" style="background:rgba(139,92,246,.2); border:none; color:#a78bfa; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; margin-right:4px;">⬆ Admin</button>
+              <button onclick="window.changeRole('${username}', 'petani')" class="small-btn" style="background:rgba(34,197,94,.2); border:none; color:#4ade80; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px; margin-right:4px;">⬇ Petani</button>
+              <button onclick="window.deleteUser('${username}')" class="small-btn danger" style="background:rgba(239,68,68,.2); border:none; color:#f87171; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:11px;">🗑 Hapus</button>
+            ` : '<span style="color:var(--muted); font-size:11px;">(Anda)</span>'}
+          </td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      userList.innerHTML = html;
+    });
+  }
+
+  window.changeRole = function(username, newRole) {
+    if (!confirm(`Ubah role ${username} menjadi ${newRole}?`)) return;
+    update(ref(db, `users/${username}`), { role: newRole })
+      .then(() => {
+        if (addUserMsg) {
+          addUserMsg.textContent = '✅ Role berhasil diubah!';
+          addUserMsg.style.color = '#22c55e';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Gagal mengubah role.';
+          addUserMsg.style.color = '#ef4444';
+        }
+      });
+  };
+
+  window.deleteUser = function(username) {
+    if (!confirm(`Hapus user ${username}?`)) return;
+    set(ref(db, `users/${username}`), null)
+      .then(() => {
+        if (addUserMsg) {
+          addUserMsg.textContent = '✅ User berhasil dihapus!';
+          addUserMsg.style.color = '#22c55e';
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Gagal menghapus user.';
+          addUserMsg.style.color = '#ef4444';
+        }
+      });
+  };
+
+  if (addUserForm) {
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value.trim();
+      const nama = document.getElementById('newNama').value.trim() || username;
+      const role = document.getElementById('newRole').value;
+
+      if (!username || !password) {
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Username dan password wajib diisi!';
+          addUserMsg.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      if (username.length < 3) {
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Username minimal 3 karakter!';
+          addUserMsg.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      if (password.length < 4) {
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Password minimal 4 karakter!';
+          addUserMsg.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      const userRef = ref(db, `users/${username}`);
+      try {
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+          if (addUserMsg) {
+            addUserMsg.textContent = '❌ Username sudah terdaftar!';
+            addUserMsg.style.color = '#ef4444';
+          }
+          return;
+        }
+        await set(userRef, {
+          password: password,
+          nama: nama,
+          role: role,
+          createdAt: new Date().toISOString()
+        });
+        if (addUserMsg) {
+          addUserMsg.textContent = '✅ User berhasil ditambahkan!';
+          addUserMsg.style.color = '#22c55e';
+        }
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('newNama').value = '';
+        document.getElementById('newRole').value = 'petani';
+      } catch (err) {
+        console.error(err);
+        if (addUserMsg) {
+          addUserMsg.textContent = '❌ Gagal menambahkan user: ' + err.message;
+          addUserMsg.style.color = '#ef4444';
+        }
+      }
+    });
+  }
+
+  /* ========================================
+     FIREBASE REALTIME (OPTIMASI CHART UPDATE)
+  ======================================== */
+
+  let lastChartUpdate = 0;
+  const CHART_UPDATE_INTERVAL = 5000; // 5 detik
+
+  const rootRef = ref(db);
+  onValue(rootRef, (snapshot) => {
+    const data = snapshot.val();
+    console.log("Firebase Data:", data);
+    if (!data) return;
+    const sensor = data.sensor || {};
+    const control = data.control || {};
+    const lamp = control.lamp || {};
+    const system = data.system || {};
+
+    state.temperature = sensor.suhu || 0;
+    state.sensorLight = sensor.cahaya || 0;
+    state.lampState = lamp.state || false;
+    state.mode = lamp.mode || 'manual';
+    state.plantStartDate = system.plant_start_date || null;
+    state.alert = system.alert || '';
+
+    const time = new Date().toLocaleTimeString();
+    const now = Date.now();
+
+    // Update chart dengan interval
+    if (tempChart || lightChart) {
+      if (now - lastChartUpdate > CHART_UPDATE_INTERVAL || tempLabels.length === 0) {
+        if (tempChart) {
+          tempLabels.push(time);
+          tempData.push(state.temperature);
+          if (tempLabels.length > MAX_DATA_POINTS) {
+            tempLabels.shift();
+            tempData.shift();
+          }
+          tempChart.update();
+        }
+        if (lightChart) {
+          lightLabels.push(time);
+          lampData.push(state.lampState ? 100 : 0);
+          sensorData.push(state.sensorLight);
+          if (lightLabels.length > MAX_DATA_POINTS) {
+            lightLabels.shift();
+            lampData.shift();
+            sensorData.shift();
+          }
+          lightChart.update();
+        }
+        lastChartUpdate = now;
+      }
+    }
+
+    saveHistory();
+    renderUI();
+    updateModeUI();
+    updateOverheat();
+
+    const days = getDaysSincePlanting();
+    const reminder = getReminderMessage(days);
+    if (reminder && days > 0) {
+      const notifKey = `reminder_${days}`;
+      const lastNotif = localStorage.getItem(notifKey);
+      if (!lastNotif) {
+        showToast('🔔 ' + reminder);
+        localStorage.setItem(notifKey, Date.now());
+        push(ref(db, 'notifications'), { message: reminder, timestamp: Date.now(), read: false });
+      }
+    }
+  }, (error) => {
+    console.error("Firebase Error:", error);
+    if (connStatus) {
+      connStatus.innerText = "Disconnected";
+      connStatus.style.color = "#ef4444";
+    }
+  });
+
+  /* ========================================
+     TOAST NOTIFICATION
+  ======================================== */
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: white; padding: 16px 24px;
+      border-radius: 16px; font-weight: 600; z-index: 9999;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      border-left: 4px solid #facc15;
+      max-width: 90%;
+      text-align: center;
+      animation: slideUp 0.4s ease;
+      font-size: 15px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.5s';
+      setTimeout(() => toast.remove(), 500);
+    }, 5000);
+  }
+
+  /* ========================================
+     CONTROLS
+  ======================================== */
+
+  if (btnOn) {
+    btnOn.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), true)
+        .catch(err => console.error("Set state error:", err));
+    });
+  }
+  if (btnOff) {
+    btnOff.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), false)
+        .catch(err => console.error("Set state error:", err));
+    });
+  }
+
+  /* ========================================
+     MOBILE SIDEBAR TOGGLE
+  ======================================== */
+
+  const menuToggle = document.getElementById("menuToggle");
+  const sidebar = document.querySelector(".sidebar");
+
+  let overlay = document.querySelector(".mobile-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "mobile-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  function openMenu() {
+    sidebar.classList.add("active");
+    overlay.classList.add("active");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeMenu() {
+    sidebar.classList.remove("active");
+    overlay.classList.remove("active");
+    document.body.style.overflow = "";
+  }
+
+  function toggleMenu() {
+    if (sidebar.classList.contains("active")) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", toggleMenu);
+    menuToggle.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      toggleMenu();
+    }, { passive: false });
+  }
+
+  overlay.addEventListener("click", closeMenu);
+  overlay.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    closeMenu();
+  }, { passive: false });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 768) {
+      closeMenu();
+    }
+  });
+
+  console.log("✅ Mobile sidebar toggle ready!");
+
+  /* ========================================
+     SIDEBAR NAVIGATION
+  ======================================== */
+
+  console.log("🔧 INIT: Simple Navigation");
+
+  const menuItems = document.querySelectorAll(".menu-item");
+  const sections = document.querySelectorAll(".page-section");
+
+  menuItems.forEach((item) => {
+    item.addEventListener("click", function(e) {
+      e.preventDefault();
+      console.log("🖱️ KLIK:", this.textContent.trim());
+      menuItems.forEach(m => m.classList.remove("active"));
+      this.classList.add("active");
+      const target = this.getAttribute("data-target");
+      console.log("🎯 Target:", target);
+      sections.forEach(s => s.classList.add("hidden"));
+      const targetSection = document.getElementById(target);
+      if (targetSection) {
+        targetSection.classList.remove("hidden");
+        console.log("✅ Berhasil ke:", target);
+      } else {
+        console.error("❌ GAGAL! Section", target, "tidak ditemukan!");
+      }
+      const sidebarEl = document.querySelector(".sidebar");
+      if (sidebarEl && window.innerWidth <= 768) {
+        sidebarEl.classList.remove("active");
+        document.querySelector(".mobile-overlay")?.classList.remove("active");
+      }
+    });
+  });
+
+  const defaultSection = document.getElementById("dashboard");
+  if (defaultSection) {
+    sections.forEach(s => s.classList.add("hidden"));
+    defaultSection.classList.remove("hidden");
+    console.log("✅ Dashboard aktif");
+  }
+
+  console.log("✅ Navigation ready!");
+
+  /* ========================================
+     CLOCK
+  ======================================== */
+
+  function updateClock() {
+    const now = new Date();
+    const dateText = document.getElementById("dateText");
+    const clockText = document.getElementById("clockText");
+    if (dateText) {
+      dateText.innerText = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    }
+    if (clockText) {
+      clockText.innerText = now.toLocaleTimeString('id-ID');
+    }
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  /* ========================================
+     LOAD ADMIN PANEL (jika admin)
+  ======================================== */
+
+  if (currentUser && currentUser.role === 'admin') {
+    loadUserList();
+  }
+
+  console.log("✅ Elements loaded:", {
+    connStatus: !!connStatus,
+    monitorTemp: !!monitorTemp,
+    monitorLight: !!monitorLight,
+    monitorLampStatus: !!monitorLampStatus,
+    btnOn: !!btnOn,
+    btnOff: !!btnOff,
+    controlSection: !!controlSection
+  });
+
+  updateModeUI();
+
+  console.log("🚀 App siap!");
+
+});
