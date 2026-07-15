@@ -97,6 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const exportPeriod = getEl("exportPeriod");
   const exportBtn = getEl("exportBtn");
   const exportStatus = getEl("exportStatus");
+  const exportPdfBtn = getEl("exportPdfBtn");
 
   // Overheat elements
   const overheatContainer = document.getElementById('overheatContainer');
@@ -142,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
      CHART
   ======================================== */
 
+  const MAX_DATA_POINTS = 15;
   const tempLabels = [];
   const tempData = [];
   const lightLabels = [];
@@ -523,11 +525,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     SAVE HISTORY TO FIREBASE
+     SAVE HISTORY TO FIREBASE (OPTIMASI)
   ======================================== */
 
   let lastSaveTime = 0;
-  const SAVE_INTERVAL = 60000;
+  const SAVE_INTERVAL = 300000; // 5 menit (optimasi)
 
   function saveHistory() {
     const now = Date.now();
@@ -632,6 +634,73 @@ document.addEventListener("DOMContentLoaded", () => {
       const period = exportPeriod.value;
       exportData(period);
     });
+  }
+
+  /* ========================================
+     EXPORT PDF - GRAFIK
+  ======================================== */
+
+  async function exportPDF() {
+    const status = exportStatus;
+    if (status) status.textContent = '⏳ Membuat PDF...';
+
+    try {
+      const tempCanvas = document.getElementById('tempChart');
+      const lightCanvas = document.getElementById('lightChart');
+
+      if (!tempCanvas || !lightCanvas) {
+        alert('Grafik tidak ditemukan!');
+        if (status) status.textContent = '❌ Grafik tidak ditemukan.';
+        return;
+      }
+
+      const tempImg = tempCanvas.toDataURL('image/png');
+      const lightImg = lightCanvas.toDataURL('image/png');
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+
+      // Judul
+      doc.setFontSize(16);
+      doc.text('📊 Laporan Sensor Greenhouse', pageWidth / 2, 20, { align: 'center' });
+      doc.setFontSize(10);
+      doc.text(`📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, 28, { align: 'center' });
+
+      // Grafik
+      const imgWidth = (pageWidth - 20) / 2 - 4;
+      const imgHeight = imgWidth * 0.6;
+
+      // Suhu
+      doc.addImage(tempImg, 'PNG', 8, 35, imgWidth, imgHeight);
+      doc.setFontSize(11);
+      doc.text('🌡️ Suhu Realtime', 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
+
+      // Cahaya
+      doc.addImage(lightImg, 'PNG', 8 + imgWidth + 8, 35, imgWidth, imgHeight);
+      doc.text('💡 Intensitas Cahaya', 8 + imgWidth + 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
+
+      // Footer
+      const now = new Date();
+      doc.setFontSize(9);
+      doc.text(`🔄 Data terakhir: ${now.toLocaleString('id-ID')}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
+      doc.text('Sistem IoT Greenhouse - Tugas Akhir', pageWidth / 2, pageHeight - 4, { align: 'center' });
+
+      // Download
+      const filename = `laporan_grafik_${now.toISOString().slice(0,10)}.pdf`;
+      doc.save(filename);
+
+      if (status) status.textContent = `✅ PDF berhasil diunduh! (${filename})`;
+    } catch (error) {
+      console.error('PDF export error:', error);
+      if (status) status.textContent = '❌ Gagal ekspor PDF. Cek console.';
+      alert('Gagal ekspor PDF. Pastikan grafik sudah dimuat.');
+    }
+  }
+
+  if (exportPdfBtn) {
+    exportPdfBtn.addEventListener('click', exportPDF);
   }
 
   /* ========================================
@@ -782,8 +851,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     FIREBASE REALTIME
+     FIREBASE REALTIME (OPTIMASI CHART UPDATE)
   ======================================== */
+
+  let lastChartUpdate = 0;
+  const CHART_UPDATE_INTERVAL = 5000; // 5 detik
 
   const rootRef = ref(db);
   onValue(rootRef, (snapshot) => {
@@ -803,25 +875,33 @@ document.addEventListener("DOMContentLoaded", () => {
     state.alert = system.alert || '';
 
     const time = new Date().toLocaleTimeString();
-    if (tempChart) {
-      tempLabels.push(time);
-      tempData.push(state.temperature);
-      if (tempLabels.length > 10) {
-        tempLabels.shift();
-        tempData.shift();
+    const now = Date.now();
+
+    // Update chart dengan interval
+    if (tempChart || lightChart) {
+      if (now - lastChartUpdate > CHART_UPDATE_INTERVAL || tempLabels.length === 0) {
+        if (tempChart) {
+          tempLabels.push(time);
+          tempData.push(state.temperature);
+          if (tempLabels.length > MAX_DATA_POINTS) {
+            tempLabels.shift();
+            tempData.shift();
+          }
+          tempChart.update();
+        }
+        if (lightChart) {
+          lightLabels.push(time);
+          lampData.push(state.lampState ? 100 : 0);
+          sensorData.push(state.sensorLight);
+          if (lightLabels.length > MAX_DATA_POINTS) {
+            lightLabels.shift();
+            lampData.shift();
+            sensorData.shift();
+          }
+          lightChart.update();
+        }
+        lastChartUpdate = now;
       }
-      tempChart.update();
-    }
-    if (lightChart) {
-      lightLabels.push(time);
-      lampData.push(state.lampState ? 100 : 0);
-      sensorData.push(state.sensorLight);
-      if (lightLabels.length > 10) {
-        lightLabels.shift();
-        lampData.shift();
-        sensorData.shift();
-      }
-      lightChart.update();
     }
 
     saveHistory();
