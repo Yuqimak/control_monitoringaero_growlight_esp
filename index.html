@@ -10,7 +10,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <!-- ✅ PATH CSS SUDAH BENAR -->
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -125,8 +124,7 @@
                 <span class="mode-name" id="modeName">Bibit</span>
               </div>
               <div class="mode-details">
-                <span>💡 <span id="modeDuration">4</span> jam</span>
-                <span>🎚️ <span id="modeBrightness">45</span>%</span>
+                <span>⏰ <span id="modeDuration">4</span> jam/hari</span>
               </div>
               <div class="mode-timeline">
                 <span>📅 Hari ke-<span id="dayCounter">0</span></span>
@@ -145,7 +143,7 @@
             </div>
             <canvas id="dashTempChart"></canvas>
           </div>
-          <!-- CARD 4: STATUS SISTEM -->
+          <!-- CARD 4: STATUS SISTEM (DENGAN OVERHEAT) -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon purple-box">🔄</div>
@@ -166,6 +164,16 @@
               <div class="status-item">
                 <span class="status-label">Last Update</span>
                 <span class="status-badge" id="dashLastUpdate">--:--:--</span>
+              </div>
+            </div>
+            <!-- OVERHEAT ALERT -->
+            <div id="overheatContainer" style="margin-top:12px; display:none; background:rgba(239,68,68,0.15); border:1px solid #ef4444; border-radius:12px; padding:10px 14px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:24px;">🔥</span>
+                <div>
+                  <div style="font-weight:700; color:#ef4444;">⚠️ OVERHEAT DETECTED!</div>
+                  <div id="overheatMessage" style="font-size:13px; color:#fca5a5;">Suhu melewati batas aman. Lampu dimatikan otomatis.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -194,13 +202,12 @@
             <div class="card-head">
               <div class="card-icon yellow-box">💡</div>
               <div>
-                <h3>Intensitas Lampu</h3>
+                <h3>Intensitas Cahaya</h3>
                 <p class="card-sub">Light Intensity</p>
               </div>
             </div>
             <div class="metric"><span id="monitorLight">--</span>%</div>
             <p class="metric-status" id="lightStatus">Intensitas Sedang</p>
-            <div class="bar"><div class="fill" id="lightBar"></div></div>
           </div>
           <div class="monitor-card">
             <div class="card-head">
@@ -217,12 +224,11 @@
       </section>
 
       <!-- ======================================
-           ANALYTICS (dengan Export)
+           ANALYTICS (DENGAN EXPORT)
       ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
         <div class="analytics-grid">
-          <!-- GRAFIK SUHU -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>Suhu Realtime</h3>
@@ -230,7 +236,6 @@
             </div>
             <canvas id="tempChart"></canvas>
           </div>
-          <!-- GRAFIK CAHAYA -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>History Intensitas</h3>
@@ -238,7 +243,6 @@
             </div>
             <canvas id="lightChart"></canvas>
           </div>
-          <!-- EXPORT DATA -->
           <div class="analytics-card" style="grid-column: span 2;">
             <div class="analytics-head">
               <h3>📥 Export Data</h3>
@@ -257,12 +261,12 @@
       </section>
 
       <!-- ======================================
-           CONTROL
+           CONTROL (TANPA DIMMER)
       ======================================= -->
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
         <div class="control-grid" id="controlSection">
-          <!-- KONTROL LAMPU -->
+          <!-- KONTROL ON/OFF -->
           <div class="control-card">
             <h3>🚨 Emergency Control</h3>
             <div class="button-row">
@@ -272,28 +276,15 @@
             <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
           </div>
 
-          <!-- DIMMING -->
-          <div class="control-card">
-            <h3>🎚 Dimming Control</h3>
-            <input id="dimmer" type="range" min="0" max="100" value="0" />
-            <div class="dimmer-row">
-              <button class="adjust-btn" id="minusBtn">−</button>
-              <input id="dimmerInput" type="number" min="0" max="100" value="0" />
-              <button class="adjust-btn" id="plusBtn">+</button>
-              <span>%</span>
-            </div>
-            <p class="info-text">Current : <span id="dimmerValue">0</span>%</p>
-          </div>
-
-          <!-- MODE PERTUMBUHAN -->
+          <!-- MODE PERTUMBUHAN (tanpa dimmer) -->
           <div class="control-card" style="grid-column: span 2;">
             <h3>🌱 Mode Pertumbuhan Kentang</h3>
             <div class="mode-selector">
               <select id="growthMode" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px;">
-                <option value="bibit">🌱 Bibit (3-5 jam, 45%)</option>
-                <option value="vegetatif">🌿 Vegetatif (12-16 jam, 90%)</option>
-                <option value="generatif">🥔 Generatif (12 jam, 70%)</option>
-                <option value="panen">🌾 Panen (8-10 jam, 40%)</option>
+                <option value="bibit">🌱 Bibit (3-5 jam)</option>
+                <option value="vegetatif">🌿 Vegetatif (12-16 jam)</option>
+                <option value="generatif">🥔 Generatif (12 jam)</option>
+                <option value="panen">🌾 Panen (8-10 jam)</option>
                 <option value="manual">🎛 Manual (User kontrol)</option>
               </select>
               <button id="applyModeBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 24px;">Terapkan</button>
@@ -301,7 +292,6 @@
             <div class="mode-info" style="margin-top:12px; display:flex; gap:20px; font-size:13px; color:var(--muted); flex-wrap:wrap;">
               <span id="currentModeDisplay">Mode: Manual</span>
               <span id="modeDurationDisplay">Durasi: -</span>
-              <span id="modeBrightnessDisplay">Intensitas: -</span>
             </div>
             <button id="resetPlantBtn" class="unlock-btn" style="margin-top:12px; background:rgba(239,68,68,.2); color:#ef4444;">🔄 Reset Tanam (Mulai Baru)</button>
           </div>
@@ -340,7 +330,6 @@
     </main>
   </div>
 
-  <!-- ✅ PATH JS SUDAH BENAR -->
   <script type="module" src="js/app.js?v=200"></script>
 </body>
 </html>
