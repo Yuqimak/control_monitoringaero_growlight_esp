@@ -80,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const addUserForm = document.getElementById('addUserForm');
   const addUserMsg = document.getElementById('addUserMsg');
   const userNameEl = document.getElementById("userName");
-  const lampStatus = getEl("lampStatus");
 
   // Mode elements
   const growthModeSelect = getEl("growthMode");
@@ -354,10 +353,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     const lampStatusText = state.lampState ? "ON" : "OFF";
     const lampColor = state.lampState ? "#22c55e" : "#ef4444";
-    if (lampStatus) {
-      lampStatus.innerText = lampStatusText;
-      lampStatus.style.color = lampColor;
-    }
     if (monitorLampStatus) {
       monitorLampStatus.innerText = lampStatusText;
       monitorLampStatus.style.color = lampColor;
@@ -494,7 +489,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Mode otomatis: set state=true dan mode
       await update(ref(db, 'control/lamp'), {
         mode: mode,
         state: true
