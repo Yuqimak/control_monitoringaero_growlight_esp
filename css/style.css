@@ -1757,3 +1757,82 @@ canvas{
     padding:2px 6px;
   }
 }
+/* =========================
+   MOBILE FIX & OPTIMASI
+========================= */
+
+/* Prevent zoom & touch delay */
+* {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sidebar overlay lebih responsif */
+.mobile-overlay {
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(2px);
+}
+
+/* Perbaiki scroll di sidebar */
+.sidebar {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Card di mobile lebih compact */
+@media (max-width: 768px) {
+  .dashboard-sensor-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+  .sensor-item {
+    padding: 10px 6px;
+  }
+  .sensor-value {
+    font-size: 18px !important;
+  }
+  .metric {
+    font-size: 24px;
+  }
+  .mode-status {
+    font-size: 16px;
+  }
+  .mode-details span {
+    font-size: 12px;
+    padding: 2px 8px;
+  }
+  .dashboard-card, .monitor-card, .control-card {
+    padding: 12px;
+  }
+  .topbar h1 {
+    font-size: 16px !important;
+  }
+  .user-card {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+  .logout-btn {
+    font-size: 14px;
+    padding: 2px 6px;
+  }
+  .status-card, .clock-card {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .clock-card h3 {
+    font-size: 14px;
+  }
+}
+
+/* Matikan animasi hover di mobile */
+@media (max-width: 768px) {
+  * {
+    transition-duration: 0.1s !important;
+  }
+  .monitor-card:hover, .dashboard-card:hover {
+    transform: none !important;
+  }
+  .online-text::before {
+    animation-duration: 2s !important;
+  }
+}
