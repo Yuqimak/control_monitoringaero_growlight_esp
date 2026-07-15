@@ -6,11 +6,7 @@ import {
   set,
   get,
   update,
-  push,
-  query,
-  orderByKey,
-  limitToLast,
-  startAfter
+  push
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ============================================
@@ -46,10 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const state = {
     temperature: 0,
     sensorLight: 0,
-    brightness: 0,
     lampState: false,
     mode: 'manual',
-    plantStartDate: null
+    plantStartDate: null,
+    alert: ''
   };
 
   /* ========================================
@@ -63,17 +59,10 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Existing elements
-  const tempEl = document.getElementById("dashTemp");
-  const lightEl = document.getElementById("dashLight");
-  const lampStatus = document.getElementById("dashLampStatus");
-  const lightBar = getEl("lightBar");
   const connStatus = getEl("connStatus");
   const monitorTemp = getEl("monitorTemp");
   const monitorLight = getEl("monitorLight");
   const monitorLampStatus = getEl("monitorLampStatus");
-  const dimmer = getEl("dimmer");
-  const dimmerInput = getEl("dimmerInput");
-  const dimmerValue = getEl("dimmerValue");
   const btnOn = getEl("btnOn");
   const btnOff = getEl("btnOff");
   const controlSection = getEl("controlSection");
@@ -86,27 +75,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const dashConnStatus = getEl("dashConnStatus");
   const dashDataCount = getEl("dashDataCount");
   const dashLastUpdate = getEl("dashLastUpdate");
-  // Dashboard dimmer & btn (opsional, tidak wajib)
-  const dashDimmer = getEl("dashDimmer");
-  const dashDimmerValue = getEl("dashDimmerValue");
-  const dashBtnOn = getEl("dashBtnOn");
-  const dashBtnOff = getEl("dashBtnOff");
   const adminMenu = document.getElementById('adminMenu');
   const userList = document.getElementById('userList');
   const addUserForm = document.getElementById('addUserForm');
   const addUserMsg = document.getElementById('addUserMsg');
   const userNameEl = document.getElementById("userName");
+  const lampStatus = getEl("lampStatus");
 
   // Mode elements
   const growthModeSelect = getEl("growthMode");
   const applyModeBtn = getEl("applyModeBtn");
   const currentModeDisplay = getEl("currentModeDisplay");
   const modeDurationDisplay = getEl("modeDurationDisplay");
-  const modeBrightnessDisplay = getEl("modeBrightnessDisplay");
   const modeIcon = getEl("modeIcon");
   const modeName = getEl("modeName");
   const modeDuration = getEl("modeDuration");
-  const modeBrightness = getEl("modeBrightness");
   const dayCounter = getEl("dayCounter");
   const timelineMessage = getEl("timelineMessage");
   const resetPlantBtn = getEl("resetPlantBtn");
@@ -115,6 +98,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const exportPeriod = getEl("exportPeriod");
   const exportBtn = getEl("exportBtn");
   const exportStatus = getEl("exportStatus");
+
+  // Overheat elements
+  const overheatContainer = document.getElementById('overheatContainer');
+  const overheatMessage = document.getElementById('overheatMessage');
 
   // Tampilkan menu admin jika role = admin
   if (currentUser && currentUser.role === 'admin') {
@@ -126,20 +113,12 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
 
   const MODE_CONFIG = {
-    bibit:   { icon: '🌱', label: 'Bibit', duration: 4, brightness: 45, maxTemp: 25 },
-    vegetatif: { icon: '🌿', label: 'Vegetatif', duration: 14, brightness: 90, maxTemp: 28 },
-    generatif: { icon: '🥔', label: 'Generatif', duration: 12, brightness: 70, maxTemp: 25 },
-    panen:   { icon: '🌾', label: 'Panen', duration: 9, brightness: 40, maxTemp: 20 },
-    manual:  { icon: '🎛', label: 'Manual', duration: null, brightness: null, maxTemp: 30 }
+    bibit:   { icon: '🌱', label: 'Bibit', duration: 4 },
+    vegetatif: { icon: '🌿', label: 'Vegetatif', duration: 14 },
+    generatif: { icon: '🥔', label: 'Generatif', duration: 12 },
+    panen:   { icon: '🌾', label: 'Panen', duration: 9 },
+    manual:  { icon: '🎛', label: 'Manual', duration: null }
   };
-
-  function getModeLabel(modeKey) {
-    return MODE_CONFIG[modeKey]?.label || modeKey;
-  }
-
-  function getModeIcon(modeKey) {
-    return MODE_CONFIG[modeKey]?.icon || '❓';
-  }
 
   function getModeConfig(modeKey) {
     return MODE_CONFIG[modeKey] || MODE_CONFIG.manual;
@@ -349,6 +328,20 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
+     OVERHEAT - UPDATE
+  ======================================== */
+
+  function updateOverheat() {
+    if (!overheatContainer || !overheatMessage) return;
+    if (state.alert && state.alert.includes('Overheat')) {
+      overheatContainer.style.display = 'block';
+      overheatMessage.textContent = state.alert;
+    } else {
+      overheatContainer.style.display = 'none';
+    }
+  }
+
+  /* ========================================
      RENDER UI
   ======================================== */
 
@@ -359,13 +352,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (monitorLight) {
       animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
     }
-    if (lightBar) {
-      lightBar.style.width = `${state.brightness}%`;
-    }
-    if (dimmer) dimmer.value = state.brightness;
-    if (dimmerInput) dimmerInput.value = state.brightness;
-    if (dimmerValue) dimmerValue.innerText = state.brightness;
-
     const lampStatusText = state.lampState ? "ON" : "OFF";
     const lampColor = state.lampState ? "#22c55e" : "#ef4444";
     if (lampStatus) {
@@ -385,6 +371,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updateDashboard();
     updateDashChart();
     updateModeUI();
+    updateOverheat();
   }
 
   /* ========================================
@@ -421,10 +408,6 @@ document.addEventListener("DOMContentLoaded", () => {
       dashLampLabel.innerText = state.lampState ? "Aktif" : "Mati";
       dashLampLabel.style.color = state.lampState ? "#22c55e" : "#ef4444";
     }
-
-    // Dimmer dashboard (opsional)
-    if (dashDimmer) dashDimmer.value = state.brightness;
-    if (dashDimmerValue) dashDimmerValue.innerText = state.brightness;
 
     if (dashConnStatus) {
       dashConnStatus.innerText = "● Online";
@@ -466,7 +449,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (modeIcon) modeIcon.textContent = config.icon;
     if (modeName) modeName.textContent = config.label;
     if (modeDuration) modeDuration.textContent = config.duration !== null ? config.duration : '-';
-    if (modeBrightness) modeBrightness.textContent = config.brightness !== null ? config.brightness : '-';
     if (dayCounter) dayCounter.textContent = days;
 
     if (timelineMessage) {
@@ -488,9 +470,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (modeDurationDisplay) {
       modeDurationDisplay.textContent = `Durasi: ${config.duration !== null ? config.duration + ' jam' : 'Manual'}`;
-    }
-    if (modeBrightnessDisplay) {
-      modeBrightnessDisplay.textContent = `Intensitas: ${config.brightness !== null ? config.brightness + '%' : 'Manual'}`;
     }
 
     if (growthModeSelect) {
@@ -515,9 +494,9 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
+      // Mode otomatis: set state=true dan mode
       await update(ref(db, 'control/lamp'), {
         mode: mode,
-        brightness: config.brightness,
         state: true
       });
 
@@ -528,11 +507,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       state.mode = mode;
-      state.brightness = config.brightness;
+      state.lampState = true;
       updateModeUI();
       renderUI();
 
-      alert(`✅ Mode ${config.icon} ${config.label} diterapkan! Lampu menyala ${config.duration} jam/hari dengan intensitas ${config.brightness}%.`);
+      alert(`✅ Mode ${config.icon} ${config.label} diterapkan! Lampu menyala ${config.duration} jam/hari.`);
     });
   }
 
@@ -550,37 +529,31 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     SAVE HISTORY TO FIREBASE (FIXED)
+     SAVE HISTORY TO FIREBASE
   ======================================== */
 
   let lastSaveTime = 0;
-  const SAVE_INTERVAL = 60000; // 1 menit
+  const SAVE_INTERVAL = 60000;
 
   function saveHistory() {
     const now = Date.now();
     if (now - lastSaveTime < SAVE_INTERVAL) return;
     lastSaveTime = now;
 
-    // 🔥 FIX: Ganti titik dan titik dua dengan strip agar path valid di Firebase
     const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
-    // Hasil: "2026-07-09T12-12-43-993Z" (tanpa titik)
 
-    // Simpan suhu
     set(ref(db, `sensor_history/suhu/${timestamp}`), {
       value: state.temperature,
       timestamp: timestamp
     });
 
-    // Simpan cahaya
     set(ref(db, `sensor_history/cahaya/${timestamp}`), {
       value: state.sensorLight,
       timestamp: timestamp
     });
 
-    // Simpan status lampu
     set(ref(db, `sensor_history/lampu/${timestamp}`), {
       state: state.lampState,
-      brightness: state.brightness,
       timestamp: timestamp
     });
 
@@ -601,7 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (period === 'week') {
         startDate = new Date(now);
         startDate.setDate(now.getDate() - 7);
-      } else { // month
+      } else {
         startDate = new Date(now);
         startDate.setMonth(now.getMonth() - 1);
       }
@@ -830,10 +803,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     state.temperature = sensor.suhu || 0;
     state.sensorLight = sensor.cahaya || 0;
-    state.brightness = lamp.brightness || 0;
     state.lampState = lamp.state || false;
     state.mode = lamp.mode || 'manual';
     state.plantStartDate = system.plant_start_date || null;
+    state.alert = system.alert || '';
 
     const time = new Date().toLocaleTimeString();
     if (tempChart) {
@@ -847,7 +820,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (lightChart) {
       lightLabels.push(time);
-      lampData.push(state.brightness);
+      lampData.push(state.lampState ? 100 : 0);
       sensorData.push(state.sensorLight);
       if (lightLabels.length > 10) {
         lightLabels.shift();
@@ -857,13 +830,11 @@ document.addEventListener("DOMContentLoaded", () => {
       lightChart.update();
     }
 
-    // Simpan history setiap 1 menit
     saveHistory();
-
     renderUI();
     updateModeUI();
+    updateOverheat();
 
-    // CEK REMINDER
     const days = getDaysSincePlanting();
     const reminder = getReminderMessage(days);
     if (reminder && days > 0) {
@@ -913,30 +884,6 @@ document.addEventListener("DOMContentLoaded", () => {
      CONTROLS
   ======================================== */
 
-  function setBrightness(value) {
-    const val = Math.max(0, Math.min(100, value));
-    set(ref(db, "control/lamp/brightness"), Number(val))
-      .catch(err => console.error("Set brightness error:", err));
-  }
-
-  if (dimmer) {
-    dimmer.addEventListener("input", (e) => {
-      setBrightness(e.target.value);
-    });
-  }
-  if (dimmerInput) {
-    dimmerInput.addEventListener("input", (e) => {
-      setBrightness(e.target.value);
-    });
-  }
-
-  // Dashboard dimmer (opsional)
-  if (dashDimmer) {
-    dashDimmer.addEventListener("input", (e) => {
-      setBrightness(e.target.value);
-    });
-  }
-
   if (btnOn) {
     btnOn.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), true)
@@ -947,21 +894,6 @@ document.addEventListener("DOMContentLoaded", () => {
     btnOff.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), false)
         .catch(err => console.error("Set state error:", err));
-      set(ref(db, "control/lamp/brightness"), 0)
-        .catch(err => console.error("Set brightness error:", err));
-    });
-  }
-
-  // Dashboard buttons (opsional)
-  if (dashBtnOn) {
-    dashBtnOn.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), true);
-    });
-  }
-  if (dashBtnOff) {
-    dashBtnOff.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), false);
-      set(ref(db, "control/lamp/brightness"), 0);
     });
   }
 
@@ -1096,17 +1028,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   console.log("✅ Elements loaded:", {
-    tempEl: !!tempEl,
-    lightEl: !!lightEl,
-    lightBar: !!lightBar,
     connStatus: !!connStatus,
-    lampStatus: !!lampStatus,
     monitorTemp: !!monitorTemp,
     monitorLight: !!monitorLight,
     monitorLampStatus: !!monitorLampStatus,
-    dimmer: !!dimmer,
-    dimmerInput: !!dimmerInput,
-    dimmerValue: !!dimmerValue,
     btnOn: !!btnOn,
     btnOff: !!btnOff,
     controlSection: !!controlSection
