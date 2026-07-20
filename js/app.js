@@ -6,7 +6,10 @@ import {
   set,
   get,
   update,
-  push
+  push,
+  query,
+  orderByKey,
+  limitToLast
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 /* ============================================
@@ -251,6 +254,46 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
+     LOAD CHART HISTORY DARI FIREBASE (AGAR TIDAK HILANG SAAT RELOAD)
+  ======================================== */
+  async function loadChartHistory() {
+    try {
+      // Ambil 15 data terakhir dari setiap history
+      const suhuSnap = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
+      const cahayaSnap = await get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
+      const lampuSnap = await get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
+
+      const suhuData = suhuSnap.val() || {};
+      const cahayaData = cahayaSnap.val() || {};
+      const lampuData = lampuSnap.val() || {};
+
+      // Ambil semua key dari suhu (sebagai master)
+      const keys = Object.keys(suhuData).sort();
+
+      keys.forEach(key => {
+        // Format timestamp agar rapi: "21-07 02:15"
+        const parts = key.replace('T', ' ').split(' ');
+        const date = parts[0].split('-').slice(2).join('-'); // dd-mm
+        const time = parts[1].split('-').slice(0, 2).join(':'); // hh:mm
+        const label = date + ' ' + time;
+
+        tempLabels.push(label);
+        tempData.push(suhuData[key]?.value || 0);
+        sensorData.push(cahayaData[key]?.value || 0);
+        lampData.push(lampuData[key]?.state ? 100 : 0);
+      });
+
+      // Update chart
+      if (tempChart) tempChart.update();
+      if (lightChart) lightChart.update();
+
+      console.log('📊 Chart history loaded, data points:', keys.length);
+    } catch (e) {
+      console.warn('Could not load chart history:', e);
+    }
+  }
+
+  /* ========================================
      USER INFO & LOGOUT
   ======================================== */
   function showUserInfo() {
@@ -339,7 +382,6 @@ document.addEventListener("DOMContentLoaded", () => {
      RENDER UI
   ======================================== */
   function renderUI() {
-    // Monitor cards
     if (monitorTemp) {
       animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
     }
@@ -838,7 +880,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     FIREBASE REALTIME – BACA PER PATH + UPDATE CHART
+     FIREBASE REALTIME – BACA PER PATH
   ======================================== */
 
   // ----- 1. SENSOR (update chart utama) -----
@@ -849,7 +891,6 @@ document.addEventListener("DOMContentLoaded", () => {
       state.temperature = data.suhu || 0;
       state.sensorLight = data.cahaya || 0;
 
-      // 🔥 UPDATE CHART BESAR (Analytics) setiap ada data sensor baru
       const time = new Date().toLocaleTimeString();
       if (tempChart) {
         tempLabels.push(time);
@@ -885,7 +926,6 @@ document.addEventListener("DOMContentLoaded", () => {
       state.lampState = data.lamp.state || false;
       state.mode = data.lamp.mode || 'manual';
 
-      // 🔥 UPDATE CHART LAMP (dataset pertama) agar sinkron dengan state
       if (lightChart && lightLabels.length > 0) {
         const lastIndex = lightLabels.length - 1;
         lampData[lastIndex] = state.lampState ? 100 : 0;
@@ -913,7 +953,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ========================================
-     TOAST NOTIFICATION (reminder)
+     TOAST NOTIFICATION
   ======================================== */
   function showToast(message) {
     const toast = document.createElement('div');
@@ -1088,6 +1128,11 @@ document.addEventListener("DOMContentLoaded", () => {
     btnOff: !!btnOff,
     controlSection: !!controlSection
   });
+
+  /* ========================================
+     🔥 LOAD CHART HISTORY SAAT PERTAMA KALI LOAD
+  ======================================== */
+  loadChartHistory();
 
   updateModeUI();
 
