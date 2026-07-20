@@ -193,7 +193,7 @@
     import { db } from "./js/firebase.js";
     import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-    // ===== DOM ELEMENTS =====
+    // DOM Elements
     const form = document.getElementById('loginForm');
     const errorMsg = document.getElementById('errorMsg');
     const registerLink = document.getElementById('registerLink');
@@ -206,7 +206,7 @@
     const btnBatal = document.getElementById('btnBatal');
     const regMsg = document.getElementById('regMsg');
 
-    // ===== FUNGSI MODAL =====
+    // Open / Close Modal
     function bukaModal() {
       modal.classList.add('active');
       regUsername.value = '';
@@ -215,12 +215,9 @@
       regRole.value = 'petani';
       regMsg.textContent = '';
     }
+    function tutupModal() { modal.classList.remove('active'); }
 
-    function tutupModal() {
-      modal.classList.remove('active');
-    }
-
-    // ===== REGISTRASI =====
+    // Register new user
     async function daftarAkun() {
       const username = regUsername.value.trim();
       const password = regPassword.value.trim();
@@ -269,17 +266,13 @@
       }
     }
 
-    // ===== EVENT LISTENER =====
+    // Event listeners
     registerLink.addEventListener('click', bukaModal);
     btnBatal.addEventListener('click', tutupModal);
     btnDaftar.addEventListener('click', daftarAkun);
+    modal.addEventListener('click', (e) => { if (e.target === modal) tutupModal(); });
 
-    // Tutup modal jika klik di luar area modal
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) tutupModal();
-    });
-
-    // ===== LOGIN =====
+    // Login
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorMsg.textContent = '⏳ Memeriksa...';
@@ -320,7 +313,7 @@
       }
     });
 
-    // ===== CEK SESSION =====
+    // Redirect if already logged in
     const session = localStorage.getItem('iot_user');
     if (session) {
       try {
