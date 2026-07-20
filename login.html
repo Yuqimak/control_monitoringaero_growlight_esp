@@ -61,14 +61,6 @@
       margin-top: 12px;
       min-height: 24px;
     }
-    .login-box .register-link {
-      color: #22c55e;
-      cursor: pointer;
-      margin-top: 16px;
-      display: inline-block;
-      font-size: 14px;
-    }
-    .login-box .register-link:hover { text-decoration: underline; }
     .login-box .footer { margin-top: 20px; font-size: 12px; color: #475569; }
   </style>
 </head>
@@ -85,18 +77,15 @@
       <p id="errorMsg" class="error"></p>
     </form>
     
-    <a class="register-link" id="registerLink">📝 Belum punya akun? Daftar</a>
     <p class="footer">© 2026 IoT Greenhouse TA</p>
   </div>
 
   <script type="module">
-    // ✅ PATH FIREBASE SUDAH BENAR
     import { db } from "./js/firebase.js";
-    import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { ref, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const form = document.getElementById('loginForm');
     const errorMsg = document.getElementById('errorMsg');
-    const registerLink = document.getElementById('registerLink');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -138,46 +127,7 @@
       }
     });
 
-    function showRegister() {
-      const username = prompt('👤 Masukkan username untuk daftar:');
-      if (!username) return;
-      if (username.length < 3) {
-        alert('Username minimal 3 karakter!');
-        return;
-      }
-      
-      const password = prompt('🔒 Masukkan password (min 4 karakter):');
-      if (!password || password.length < 4) {
-        alert('Password minimal 4 karakter!');
-        return;
-      }
-      
-      const nama = prompt('👤 Masukkan nama lengkap Anda:') || username;
-      
-      const userRef = ref(db, `users/${username}`);
-      get(userRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          alert('❌ Username sudah terdaftar!');
-          return;
-        }
-        
-        set(userRef, {
-          password: password,
-          nama: nama,
-          role: 'petani',
-          createdAt: new Date().toISOString()
-        })
-        .then(() => {
-          alert('✅ Akun berhasil dibuat! Silakan login.');
-        })
-        .catch((err) => {
-          alert('❌ Gagal daftar: ' + err.message);
-        });
-      });
-    }
-
-    registerLink.addEventListener('click', showRegister);
-
+    // CEK SESSION
     const session = localStorage.getItem('iot_user');
     if (session) {
       try {
@@ -187,8 +137,6 @@
         }
       } catch(e) {}
     }
-
-    window.showRegister = showRegister;
   </script>
 </body>
 </html>
