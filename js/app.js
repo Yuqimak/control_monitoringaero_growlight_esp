@@ -58,7 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return el;
   };
 
-  // Existing elements
   const connStatus = getEl("connStatus");
   const monitorTemp = getEl("monitorTemp");
   const monitorLight = getEl("monitorLight");
@@ -81,7 +80,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const addUserMsg = document.getElementById('addUserMsg');
   const userNameEl = document.getElementById("userName");
 
-  // Mode elements
   const growthModeSelect = getEl("growthMode");
   const applyModeBtn = getEl("applyModeBtn");
   const currentModeDisplay = getEl("currentModeDisplay");
@@ -93,17 +91,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const timelineMessage = getEl("timelineMessage");
   const resetPlantBtn = getEl("resetPlantBtn");
 
-  // Export elements
   const exportPeriod = getEl("exportPeriod");
   const exportBtn = getEl("exportBtn");
   const exportStatus = getEl("exportStatus");
   const exportPdfBtn = getEl("exportPdfBtn");
 
-  // Overheat elements
   const overheatContainer = document.getElementById('overheatContainer');
   const overheatMessage = document.getElementById('overheatMessage');
 
-  // Tampilkan menu admin jika role = admin
   if (currentUser && currentUser.role === 'admin') {
     if (adminMenu) adminMenu.style.display = 'block';
   }
@@ -217,10 +212,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ========================================
-     DASHBOARD CHART (MINI)
-  ======================================== */
-
   const dashTempLabels = [];
   const dashTempData = [];
 
@@ -274,10 +265,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  /* ========================================
-     ANIMATE VALUE
-  ======================================== */
-
   function animateValue(el, start, end, duration = 300) {
     if (!el) return;
     let startTime = null;
@@ -290,10 +277,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     requestAnimationFrame(animate);
   }
-
-  /* ========================================
-     UPDATE STATUS TEXT - DINAMIS
-  ======================================== */
 
   function updateStatusText() {
     const tempStatus = document.getElementById("tempStatus");
@@ -328,10 +311,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ========================================
-     OVERHEAT - UPDATE
-  ======================================== */
-
   function updateOverheat() {
     if (!overheatContainer || !overheatMessage) return;
     if (state.alert && state.alert.includes('Overheat')) {
@@ -341,10 +320,6 @@ document.addEventListener("DOMContentLoaded", () => {
       overheatContainer.style.display = 'none';
     }
   }
-
-  /* ========================================
-     RENDER UI
-  ======================================== */
 
   function renderUI() {
     if (monitorTemp) {
@@ -370,10 +345,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateModeUI();
     updateOverheat();
   }
-
-  /* ========================================
-     DASHBOARD - FUNGSI UPDATE
-  ======================================== */
 
   function updateDashboard() {
     if (dashTemp) dashTemp.innerText = state.temperature;
@@ -418,10 +389,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ========================================
-     DASHBOARD - UPDATE CHART
-  ======================================== */
-
   function updateDashChart() {
     if (!dashTempChart) return;
     const time = new Date().toLocaleTimeString();
@@ -433,10 +400,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     dashTempChart.update();
   }
-
-  /* ========================================
-     MODE UI - UPDATE
-  ======================================== */
 
   function updateModeUI() {
     const modeKey = state.mode || 'manual';
@@ -473,10 +436,6 @@ document.addEventListener("DOMContentLoaded", () => {
       growthModeSelect.value = modeKey;
     }
   }
-
-  /* ========================================
-     MODE - APPLY & RESET
-  ======================================== */
 
   if (applyModeBtn && growthModeSelect) {
     applyModeBtn.addEventListener('click', async () => {
@@ -525,11 +484,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     SAVE HISTORY TO FIREBASE (OPTIMASI)
+     SAVE HISTORY TO FIREBASE
   ======================================== */
 
   let lastSaveTime = 0;
-  const SAVE_INTERVAL = 300000; // 5 menit (optimasi)
+  const SAVE_INTERVAL = 300000;
 
   function saveHistory() {
     const now = Date.now();
@@ -662,32 +621,26 @@ document.addEventListener("DOMContentLoaded", () => {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
 
-      // Judul
       doc.setFontSize(16);
       doc.text('📊 Laporan Sensor Greenhouse', pageWidth / 2, 20, { align: 'center' });
       doc.setFontSize(10);
       doc.text(`📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, 28, { align: 'center' });
 
-      // Grafik
       const imgWidth = (pageWidth - 20) / 2 - 4;
       const imgHeight = imgWidth * 0.6;
 
-      // Suhu
       doc.addImage(tempImg, 'PNG', 8, 35, imgWidth, imgHeight);
       doc.setFontSize(11);
       doc.text('🌡️ Suhu Realtime', 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
 
-      // Cahaya
       doc.addImage(lightImg, 'PNG', 8 + imgWidth + 8, 35, imgWidth, imgHeight);
       doc.text('💡 Intensitas Cahaya', 8 + imgWidth + 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
 
-      // Footer
       const now = new Date();
       doc.setFontSize(9);
       doc.text(`🔄 Data terakhir: ${now.toLocaleString('id-ID')}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
       doc.text('Sistem IoT Greenhouse - Tugas Akhir', pageWidth / 2, pageHeight - 4, { align: 'center' });
 
-      // Download
       const filename = `laporan_grafik_${now.toISOString().slice(0,10)}.pdf`;
       doc.save(filename);
 
@@ -749,12 +702,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.changeRole = function(username, newRole) {
-    // ===== CEK ROLE ADMIN =====
     if (currentUser.role !== 'admin') {
       alert('❌ Hanya admin yang bisa mengubah role!');
       return;
     }
-    // ===== SAMPAI SINI =====
 
     if (!confirm(`Ubah role ${username} menjadi ${newRole}?`)) return;
     update(ref(db, `users/${username}`), { role: newRole })
@@ -774,12 +725,10 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   window.deleteUser = function(username) {
-    // ===== CEK ROLE ADMIN =====
     if (currentUser.role !== 'admin') {
       alert('❌ Hanya admin yang bisa menghapus user!');
       return;
     }
-    // ===== SAMPAI SINI =====
 
     if (!confirm(`Hapus user ${username}?`)) return;
     set(ref(db, `users/${username}`), null)
@@ -802,12 +751,10 @@ document.addEventListener("DOMContentLoaded", () => {
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      // ===== CEK ROLE ADMIN =====
       if (currentUser.role !== 'admin') {
         alert('❌ Hanya admin yang bisa menambah user!');
         return;
       }
-      // ===== SAMPAI SINI =====
 
       const username = document.getElementById('newUsername').value.trim();
       const password = document.getElementById('newPassword').value.trim();
@@ -873,11 +820,11 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     FIREBASE REALTIME (OPTIMASI CHART UPDATE)
+     FIREBASE REALTIME
   ======================================== */
 
   let lastChartUpdate = 0;
-  const CHART_UPDATE_INTERVAL = 5000; // 5 detik
+  const CHART_UPDATE_INTERVAL = 5000;
 
   const rootRef = ref(db);
   onValue(rootRef, (snapshot) => {
@@ -899,7 +846,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const time = new Date().toLocaleTimeString();
     const now = Date.now();
 
-    // Update chart dengan interval
     if (tempChart || lightChart) {
       if (now - lastChartUpdate > CHART_UPDATE_INTERVAL || tempLabels.length === 0) {
         if (tempChart) {
@@ -914,4 +860,223 @@ document.addEventListener("DOMContentLoaded", () => {
         if (lightChart) {
           lightLabels.push(time);
           lampData.push(state.lampState ? 100 : 0);
-          sensor
+          sensorData.push(state.sensorLight);
+          if (lightLabels.length > MAX_DATA_POINTS) {
+            lightLabels.shift();
+            lampData.shift();
+            sensorData.shift();
+          }
+          lightChart.update();
+        }
+        lastChartUpdate = now;
+      }
+    }
+
+    saveHistory();
+    renderUI();
+    updateModeUI();
+    updateOverheat();
+
+    const days = getDaysSincePlanting();
+    const reminder = getReminderMessage(days);
+    if (reminder && days > 0) {
+      const notifKey = `reminder_${days}`;
+      const lastNotif = localStorage.getItem(notifKey);
+      if (!lastNotif) {
+        showToast('🔔 ' + reminder);
+        localStorage.setItem(notifKey, Date.now());
+        push(ref(db, 'notifications'), { message: reminder, timestamp: Date.now(), read: false });
+      }
+    }
+  }, (error) => {
+    console.error("Firebase Error:", error);
+    if (connStatus) {
+      connStatus.innerText = "Disconnected";
+      connStatus.style.color = "#ef4444";
+    }
+  });
+
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: #1e293b; color: white; padding: 16px 24px;
+      border-radius: 16px; font-weight: 600; z-index: 9999;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+      border-left: 4px solid #facc15;
+      max-width: 90%;
+      text-align: center;
+      animation: slideUp 0.4s ease;
+      font-size: 15px;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.5s';
+      setTimeout(() => toast.remove(), 500);
+    }, 5000);
+  }
+
+  /* ========================================
+     CONTROLS
+  ======================================== */
+
+  if (btnOn) {
+    btnOn.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), true)
+        .catch(err => console.error("Set state error:", err));
+    });
+  }
+  if (btnOff) {
+    btnOff.addEventListener("click", () => {
+      set(ref(db, "control/lamp/state"), false)
+        .catch(err => console.error("Set state error:", err));
+    });
+  }
+
+  /* ========================================
+     MOBILE SIDEBAR TOGGLE
+  ======================================== */
+
+  const menuToggle = document.getElementById("menuToggle");
+  const sidebar = document.querySelector(".sidebar");
+
+  let overlay = document.querySelector(".mobile-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "mobile-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  function openMenu() {
+    sidebar.classList.add("active");
+    overlay.classList.add("active");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeMenu() {
+    sidebar.classList.remove("active");
+    overlay.classList.remove("active");
+    document.body.style.overflow = "";
+  }
+
+  function toggleMenu() {
+    if (sidebar.classList.contains("active")) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", toggleMenu);
+    menuToggle.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      toggleMenu();
+    }, { passive: false });
+  }
+
+  overlay.addEventListener("click", closeMenu);
+  overlay.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    closeMenu();
+  }, { passive: false });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 768) {
+      closeMenu();
+    }
+  });
+
+  console.log("✅ Mobile sidebar toggle ready!");
+
+  /* ========================================
+     SIDEBAR NAVIGATION
+  ======================================== */
+
+  console.log("🔧 INIT: Simple Navigation");
+
+  const menuItems = document.querySelectorAll(".menu-item");
+  const sections = document.querySelectorAll(".page-section");
+
+  menuItems.forEach((item) => {
+    item.addEventListener("click", function(e) {
+      e.preventDefault();
+      console.log("🖱️ KLIK:", this.textContent.trim());
+      menuItems.forEach(m => m.classList.remove("active"));
+      this.classList.add("active");
+      const target = this.getAttribute("data-target");
+      console.log("🎯 Target:", target);
+      sections.forEach(s => s.classList.add("hidden"));
+      const targetSection = document.getElementById(target);
+      if (targetSection) {
+        targetSection.classList.remove("hidden");
+        console.log("✅ Berhasil ke:", target);
+      } else {
+        console.error("❌ GAGAL! Section", target, "tidak ditemukan!");
+      }
+      const sidebarEl = document.querySelector(".sidebar");
+      if (sidebarEl && window.innerWidth <= 768) {
+        sidebarEl.classList.remove("active");
+        document.querySelector(".mobile-overlay")?.classList.remove("active");
+      }
+    });
+  });
+
+  const defaultSection = document.getElementById("dashboard");
+  if (defaultSection) {
+    sections.forEach(s => s.classList.add("hidden"));
+    defaultSection.classList.remove("hidden");
+    console.log("✅ Dashboard aktif");
+  }
+
+  console.log("✅ Navigation ready!");
+
+  /* ========================================
+     CLOCK
+  ======================================== */
+
+  function updateClock() {
+    const now = new Date();
+    const dateText = document.getElementById("dateText");
+    const clockText = document.getElementById("clockText");
+    if (dateText) {
+      dateText.innerText = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    }
+    if (clockText) {
+      clockText.innerText = now.toLocaleTimeString('id-ID');
+    }
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  /* ========================================
+     LOAD ADMIN PANEL (jika admin)
+  ======================================== */
+
+  if (currentUser && currentUser.role === 'admin') {
+    loadUserList();
+  }
+
+  console.log("✅ Elements loaded:", {
+    connStatus: !!connStatus,
+    monitorTemp: !!monitorTemp,
+    monitorLight: !!monitorLight,
+    monitorLampStatus: !!monitorLampStatus,
+    btnOn: !!btnOn,
+    btnOff: !!btnOff,
+    controlSection: !!controlSection
+  });
+
+  updateModeUI();
+
+  console.log("🚀 App siap!");
+
+}); // <-- TUTUP AKHIR
