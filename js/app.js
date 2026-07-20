@@ -749,6 +749,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.changeRole = function(username, newRole) {
+    // ===== CEK ROLE ADMIN =====
+    if (currentUser.role !== 'admin') {
+      alert('❌ Hanya admin yang bisa mengubah role!');
+      return;
+    }
+    // ===== SAMPAI SINI =====
+
     if (!confirm(`Ubah role ${username} menjadi ${newRole}?`)) return;
     update(ref(db, `users/${username}`), { role: newRole })
       .then(() => {
@@ -767,6 +774,13 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   window.deleteUser = function(username) {
+    // ===== CEK ROLE ADMIN =====
+    if (currentUser.role !== 'admin') {
+      alert('❌ Hanya admin yang bisa menghapus user!');
+      return;
+    }
+    // ===== SAMPAI SINI =====
+
     if (!confirm(`Hapus user ${username}?`)) return;
     set(ref(db, `users/${username}`), null)
       .then(() => {
@@ -787,6 +801,14 @@ document.addEventListener("DOMContentLoaded", () => {
   if (addUserForm) {
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      // ===== CEK ROLE ADMIN =====
+      if (currentUser.role !== 'admin') {
+        alert('❌ Hanya admin yang bisa menambah user!');
+        return;
+      }
+      // ===== SAMPAI SINI =====
+
       const username = document.getElementById('newUsername').value.trim();
       const password = document.getElementById('newPassword').value.trim();
       const nama = document.getElementById('newNama').value.trim() || username;
@@ -892,227 +914,4 @@ document.addEventListener("DOMContentLoaded", () => {
         if (lightChart) {
           lightLabels.push(time);
           lampData.push(state.lampState ? 100 : 0);
-          sensorData.push(state.sensorLight);
-          if (lightLabels.length > MAX_DATA_POINTS) {
-            lightLabels.shift();
-            lampData.shift();
-            sensorData.shift();
-          }
-          lightChart.update();
-        }
-        lastChartUpdate = now;
-      }
-    }
-
-    saveHistory();
-    renderUI();
-    updateModeUI();
-    updateOverheat();
-
-    const days = getDaysSincePlanting();
-    const reminder = getReminderMessage(days);
-    if (reminder && days > 0) {
-      const notifKey = `reminder_${days}`;
-      const lastNotif = localStorage.getItem(notifKey);
-      if (!lastNotif) {
-        showToast('🔔 ' + reminder);
-        localStorage.setItem(notifKey, Date.now());
-        push(ref(db, 'notifications'), { message: reminder, timestamp: Date.now(), read: false });
-      }
-    }
-  }, (error) => {
-    console.error("Firebase Error:", error);
-    if (connStatus) {
-      connStatus.innerText = "Disconnected";
-      connStatus.style.color = "#ef4444";
-    }
-  });
-
-  /* ========================================
-     TOAST NOTIFICATION
-  ======================================== */
-
-  function showToast(message) {
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-      background: #1e293b; color: white; padding: 16px 24px;
-      border-radius: 16px; font-weight: 600; z-index: 9999;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.6);
-      border-left: 4px solid #facc15;
-      max-width: 90%;
-      text-align: center;
-      animation: slideUp 0.4s ease;
-      font-size: 15px;
-    `;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.5s';
-      setTimeout(() => toast.remove(), 500);
-    }, 5000);
-  }
-
-  /* ========================================
-     CONTROLS
-  ======================================== */
-
-  if (btnOn) {
-    btnOn.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), true)
-        .catch(err => console.error("Set state error:", err));
-    });
-  }
-  if (btnOff) {
-    btnOff.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), false)
-        .catch(err => console.error("Set state error:", err));
-    });
-  }
-
-  /* ========================================
-     MOBILE SIDEBAR TOGGLE
-  ======================================== */
-
-  const menuToggle = document.getElementById("menuToggle");
-  const sidebar = document.querySelector(".sidebar");
-
-  let overlay = document.querySelector(".mobile-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.className = "mobile-overlay";
-    document.body.appendChild(overlay);
-  }
-
-  function openMenu() {
-    sidebar.classList.add("active");
-    overlay.classList.add("active");
-    document.body.style.overflow = "hidden";
-  }
-
-  function closeMenu() {
-    sidebar.classList.remove("active");
-    overlay.classList.remove("active");
-    document.body.style.overflow = "";
-  }
-
-  function toggleMenu() {
-    if (sidebar.classList.contains("active")) {
-      closeMenu();
-    } else {
-      openMenu();
-    }
-  }
-
-  if (menuToggle) {
-    menuToggle.addEventListener("click", toggleMenu);
-    menuToggle.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      toggleMenu();
-    }, { passive: false });
-  }
-
-  overlay.addEventListener("click", closeMenu);
-  overlay.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    closeMenu();
-  }, { passive: false });
-
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 768) {
-      closeMenu();
-    }
-  });
-
-  console.log("✅ Mobile sidebar toggle ready!");
-
-  /* ========================================
-     SIDEBAR NAVIGATION
-  ======================================== */
-
-  console.log("🔧 INIT: Simple Navigation");
-
-  const menuItems = document.querySelectorAll(".menu-item");
-  const sections = document.querySelectorAll(".page-section");
-
-  menuItems.forEach((item) => {
-    item.addEventListener("click", function(e) {
-      e.preventDefault();
-      console.log("🖱️ KLIK:", this.textContent.trim());
-      menuItems.forEach(m => m.classList.remove("active"));
-      this.classList.add("active");
-      const target = this.getAttribute("data-target");
-      console.log("🎯 Target:", target);
-      sections.forEach(s => s.classList.add("hidden"));
-      const targetSection = document.getElementById(target);
-      if (targetSection) {
-        targetSection.classList.remove("hidden");
-        console.log("✅ Berhasil ke:", target);
-      } else {
-        console.error("❌ GAGAL! Section", target, "tidak ditemukan!");
-      }
-      const sidebarEl = document.querySelector(".sidebar");
-      if (sidebarEl && window.innerWidth <= 768) {
-        sidebarEl.classList.remove("active");
-        document.querySelector(".mobile-overlay")?.classList.remove("active");
-      }
-    });
-  });
-
-  const defaultSection = document.getElementById("dashboard");
-  if (defaultSection) {
-    sections.forEach(s => s.classList.add("hidden"));
-    defaultSection.classList.remove("hidden");
-    console.log("✅ Dashboard aktif");
-  }
-
-  console.log("✅ Navigation ready!");
-
-  /* ========================================
-     CLOCK
-  ======================================== */
-
-  function updateClock() {
-    const now = new Date();
-    const dateText = document.getElementById("dateText");
-    const clockText = document.getElementById("clockText");
-    if (dateText) {
-      dateText.innerText = now.toLocaleDateString('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    }
-    if (clockText) {
-      clockText.innerText = now.toLocaleTimeString('id-ID');
-    }
-  }
-
-  updateClock();
-  setInterval(updateClock, 1000);
-
-  /* ========================================
-     LOAD ADMIN PANEL (jika admin)
-  ======================================== */
-
-  if (currentUser && currentUser.role === 'admin') {
-    loadUserList();
-  }
-
-  console.log("✅ Elements loaded:", {
-    connStatus: !!connStatus,
-    monitorTemp: !!monitorTemp,
-    monitorLight: !!monitorLight,
-    monitorLampStatus: !!monitorLampStatus,
-    btnOn: !!btnOn,
-    btnOff: !!btnOff,
-    controlSection: !!controlSection
-  });
-
-  updateModeUI();
-
-  console.log("🚀 App siap!");
-
-});
+          sensor
