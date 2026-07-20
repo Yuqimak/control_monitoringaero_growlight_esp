@@ -70,6 +70,89 @@
     }
     .login-box .register-link:hover { text-decoration: underline; }
     .login-box .footer { margin-top: 20px; font-size: 12px; color: #475569; }
+
+    /* ===== MODAL REGISTRASI ===== */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+    .modal-box {
+      background: #1e293b;
+      padding: 32px 28px;
+      border-radius: 20px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,.06);
+    }
+    .modal-box h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 22px;
+    }
+    .modal-box input, .modal-box select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.1);
+      color: white;
+      font-size: 14px;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .modal-box input:focus, .modal-box select:focus {
+      border-color: #22c55e;
+    }
+    .modal-box select option {
+      background: #1e293b;
+    }
+    .modal-box .btn-daftar {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      transition: transform .2s;
+    }
+    .modal-box .btn-daftar:hover {
+      transform: translateY(-2px);
+    }
+    .modal-box .btn-batal {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      background: rgba(239,68,68,.15);
+      border: none;
+      border-radius: 10px;
+      color: #f87171;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .modal-box .btn-batal:hover {
+      background: rgba(239,68,68,.3);
+    }
+    .modal-box .reg-msg {
+      margin-top: 12px;
+      font-size: 14px;
+      text-align: center;
+      min-height: 20px;
+    }
   </style>
 </head>
 <body>
@@ -89,19 +172,114 @@
     <p class="footer">© 2026 IoT Greenhouse TA</p>
   </div>
 
+  <!-- ===== MODAL REGISTRASI ===== -->
+  <div class="modal-overlay" id="registerModal">
+    <div class="modal-box">
+      <h2>📝 Daftar Akun</h2>
+      <input type="text" id="regUsername" placeholder="Username" required>
+      <input type="password" id="regPassword" placeholder="Password" required>
+      <input type="text" id="regNama" placeholder="Nama Lengkap">
+      <select id="regRole">
+        <option value="petani">👨‍🌾 Petani</option>
+        <option value="admin">👑 Admin</option>
+      </select>
+      <button class="btn-daftar" id="btnDaftar">Daftar</button>
+      <button class="btn-batal" id="btnBatal">Batal</button>
+      <p id="regMsg" class="reg-msg"></p>
+    </div>
+  </div>
+
   <script type="module">
-    // ============================================
-    // LOGIN VIA FIREBASE REALTIME DATABASE
-    // ============================================
-    
-    import { db } from "./js/firebase.js";  // ✅ PATH BENAR!
+    import { db } from "./js/firebase.js";
     import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+    // ===== DOM ELEMENTS =====
     const form = document.getElementById('loginForm');
     const errorMsg = document.getElementById('errorMsg');
     const registerLink = document.getElementById('registerLink');
+    const modal = document.getElementById('registerModal');
+    const regUsername = document.getElementById('regUsername');
+    const regPassword = document.getElementById('regPassword');
+    const regNama = document.getElementById('regNama');
+    const regRole = document.getElementById('regRole');
+    const btnDaftar = document.getElementById('btnDaftar');
+    const btnBatal = document.getElementById('btnBatal');
+    const regMsg = document.getElementById('regMsg');
 
-    // === LOGIN ===
+    // ===== FUNGSI MODAL =====
+    function bukaModal() {
+      modal.classList.add('active');
+      regUsername.value = '';
+      regPassword.value = '';
+      regNama.value = '';
+      regRole.value = 'petani';
+      regMsg.textContent = '';
+    }
+
+    function tutupModal() {
+      modal.classList.remove('active');
+    }
+
+    // ===== REGISTRASI =====
+    async function daftarAkun() {
+      const username = regUsername.value.trim();
+      const password = regPassword.value.trim();
+      const nama = regNama.value.trim() || username;
+      const role = regRole.value;
+
+      if (!username || !password) {
+        regMsg.textContent = '❌ Username dan password wajib diisi!';
+        regMsg.style.color = '#ef4444';
+        return;
+      }
+      if (username.length < 3) {
+        regMsg.textContent = '❌ Username minimal 3 karakter!';
+        regMsg.style.color = '#ef4444';
+        return;
+      }
+      if (password.length < 4) {
+        regMsg.textContent = '❌ Password minimal 4 karakter!';
+        regMsg.style.color = '#ef4444';
+        return;
+      }
+
+      try {
+        const userRef = ref(db, `users/${username}`);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+          regMsg.textContent = '❌ Username sudah terdaftar!';
+          regMsg.style.color = '#ef4444';
+          return;
+        }
+        await set(userRef, {
+          password: password,
+          nama: nama,
+          role: role,
+          createdAt: new Date().toISOString()
+        });
+        regMsg.textContent = '✅ Akun berhasil dibuat! Silakan login.';
+        regMsg.style.color = '#22c55e';
+        setTimeout(() => {
+          tutupModal();
+        }, 1500);
+      } catch (err) {
+        console.error('Register error:', err);
+        regMsg.textContent = '❌ Gagal daftar: ' + err.message;
+        regMsg.style.color = '#ef4444';
+      }
+    }
+
+    // ===== EVENT LISTENER =====
+    registerLink.addEventListener('click', bukaModal);
+    btnBatal.addEventListener('click', tutupModal);
+    btnDaftar.addEventListener('click', daftarAkun);
+
+    // Tutup modal jika klik di luar area modal
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) tutupModal();
+    });
+
+    // ===== LOGIN =====
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       errorMsg.textContent = '⏳ Memeriksa...';
@@ -142,48 +320,7 @@
       }
     });
 
-    // === REGISTER ===
-    function showRegister() {
-      const username = prompt('👤 Masukkan username untuk daftar:');
-      if (!username) return;
-      if (username.length < 3) {
-        alert('Username minimal 3 karakter!');
-        return;
-      }
-      
-      const password = prompt('🔒 Masukkan password (min 4 karakter):');
-      if (!password || password.length < 4) {
-        alert('Password minimal 4 karakter!');
-        return;
-      }
-      
-      const nama = prompt('👤 Masukkan nama lengkap Anda:') || username;
-      
-      const userRef = ref(db, `users/${username}`);
-      get(userRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          alert('❌ Username sudah terdaftar!');
-          return;
-        }
-        
-        set(userRef, {
-          password: password,
-          nama: nama,
-          role: 'petani',
-          createdAt: new Date().toISOString()
-        })
-        .then(() => {
-          alert('✅ Akun berhasil dibuat! Silakan login.');
-        })
-        .catch((err) => {
-          alert('❌ Gagal daftar: ' + err.message);
-        });
-      });
-    }
-
-    registerLink.addEventListener('click', showRegister);
-
-    // CEK SESSION
+    // ===== CEK SESSION =====
     const session = localStorage.getItem('iot_user');
     if (session) {
       try {
@@ -193,8 +330,6 @@
         }
       } catch(e) {}
     }
-
-    window.showRegister = showRegister;
   </script>
 </body>
 </html>
