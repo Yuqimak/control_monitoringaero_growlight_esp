@@ -287,7 +287,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     UPDATE STATUS TEXT - DINAMIS
+     UPDATE STATUS TEXT
   ======================================== */
   function updateStatusText() {
     const tempStatus = document.getElementById("tempStatus");
@@ -339,6 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
      RENDER UI
   ======================================== */
   function renderUI() {
+    // Monitor cards
     if (monitorTemp) {
       animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
     }
@@ -516,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
      SAVE HISTORY TO FIREBASE
   ======================================== */
   let lastSaveTime = 0;
-  const SAVE_INTERVAL = 300000; // 5 menit
+  const SAVE_INTERVAL = 300000;
 
   function saveHistory() {
     const now = Date.now();
@@ -837,30 +838,59 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     FIREBASE REALTIME – BACA PER PATH
+     FIREBASE REALTIME – BACA PER PATH + UPDATE CHART
   ======================================== */
 
-  // ----- 1. SENSOR -----
+  // ----- 1. SENSOR (update chart utama) -----
   const sensorRef = ref(db, 'sensor');
   onValue(sensorRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
       state.temperature = data.suhu || 0;
       state.sensorLight = data.cahaya || 0;
+
+      // 🔥 UPDATE CHART BESAR (Analytics) setiap ada data sensor baru
+      const time = new Date().toLocaleTimeString();
+      if (tempChart) {
+        tempLabels.push(time);
+        tempData.push(state.temperature);
+        if (tempLabels.length > MAX_DATA_POINTS) {
+          tempLabels.shift();
+          tempData.shift();
+        }
+        tempChart.update();
+      }
+      if (lightChart) {
+        lightLabels.push(time);
+        lampData.push(state.lampState ? 100 : 0);
+        sensorData.push(state.sensorLight);
+        if (lightLabels.length > MAX_DATA_POINTS) {
+          lightLabels.shift();
+          lampData.shift();
+          sensorData.shift();
+        }
+        lightChart.update();
+      }
     }
-    // Render setelah update
     renderUI();
   }, (error) => {
     console.error("❌ Sensor error:", error);
   });
 
-  // ----- 2. CONTROL (mode & state) -----
+  // ----- 2. CONTROL (update state & chart lamp) -----
   const controlRef = ref(db, 'control');
   onValue(controlRef, (snapshot) => {
     const data = snapshot.val();
     if (data && data.lamp) {
       state.lampState = data.lamp.state || false;
       state.mode = data.lamp.mode || 'manual';
+
+      // 🔥 UPDATE CHART LAMP (dataset pertama) agar sinkron dengan state
+      if (lightChart && lightLabels.length > 0) {
+        const lastIndex = lightLabels.length - 1;
+        lampData[lastIndex] = state.lampState ? 100 : 0;
+        lightChart.update();
+      }
     }
     renderUI();
     updateModeUI();
@@ -878,17 +908,12 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateOverheat();
     updateModeUI();
-    // no need to re-render full UI, just update specific parts
   }, (error) => {
     console.error("❌ System error:", error);
   });
 
-  // ----- 4. HISTORY (tidak dibaca realtime, hanya untuk export) -----
-
-  // ----- 5. USERS (hanya di admin panel via loadUserList) -----
-
   /* ========================================
-     TOAST NOTIFICATION (untuk reminder)
+     TOAST NOTIFICATION (reminder)
   ======================================== */
   function showToast(message) {
     const toast = document.createElement('div');
@@ -912,11 +937,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 5000);
   }
 
-  // Reminder check (panggil saat state.plantStartDate berubah)
-  // Kita sudah update di onValue system, kita panggil dari sana.
-
   /* ========================================
-     CONTROLS (ON/OFF) – langsung ke Firebase
+     CONTROLS (ON/OFF)
   ======================================== */
   if (btnOn) {
     btnOn.addEventListener("click", () => {
