@@ -1836,3 +1836,101 @@ canvas{
     animation-duration: 2s !important;
   }
 }
+/* ========================================
+   MOBILE FIX – OVERFLOW & SCROLL
+======================================== */
+
+.main-content {
+  overflow-y: auto !important;
+  height: 100vh !important;
+  padding-bottom: 80px !important;
+}
+
+/* Topbar lebih ringkas di mobile */
+@media (max-width: 768px) {
+  .topbar {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .topbar h1 {
+    font-size: 16px !important;
+  }
+  .topbar-right {
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .status-card, .clock-card, .user-card {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    min-width: unset !important;
+    flex: 1;
+  }
+  .clock-card h3 {
+    font-size: 13px !important;
+  }
+
+  /* Card lebih compact */
+  .dashboard-card, .monitor-card, .control-card, .admin-card {
+    padding: 12px !important;
+  }
+  .metric {
+    font-size: 22px !important;
+  }
+  .sensor-value {
+    font-size: 16px !important;
+  }
+
+  /* Grid 1 kolom */
+  .dashboard-grid, .monitor-grid, .analytics-grid, .control-grid, .admin-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Mode selector */
+  .mode-selector {
+    flex-direction: column !important;
+  }
+  .mode-selector select {
+    width: 100% !important;
+  }
+  .mode-selector button {
+    width: 100% !important;
+  }
+
+  /* Button row */
+  .button-row {
+    flex-direction: row !important;
+    gap: 8px !important;
+  }
+  .big-btn {
+    padding: 10px !important;
+    font-size: 14px !important;
+  }
+
+  /* Dimmer input */
+  .dimmer-row {
+    flex-wrap: wrap !important;
+  }
+  #dimmerInput {
+    width: 50px !important;
+    height: 34px !important;
+    font-size: 14px !important;
+  }
+  .adjust-btn {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 16px !important;
+  }
+
+  /* Halaman Control */
+  .control-card {
+    padding: 12px !important;
+  }
+  .control-card h3 {
+    font-size: 15px !important;
+  }
+  .info-text {
+    font-size: 13px !important;
+    margin-top: 8px !important;
+  }
+}
