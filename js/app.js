@@ -102,6 +102,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const overheatContainer = document.getElementById('overheatContainer');
   const overheatMessage = document.getElementById('overheatMessage');
 
+  // Control page lamp status display
+  const lampStateText = document.getElementById("lampStateText");
+
   /* ========================================
      ADMIN MENU – Tampilkan hanya jika admin
   ======================================== */
@@ -254,11 +257,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     LOAD CHART HISTORY DARI FIREBASE (AGAR TIDAK HILANG SAAT RELOAD)
+     LOAD CHART HISTORY DARI FIREBASE
   ======================================== */
   async function loadChartHistory() {
     try {
-      // Ambil 15 data terakhir dari setiap history
       const suhuSnap = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
       const cahayaSnap = await get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
       const lampuSnap = await get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
@@ -267,14 +269,12 @@ document.addEventListener("DOMContentLoaded", () => {
       const cahayaData = cahayaSnap.val() || {};
       const lampuData = lampuSnap.val() || {};
 
-      // Ambil semua key dari suhu (sebagai master)
       const keys = Object.keys(suhuData).sort();
 
       keys.forEach(key => {
-        // Format timestamp agar rapi: "21-07 02:15"
         const parts = key.replace('T', ' ').split(' ');
-        const date = parts[0].split('-').slice(2).join('-'); // dd-mm
-        const time = parts[1].split('-').slice(0, 2).join(':'); // hh:mm
+        const date = parts[0].split('-').slice(2).join('-');
+        const time = parts[1].split('-').slice(0, 2).join(':');
         const label = date + ' ' + time;
 
         tempLabels.push(label);
@@ -283,7 +283,6 @@ document.addEventListener("DOMContentLoaded", () => {
         lampData.push(lampuData[key]?.state ? 100 : 0);
       });
 
-      // Update chart
       if (tempChart) tempChart.update();
       if (lightChart) lightChart.update();
 
@@ -397,6 +396,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (connStatus) {
       connStatus.innerText = "Realtime Connected";
       connStatus.style.color = "#22c55e";
+    }
+
+    // 🔥 UPDATE DISPLAY STATUS LAMPU DI HALAMAN CONTROL
+    if (lampStateText) {
+      lampStateText.innerText = lampStatusText;
+      lampStateText.style.color = lampColor;
     }
 
     updateStatusText();
@@ -883,7 +888,7 @@ document.addEventListener("DOMContentLoaded", () => {
      FIREBASE REALTIME – BACA PER PATH
   ======================================== */
 
-  // ----- 1. SENSOR (update chart utama) -----
+  // ----- 1. SENSOR -----
   const sensorRef = ref(db, 'sensor');
   onValue(sensorRef, (snapshot) => {
     const data = snapshot.val();
@@ -918,7 +923,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("❌ Sensor error:", error);
   });
 
-  // ----- 2. CONTROL (update state & chart lamp) -----
+  // ----- 2. CONTROL -----
   const controlRef = ref(db, 'control');
   onValue(controlRef, (snapshot) => {
     const data = snapshot.val();
@@ -938,7 +943,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("❌ Control error:", error);
   });
 
-  // ----- 3. SYSTEM (plant_start_date, alert) -----
+  // ----- 3. SYSTEM -----
   const systemRef = ref(db, 'system');
   onValue(systemRef, (snapshot) => {
     const data = snapshot.val();
@@ -978,17 +983,27 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     CONTROLS (ON/OFF)
+     CONTROLS – ON/OFF (FIX DISPLAY)
   ======================================== */
+
   if (btnOn) {
     btnOn.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), true)
+        .then(() => {
+          state.lampState = true;
+          renderUI();
+        })
         .catch(err => console.error("Set state error:", err));
     });
   }
+
   if (btnOff) {
     btnOff.addEventListener("click", () => {
       set(ref(db, "control/lamp/state"), false)
+        .then(() => {
+          state.lampState = false;
+          renderUI();
+        })
         .catch(err => console.error("Set state error:", err));
     });
   }
@@ -1130,7 +1145,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ========================================
-     🔥 LOAD CHART HISTORY SAAT PERTAMA KALI LOAD
+     LOAD CHART HISTORY
   ======================================== */
   loadChartHistory();
 
