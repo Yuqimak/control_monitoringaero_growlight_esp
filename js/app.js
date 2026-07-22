@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ========================================
      CHART
   ======================================== */
-  const MAX_DATA_POINTS = 15;
+  const MAX_DATA_POINTS = 50; // 24 jam (interval 30 detik = 50 data)
   const tempLabels = [], tempData = [], lightLabels = [], lampData = [], sensorData = [];
   let lampStatusChart = null;
 
@@ -226,39 +226,39 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ========================================
      LOAD CHART HISTORY
   ======================================== */
-  async function loadChartHistory() {
-    try {
-      const suhuSnap = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
-      const cahayaSnap = await get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
-      const lampuSnap = await get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(MAX_DATA_POINTS)));
+async function loadChartHistory() {
+  try {
+    const suhuSnap = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(50)));
+    const cahayaSnap = await get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(50)));
+    const lampuSnap = await get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(50)));
 
-      const suhuData = suhuSnap.val() || {};
-      const cahayaData = cahayaSnap.val() || {};
-      const lampuData = lampuSnap.val() || {};
+    const suhuData = suhuSnap.val() || {};
+    const cahayaData = cahayaSnap.val() || {};
+    const lampuData = lampuSnap.val() || {};
 
-      const keys = Object.keys(suhuData).sort();
+    const keys = Object.keys(suhuData).sort();
 
-      keys.forEach(key => {
-        const parts = key.replace('T', ' ').split(' ');
-        const date = parts[0].split('-').slice(2).join('-');
-        const time = parts[1].split('-').slice(0, 2).join(':');
-        const label = date + ' ' + time;
+    keys.forEach(key => {
+      const parts = key.replace('T', ' ').split(' ');
+      const date = parts[0].split('-').slice(2).join('-');
+      const time = parts[1].split('-').slice(0, 2).join(':');
+      const label = date + ' ' + time;
 
-        tempLabels.push(label);
-        tempData.push(suhuData[key]?.value || 0);
-        sensorData.push(cahayaData[key]?.value || 0);
+      tempLabels.push(label);
+      tempData.push(suhuData[key]?.value || 0);
+      sensorData.push(cahayaData[key]?.value || 0);
 
-        if (lampStatusChart) {
-          lampStatusChart.data.labels.push(label);
-          lampStatusChart.data.datasets[0].data.push(lampuData[key]?.state ? 1 : 0);
-        }
-      });
+      if (lampStatusChart) {
+        lampStatusChart.data.labels.push(label);
+        lampStatusChart.data.datasets[0].data.push(lampuData[key]?.state ? 1 : 0);
+      }
+    });
 
-      if (tempChart) tempChart.update();
-      if (lightChart) lightChart.update();
-      if (lampStatusChart) lampStatusChart.update();
-    } catch (e) { console.warn('Could not load chart history:', e); }
-  }
+    if (tempChart) tempChart.update();
+    if (lightChart) lightChart.update();
+    if (lampStatusChart) lampStatusChart.update();
+  } catch (e) { console.warn('Could not load chart history:', e); }
+}
 
   /* ========================================
      USER INFO & LOGOUT
@@ -839,65 +839,59 @@ document.addEventListener("DOMContentLoaded", () => {
      FIREBASE REALTIME
   ======================================== */
   const sensorRef = ref(db, 'sensor');
-  onValue(sensorRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      state.temperature = data.suhu || 0;
-      state.sensorLight = data.cahaya || 0;
-      const time = new Date().toLocaleTimeString();
-      if (tempChart) {
-        tempLabels.push(time);
-        tempData.push(state.temperature);
-        if (tempLabels.length > MAX_DATA_POINTS) { tempLabels.shift();
-          tempData.shift(); }
-        tempChart.update();
-      }
-      if (lightChart) {
-        lightLabels.push(time);
-        sensorData.push(state.sensorLight);
-        if (lightLabels.length > MAX_DATA_POINTS) { lightLabels.shift();
-          sensorData.shift(); }
-        lightChart.update();
-      }
-      if (lampStatusChart) {
-        lampStatusChart.data.labels.push(time);
-        lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
-        if (lampStatusChart.data.labels.length > MAX_DATA_POINTS) {
-          lampStatusChart.data.labels.shift();
-          lampStatusChart.data.datasets[0].data.shift();
-        }
-        lampStatusChart.update();
-      }
-    }
-    renderUI();
-  }, (error) => { console.error("❌ Sensor error:", error); });
+onValue(sensorRef, (snapshot) => {
+  const data = snapshot.val();
+  if (data) {
+    state.temperature = data.suhu || 0;
+    state.sensorLight = data.cahaya || 0;
+    const time = new Date().toLocaleTimeString();
 
-  const controlRef = ref(db, 'control');
-  onValue(controlRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data && data.lamp) {
-      state.lampState = data.lamp.state || false;
-      state.mode = data.lamp.mode || 'manual';
-      if (lampStatusChart && lampStatusChart.data.labels.length > 0) {
-        const lastIndex = lampStatusChart.data.labels.length - 1;
-        lampStatusChart.data.datasets[0].data[lastIndex] = state.lampState ? 1 : 0;
-        lampStatusChart.update();
+    // ===== UPDATE TEMP CHART (Analytics) =====
+    if (tempChart) {
+      tempLabels.push(time);
+      tempData.push(state.temperature);
+      if (tempLabels.length > 50) { // 50 data = sekitar 24 jam (interval 30 detik)
+        tempLabels.shift();
+        tempData.shift();
       }
+      tempChart.update();
     }
-    renderUI();
-    updateModeUI();
-  }, (error) => { console.error("❌ Control error:", error); });
 
-  const systemRef = ref(db, 'system');
-  onValue(systemRef, (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-      state.plantStartDate = data.plant_start_date || null;
-      state.alert = data.alert || '';
+    // ===== UPDATE LIGHT CHART (Analytics) =====
+    if (lightChart) {
+      lightLabels.push(time);
+      sensorData.push(state.sensorLight);
+      if (lightLabels.length > 50) {
+        lightLabels.shift();
+        sensorData.shift();
+      }
+      lightChart.update();
     }
-    updateOverheat();
-    updateModeUI();
-  }, (error) => { console.error("❌ System error:", error); });
+
+    // ===== UPDATE STATUS LAMPU CHART =====
+    if (lampStatusChart) {
+      lampStatusChart.data.labels.push(time);
+      lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
+      if (lampStatusChart.data.labels.length > 50) {
+        lampStatusChart.data.labels.shift();
+        lampStatusChart.data.datasets[0].data.shift();
+      }
+      lampStatusChart.update();
+    }
+
+    // ===== UPDATE DASHBOARD MINI CHART =====
+    if (dashTempChart) {
+      dashTempLabels.push(time);
+      dashTempData.push(state.temperature);
+      if (dashTempLabels.length > 15) {
+        dashTempLabels.shift();
+        dashTempData.shift();
+      }
+      dashTempChart.update();
+    }
+  }
+  renderUI();
+}, (error) => { console.error("❌ Sensor error:", error); });
 
   /* ========================================
      ANALYTICS – FITUR TAMBAHAN
