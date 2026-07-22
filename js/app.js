@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ========================================
      CHART
   ======================================== */
-  const MAX_DATA_POINTS = 50; // 24 jam (interval 30 detik)
+  const MAX_DATA_POINTS = 100; // 24 jam (interval 30 detik = ~50 data, 100 aman)
   const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
   let lampStatusChart = null;
 
@@ -169,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // BAR CHART UNTUK STATUS LAMPU
+  // ===== BAR CHART UNTUK STATUS LAMPU (FIX Y-AXIS) =====
   const lampStatusChartEl = document.getElementById('lampStatusChart');
   if (lampStatusChartEl) {
     lampStatusChart = new Chart(lampStatusChartEl, {
@@ -201,10 +201,20 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         },
         scales: {
-          x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x: {
+            ticks: { color: '#94a3b8', maxTicksLimit: 10 },
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          },
           y: {
-            ticks: { color: '#94a3b8', stepSize: 1, callback: function(value) { return value === 1 ? 'ON' : 'OFF'; } },
-            min: -0.5, max: 1.5,
+            ticks: {
+              color: '#94a3b8',
+              stepSize: 1,
+              callback: function(value) {
+                return value === 1 ? 'ON' : 'OFF';
+              }
+            },
+            min: -0.5,
+            max: 1.5,
             grid: { color: 'rgba(255,255,255,0.05)' }
           }
         }
@@ -255,10 +265,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const time = parts[1].split('-').slice(0, 2).join(':');
         const label = date + ' ' + time;
 
+        // Normalisasi cahaya ke persentase (asumsi max 5000 lux)
+        const rawCahaya = cahayaData[key]?.value || 0;
+        const normalizedCahaya = Math.min(100, Math.round(rawCahaya / 5000 * 100));
+
         // Analytics charts
         tempLabels.push(label);
         tempData.push(suhuData[key]?.value || 0);
-        sensorData.push(cahayaData[key]?.value || 0);
+        sensorData.push(normalizedCahaya);
 
         if (lampStatusChart) {
           lampStatusChart.data.labels.push(label);
@@ -351,8 +365,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!overheatContainer || !overheatMessage) return;
     if (state.alert && state.alert.includes('Overheat')) {
       overheatContainer.style.display = 'block';
+      overheatContainer.classList.add('active');
       overheatMessage.textContent = state.alert;
-    } else { overheatContainer.style.display = 'none'; }
+    } else {
+      overheatContainer.style.display = 'none';
+      overheatContainer.classList.remove('active');
+    }
   }
 
   function renderUI() {
@@ -465,7 +483,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateDashChart() {
-    // Data sudah diupdate di onValue, fungsi ini hanya dipanggil untuk memastikan
     if (dashTempChart) dashTempChart.update();
   }
 
@@ -855,7 +872,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const data = snapshot.val();
     if (data) {
       state.temperature = data.suhu || 0;
-      state.sensorLight = data.cahaya || 0;
+      // Normalisasi cahaya ke persentase (asumsi max 5000 lux)
+      const rawCahaya = data.cahaya || 0;
+      state.sensorLight = Math.min(100, Math.round(rawCahaya / 5000 * 100));
       const time = new Date().toLocaleTimeString();
 
       // Update Temp Chart (Analytics)
@@ -869,7 +888,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tempChart.update();
       }
 
-      // Update Light Chart (Analytics) – SENSOR LIGHT
+      // Update Light Chart (Analytics) – NORMALISASI
       if (lightChart) {
         lightLabels.push(time);
         sensorData.push(state.sensorLight);
@@ -880,7 +899,7 @@ document.addEventListener("DOMContentLoaded", () => {
         lightChart.update();
       }
 
-      // Update Lamp Status Chart
+      // Update Lamp Status Chart – PASTIKAN 0/1
       if (lampStatusChart) {
         lampStatusChart.data.labels.push(time);
         lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
@@ -1147,8 +1166,11 @@ document.addEventListener("DOMContentLoaded", () => {
       const lampuRef = ref(db, 'sensor_history/lampu');
       const lampuSnap = await get(query(lampuRef, orderByKey(), limitToLast(500)));
       const lampuData = lampuSnap.val() || {};
-      data.forEach(d => { d.cahaya = cahayaData[d.timestamp]?.value || 0;
-        d.lampState = lampuData[d.timestamp]?.state || false; });
+      data.forEach(d => {
+        const rawCahaya = cahayaData[d.timestamp]?.value || 0;
+        d.cahaya = Math.min(100, Math.round(rawCahaya / 5000 * 100));
+        d.lampState = lampuData[d.timestamp]?.state || false;
+      });
       updateStats(data);
       updateCategories(data);
       updateLampTime(data);
