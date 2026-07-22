@@ -10,8 +10,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=240" />
+  <link rel="stylesheet" href="css/style.css?v=250" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Library untuk Export PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 
 <body>
@@ -77,39 +80,73 @@
       </header>
 
       <!-- ======================================
-           DASHBOARD
+           DASHBOARD – NEW LAYOUT
       ======================================= -->
       <section class="section page-section" id="dashboard">
         <h2 class="section-title green">🏠 DASHBOARD</h2>
-        <div class="dashboard-grid">
-          <!-- CARD 1: SENSOR MONITORING -->
-          <div class="dashboard-card">
-            <div class="card-head">
-              <div class="card-icon green-box">🌡️</div>
+
+        <!-- OVERHEAT ALERT – DI ATAS -->
+        <div id="overheatContainer" style="display:none; margin-bottom:16px; background:linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.1)); border:2px solid #ef4444; border-radius:16px; padding:16px 20px; box-shadow:0 0 40px rgba(239,68,68,0.3);">
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:32px; animation: pulse-alert 1s infinite;">🔥</span>
               <div>
-                <h3>Sensor Monitoring</h3>
-                <p class="card-sub">Data Realtime</p>
+                <div style="font-weight:800; font-size:18px; color:#ef4444;">⚠️ OVERHEAT DETECTED!</div>
+                <div id="overheatMessage" style="font-size:14px; color:#fca5a5;">Suhu melewati batas aman. Lampu dimatikan otomatis.</div>
               </div>
             </div>
-            <div class="dashboard-sensor-grid">
-              <div class="sensor-item">
-                <span class="sensor-label">🌡 Suhu</span>
-                <span class="sensor-value"><span id="dashTemp">--</span>°C</span>
-                <span class="sensor-status" id="dashTempStatus">Normal</span>
-              </div>
-              <div class="sensor-item">
-                <span class="sensor-label">💡 Cahaya</span>
-                <span class="sensor-value"><span id="dashLight">--</span>%</span>
-                <span class="sensor-status" id="dashLightStatus">Sedang</span>
-              </div>
-              <div class="sensor-item">
-                <span class="sensor-label">⚡ Lampu</span>
-                <span class="sensor-value" id="dashLampStatus">OFF</span>
-                <span class="sensor-status" id="dashLampLabel">Mati</span>
-              </div>
+            <div style="margin-left:auto; display:flex; gap:12px; align-items:center;">
+              <span style="background:rgba(239,68,68,0.2); padding:4px 14px; border-radius:20px; font-size:13px; color:#fca5a5; border:1px solid rgba(239,68,68,0.3);">🔴 DARURAT</span>
+              <button onclick="document.getElementById('overheatContainer').style.display='none'" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:white; padding:4px 12px; border-radius:8px; cursor:pointer; font-size:13px;">✕ Sembunyikan</button>
             </div>
           </div>
-          <!-- CARD 2: MODE PERTUMBUHAN -->
+        </div>
+
+        <!-- QUICK STATS (4 KOLOM) -->
+        <div class="quick-stats">
+          <div class="quick-stat">
+            <div class="quick-stat-icon" style="background:rgba(34,197,94,0.12); color:#22c55e;">🌡️</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value"><span id="statTemp">--</span>°C</div>
+              <div class="quick-stat-label">Suhu <span id="statTempStatus">Normal</span></div>
+            </div>
+          </div>
+          <div class="quick-stat">
+            <div class="quick-stat-icon" style="background:rgba(56,189,248,0.12); color:#38bdf8;">💡</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value"><span id="statLight">--</span>%</div>
+              <div class="quick-stat-label">Cahaya <span id="statLightStatus">Sedang</span></div>
+            </div>
+          </div>
+          <div class="quick-stat">
+            <div class="quick-stat-icon" id="statLampIcon" style="background:rgba(34,197,94,0.12); color:#22c55e;">⚡</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value" id="statLamp">OFF</div>
+              <div class="quick-stat-label">Status Lampu</div>
+            </div>
+          </div>
+          <div class="quick-stat">
+            <div class="quick-stat-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">📅</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value"><span id="statDay">--</span></div>
+              <div class="quick-stat-label">Hari ke-<span id="statDayLabel">0</span> · <span id="statModeLabel">Manual</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- GRAFIK + MODE (2 KOLOM) -->
+        <div class="dashboard-main-grid">
+          <div class="dashboard-card dashboard-chart-card">
+            <div class="card-head">
+              <div class="card-icon blue-box">📊</div>
+              <div>
+                <h3>Grafik Cepat</h3>
+                <p class="card-sub">10 Data Suhu Terakhir</p>
+              </div>
+            </div>
+            <canvas id="dashTempChart"></canvas>
+            <div class="chart-status" id="chartStatus">🟢 Stabil</div>
+          </div>
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon orange-box">🌱</div>
@@ -125,56 +162,40 @@
               </div>
               <div class="mode-details">
                 <span>⏰ <span id="modeDuration">4</span> jam/hari</span>
-              </div>
-              <div class="mode-timeline">
                 <span>📅 Hari ke-<span id="dayCounter">0</span></span>
-                <span id="timelineMessage" style="font-size:12px; color:var(--muted);">Mulai tanam untuk tracking</span>
+              </div>
+              <div id="timelineMessage" style="font-size:12px; color:var(--muted); padding:6px 10px; background:rgba(255,255,255,.04); border-radius:8px; margin-top:4px;">
+                🌱 Mulai tanam untuk tracking
               </div>
             </div>
           </div>
-          <!-- CARD 3: GRAFIK RINGKAS -->
-          <div class="dashboard-card dashboard-chart-card">
-            <div class="card-head">
-              <div class="card-icon blue-box">📊</div>
-              <div>
-                <h3>Grafik Cepat</h3>
-                <p class="card-sub">10 Data Terakhir</p>
-              </div>
+        </div>
+
+        <!-- STATUS SISTEM -->
+        <div class="dashboard-card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-icon purple-box">🔄</div>
+            <div>
+              <h3>Status Sistem</h3>
+              <p class="card-sub">Koneksi & Performa</p>
             </div>
-            <canvas id="dashTempChart"></canvas>
           </div>
-          <!-- CARD 4: STATUS SISTEM -->
-          <div class="dashboard-card">
-            <div class="card-head">
-              <div class="card-icon purple-box">🔄</div>
-              <div>
-                <h3>Status Sistem</h3>
-                <p class="card-sub">Koneksi & Performa</p>
-              </div>
+          <div class="system-status-grid">
+            <div class="status-item">
+              <span class="status-label">Firebase</span>
+              <span class="status-badge online" id="dashConnStatus">● Online</span>
             </div>
-            <div class="dashboard-status-grid">
-              <div class="status-item">
-                <span class="status-label">Firebase</span>
-                <span class="status-badge online" id="dashConnStatus">● Online</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">Data Point</span>
-                <span class="status-badge" id="dashDataCount">0</span>
-              </div>
-              <div class="status-item">
-                <span class="status-label">Last Update</span>
-                <span class="status-badge" id="dashLastUpdate">--:--:--</span>
-              </div>
+            <div class="status-item">
+              <span class="status-label">Data Point</span>
+              <span class="status-badge" id="dashDataCount">0</span>
             </div>
-            <!-- OVERHEAT ALERT -->
-            <div id="overheatContainer" style="margin-top:12px; display:none; background:rgba(239,68,68,0.15); border:1px solid #ef4444; border-radius:12px; padding:10px 14px;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <span style="font-size:24px;">🔥</span>
-                <div>
-                  <div style="font-weight:700; color:#ef4444;">⚠️ OVERHEAT DETECTED!</div>
-                  <div id="overheatMessage" style="font-size:13px; color:#fca5a5;">Suhu melewati batas aman. Lampu dimatikan otomatis.</div>
-                </div>
-              </div>
+            <div class="status-item">
+              <span class="status-label">Last Update</span>
+              <span class="status-badge" id="dashLastUpdate">--:--:--</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Suhu Maks</span>
+              <span class="status-badge" id="dashMaxTemp">--°C</span>
             </div>
           </div>
         </div>
@@ -224,7 +245,7 @@
       </section>
 
       <!-- ======================================
-           ANALYTICS (FULL DENGAN FITUR BARU)
+           ANALYTICS
       ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
@@ -234,21 +255,21 @@
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>Suhu Realtime</h3>
-              <button class="time-btn">10 Menit Terakhir</button>
+              <button class="time-btn">15 Data Terakhir</button>
             </div>
             <canvas id="tempChart"></canvas>
           </div>
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>History Intensitas</h3>
-              <button class="time-btn">10 Menit Terakhir</button>
+              <button class="time-btn">15 Data Terakhir</button>
             </div>
             <canvas id="lightChart"></canvas>
           </div>
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>Status Lampu</h3>
-              <button class="time-btn">10 Menit Terakhir</button>
+              <button class="time-btn">15 Data Terakhir</button>
             </div>
             <canvas id="lampStatusChart"></canvas>
           </div>
@@ -280,7 +301,6 @@
         <!-- KATEGORI SUHU + WAKTU LAMPU -->
         <div class="analytics-card" style="grid-column: span 3;">
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-            <!-- Kategori Suhu -->
             <div>
               <h4>🌡️ Kategori Suhu Hari Ini</h4>
               <div id="categoryContainer" style="margin-top:12px;">
@@ -314,7 +334,6 @@
                 </div>
               </div>
             </div>
-            <!-- Waktu Operasional Lampu -->
             <div>
               <h4>💡 Waktu Operasional Lampu</h4>
               <div style="margin-top:12px;">
@@ -346,18 +365,14 @@
         <!-- TREN SUHU 7 HARI -->
         <div class="analytics-card" style="grid-column: span 3;">
           <h3>📈 Tren Suhu 7 Hari Terakhir</h3>
-          <div id="trendContainer" style="margin-top:12px; display:grid; grid-template-columns: repeat(7,1fr); gap:8px;">
-            <!-- Diisi JavaScript -->
-          </div>
+          <div id="trendContainer" style="margin-top:12px; display:grid; grid-template-columns: repeat(7,1fr); gap:8px;"></div>
         </div>
 
         <!-- HEATMAP SUHU -->
         <div class="analytics-card" style="grid-column: span 3;">
           <h3>🌡️ Heatmap Suhu (7 Hari x 6 Jam)</h3>
           <div id="heatmapContainer" style="margin-top:12px; overflow-x:auto;">
-            <table id="heatmapTable" style="width:100%; border-collapse:collapse; font-size:12px;">
-              <!-- Diisi JavaScript -->
-            </table>
+            <table id="heatmapTable" style="width:100%; border-collapse:collapse; font-size:12px;"></table>
           </div>
         </div>
 
@@ -391,7 +406,6 @@
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
         <div class="control-grid" id="controlSection">
-          <!-- KONTROL LAMPU -->
           <div class="control-card">
             <h3>🚨 Emergency Control</h3>
             <div class="button-row">
@@ -401,7 +415,6 @@
             <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
           </div>
 
-          <!-- MODE PERTUMBUHAN -->
           <div class="control-card" style="grid-column: span 2;">
             <h3>🌱 Mode Pertumbuhan Kentang</h3>
             <div class="mode-selector">
@@ -455,6 +468,6 @@
     </main>
   </div>
 
-  <script type="module" src="js/app.js?v=240"></script>
+  <script type="module" src="js/app.js?v=250"></script>
 </body>
 </html>
