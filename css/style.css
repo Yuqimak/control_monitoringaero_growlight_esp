@@ -9,7 +9,6 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-
 html { scroll-behavior: smooth; }
 
 :root {
@@ -42,7 +41,6 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative;
 }
-
 body::before, body::after {
   content: '';
   position: fixed;
@@ -522,7 +520,6 @@ canvas { width: 100% !important; max-height: 180px; }
   animation: glow-alert 1.5s infinite;
   transition: all 0.3s ease;
 }
-
 @keyframes pulse-alert {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.2); }
