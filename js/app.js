@@ -101,12 +101,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const overheatContainer = document.getElementById('overheatContainer');
   const overheatMessage = document.getElementById('overheatMessage');
-
-  // Control page lamp status display
   const lampStateText = document.getElementById("lampStateText");
 
   /* ========================================
-     ADMIN MENU – Tampilkan hanya jika admin
+     ADMIN MENU
   ======================================== */
   if (currentUser && currentUser.role === 'admin') {
     if (adminMenu) adminMenu.style.display = 'block';
@@ -148,38 +146,16 @@ document.addEventListener("DOMContentLoaded", () => {
      CHART
   ======================================== */
   const MAX_DATA_POINTS = 15;
-  const tempLabels = [];
-  const tempData = [];
-  const lightLabels = [];
-  const lampData = [];
-  const sensorData = [];
+  const tempLabels = [], tempData = [], lightLabels = [], lampData = [], sensorData = [];
+  let lampStatusChart = null;
 
   const tempChartEl = document.getElementById("tempChart");
   let tempChart = null;
   if (tempChartEl) {
     tempChart = new Chart(tempChartEl, {
       type: "line",
-      data: {
-        labels: tempLabels,
-        datasets: [{
-          label: "Temperature (°C)",
-          data: tempData,
-          borderColor: "#22c55e",
-          backgroundColor: "rgba(34,197,94,0.2)",
-          borderWidth: 2,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { labels: { color: "#cbd5e1" } } },
-        scales: {
-          x: { ticks: { color: "#94a3b8" } },
-          y: { ticks: { color: "#94a3b8" } }
-        }
-      }
+      data: { labels: tempLabels, datasets: [{ label: "Temperature (°C)", data: tempData, borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,0.2)", borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: "#cbd5e1" } } }, scales: { x: { ticks: { color: "#94a3b8" } }, y: { ticks: { color: "#94a3b8" } } } }
     });
   }
 
@@ -188,76 +164,67 @@ document.addEventListener("DOMContentLoaded", () => {
   if (lightChartEl) {
     lightChart = new Chart(lightChartEl, {
       type: "line",
+      data: { labels: lightLabels, datasets: [{ label: "Lamp Output (%)", data: lampData, borderColor: "#facc15", backgroundColor: "rgba(250,204,21,0.2)", borderWidth: 2, fill: false, tension: 0.4, pointRadius: 2 }, { label: "Sensor Light (%)", data: sensorData, borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.2)", borderWidth: 2, fill: false, tension: 0.4, pointRadius: 2 }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: "#cbd5e1" } } }, scales: { x: { ticks: { color: "#94a3b8" } }, y: { ticks: { color: "#94a3b8" } } } }
+    });
+  }
+
+  // ===== BAR CHART UNTUK STATUS LAMPU =====
+  const lampStatusChartEl = document.getElementById('lampStatusChart');
+  if (lampStatusChartEl) {
+    lampStatusChart = new Chart(lampStatusChartEl, {
+      type: 'bar',
       data: {
-        labels: lightLabels,
+        labels: [],
         datasets: [{
-          label: "Lamp Output (%)",
-          data: lampData,
-          borderColor: "#facc15",
-          backgroundColor: "rgba(250,204,21,0.2)",
-          borderWidth: 2,
-          fill: false,
-          tension: 0.4,
-          pointRadius: 2
-        }, {
-          label: "Sensor Light (%)",
-          data: sensorData,
-          borderColor: "#38bdf8",
-          backgroundColor: "rgba(56,189,248,0.2)",
-          borderWidth: 2,
-          fill: false,
-          tension: 0.4,
-          pointRadius: 2
+          label: 'Status Lampu',
+          data: [],
+          backgroundColor: function(context) {
+            const value = context.dataset.data[context.dataIndex];
+            return value === 1 ? '#22c55e' : '#ef4444';
+          },
+          borderColor: 'rgba(255,255,255,0.2)',
+          borderWidth: 1,
+          borderRadius: 4,
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { labels: { color: "#cbd5e1" } } },
+        plugins: {
+          legend: { labels: { color: '#cbd5e1', display: false } },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y === 1 ? 'ON' : 'OFF';
+              }
+            }
+          }
+        },
         scales: {
-          x: { ticks: { color: "#94a3b8" } },
-          y: { ticks: { color: "#94a3b8" } }
+          x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: {
+            ticks: { color: '#94a3b8', stepSize: 1, callback: function(value) { return value === 1 ? 'ON' : 'OFF'; } },
+            min: -0.5, max: 1.5,
+            grid: { color: 'rgba(255,255,255,0.05)' }
+          }
         }
       }
     });
   }
 
-  /* ========================================
-     DASHBOARD CHART (MINI)
-  ======================================== */
-  const dashTempLabels = [];
-  const dashTempData = [];
-
+  const dashTempLabels = [], dashTempData = [];
   const dashTempChartEl = document.getElementById("dashTempChart");
   let dashTempChart = null;
   if (dashTempChartEl) {
     dashTempChart = new Chart(dashTempChartEl, {
       type: "line",
-      data: {
-        labels: dashTempLabels,
-        datasets: [{
-          label: "Suhu (°C)",
-          data: dashTempData,
-          borderColor: "#22c55e",
-          backgroundColor: "rgba(34,197,94,0.15)",
-          borderWidth: 2,
-          fill: true,
-          tension: 0.4,
-          pointRadius: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { display: false },
-          y: { display: false }
-        }
-      }
+      data: { labels: dashTempLabels, datasets: [{ label: "Suhu (°C)", data: dashTempData, borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,0.15)", borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
     });
   }
 
   /* ========================================
-     LOAD CHART HISTORY DARI FIREBASE
+     LOAD CHART HISTORY
   ======================================== */
   async function loadChartHistory() {
     try {
@@ -281,15 +248,17 @@ document.addEventListener("DOMContentLoaded", () => {
         tempData.push(suhuData[key]?.value || 0);
         sensorData.push(cahayaData[key]?.value || 0);
         lampData.push(lampuData[key]?.state ? 100 : 0);
+
+        if (lampStatusChart) {
+          lampStatusChart.data.labels.push(label);
+          lampStatusChart.data.datasets[0].data.push(lampuData[key]?.state ? 1 : 0);
+        }
       });
 
       if (tempChart) tempChart.update();
       if (lightChart) lightChart.update();
-
-      console.log('📊 Chart history loaded, data points:', keys.length);
-    } catch (e) {
-      console.warn('Could not load chart history:', e);
-    }
+      if (lampStatusChart) lampStatusChart.update();
+    } catch (e) { console.warn('Could not load chart history:', e); }
   }
 
   /* ========================================
@@ -298,9 +267,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function showUserInfo() {
     try {
       const user = JSON.parse(localStorage.getItem('iot_user') || '{}');
-      if (userNameEl) {
-        userNameEl.textContent = `👋 ${user.nama || 'User'}`;
-      }
+      if (userNameEl) userNameEl.textContent = `👋 ${user.nama || 'User'}`;
     } catch(e) {}
   }
   showUserInfo();
@@ -364,45 +331,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ========================================
-     OVERHEAT - UPDATE
-  ======================================== */
   function updateOverheat() {
     if (!overheatContainer || !overheatMessage) return;
     if (state.alert && state.alert.includes('Overheat')) {
       overheatContainer.style.display = 'block';
       overheatMessage.textContent = state.alert;
-    } else {
-      overheatContainer.style.display = 'none';
-    }
+    } else { overheatContainer.style.display = 'none'; }
   }
 
-  /* ========================================
-     RENDER UI
-  ======================================== */
   function renderUI() {
-    if (monitorTemp) {
-      animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
-    }
-    if (monitorLight) {
-      animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
-    }
+    if (monitorTemp) animateValue(monitorTemp, Number(monitorTemp.innerText) || 0, state.temperature);
+    if (monitorLight) animateValue(monitorLight, Number(monitorLight.innerText) || 0, state.sensorLight);
     const lampStatusText = state.lampState ? "ON" : "OFF";
     const lampColor = state.lampState ? "#22c55e" : "#ef4444";
-    if (monitorLampStatus) {
-      monitorLampStatus.innerText = lampStatusText;
-      monitorLampStatus.style.color = lampColor;
-    }
-    if (connStatus) {
-      connStatus.innerText = "Realtime Connected";
-      connStatus.style.color = "#22c55e";
-    }
-
-    // 🔥 UPDATE DISPLAY STATUS LAMPU DI HALAMAN CONTROL
-    if (lampStateText) {
-      lampStateText.innerText = lampStatusText;
-      lampStateText.style.color = lampColor;
-    }
+    if (monitorLampStatus) { monitorLampStatus.innerText = lampStatusText;
+      monitorLampStatus.style.color = lampColor; }
+    if (connStatus) { connStatus.innerText = "Realtime Connected";
+      connStatus.style.color = "#22c55e"; }
+    if (lampStateText) { lampStateText.innerText = lampStatusText;
+      lampStateText.style.color = lampColor; }
 
     updateStatusText();
     updateDashboard();
@@ -411,9 +358,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateOverheat();
   }
 
-  /* ========================================
-     DASHBOARD - FUNGSI UPDATE
-  ======================================== */
   function updateDashboard() {
     if (dashTemp) dashTemp.innerText = state.temperature;
     if (dashLight) dashLight.innerText = state.sensorLight;
@@ -421,7 +365,6 @@ document.addEventListener("DOMContentLoaded", () => {
       dashLampStatus.innerText = state.lampState ? "ON" : "OFF";
       dashLampStatus.style.color = state.lampState ? "#22c55e" : "#ef4444";
     }
-
     if (dashTempStatus) {
       const temp = state.temperature;
       if (temp > 35) { dashTempStatus.innerText = "🔥 Panas";
@@ -430,7 +373,6 @@ document.addEventListener("DOMContentLoaded", () => {
         dashTempStatus.style.color = "#22c55e"; } else { dashTempStatus.innerText = "❄️ Dingin";
         dashTempStatus.style.color = "#3b82f6"; }
     }
-
     if (dashLightStatus) {
       const light = state.sensorLight;
       if (light > 80) { dashLightStatus.innerText = "☀️ Terang";
@@ -439,17 +381,12 @@ document.addEventListener("DOMContentLoaded", () => {
         dashLightStatus.style.color = "#94a3b8"; } else { dashLightStatus.innerText = "🌙 Gelap";
         dashLightStatus.style.color = "#64748b"; }
     }
-
     if (dashLampLabel) {
       dashLampLabel.innerText = state.lampState ? "Aktif" : "Mati";
       dashLampLabel.style.color = state.lampState ? "#22c55e" : "#ef4444";
     }
-
-    if (dashConnStatus) {
-      dashConnStatus.innerText = "● Online";
-      dashConnStatus.style.color = "#22c55e";
-    }
-
+    if (dashConnStatus) { dashConnStatus.innerText = "● Online";
+      dashConnStatus.style.color = "#22c55e"; }
     if (dashDataCount) dashDataCount.innerText = tempLabels.length;
     if (dashLastUpdate) {
       const now = new Date();
@@ -457,24 +394,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  /* ========================================
-     DASHBOARD - UPDATE CHART
-  ======================================== */
   function updateDashChart() {
     if (!dashTempChart) return;
     const time = new Date().toLocaleTimeString();
     dashTempLabels.push(time);
     dashTempData.push(state.temperature);
-    if (dashTempLabels.length > 10) {
-      dashTempLabels.shift();
-      dashTempData.shift();
-    }
+    if (dashTempLabels.length > 10) { dashTempLabels.shift();
+      dashTempData.shift(); }
     dashTempChart.update();
   }
 
-  /* ========================================
-     MODE UI - UPDATE
-  ======================================== */
   function updateModeUI() {
     const modeKey = state.mode || 'manual';
     const config = getModeConfig(modeKey);
@@ -499,26 +428,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
-    if (currentModeDisplay) {
-      currentModeDisplay.textContent = `Mode: ${config.icon} ${config.label}`;
-    }
-    if (modeDurationDisplay) {
-      modeDurationDisplay.textContent = `Durasi: ${config.duration !== null ? config.duration + ' jam' : 'Manual'}`;
-    }
-
-    if (growthModeSelect) {
-      growthModeSelect.value = modeKey;
-    }
+    if (currentModeDisplay) { currentModeDisplay.textContent = `Mode: ${config.icon} ${config.label}`; }
+    if (modeDurationDisplay) { modeDurationDisplay.textContent = `Durasi: ${config.duration !== null ? config.duration + ' jam' : 'Manual'}`; }
+    if (growthModeSelect) { growthModeSelect.value = modeKey; }
   }
 
-  /* ========================================
-     MODE - APPLY & RESET
-  ======================================== */
   if (applyModeBtn && growthModeSelect) {
     applyModeBtn.addEventListener('click', async () => {
       const mode = growthModeSelect.value;
       const config = getModeConfig(mode);
-      
       if (mode === 'manual') {
         await update(ref(db, 'control/lamp'), { mode: 'manual' });
         state.mode = 'manual';
@@ -526,23 +444,16 @@ document.addEventListener("DOMContentLoaded", () => {
         alert('🎛 Mode Manual aktif. Kontrol lampu sepenuhnya oleh user.');
         return;
       }
-
-      await update(ref(db, 'control/lamp'), {
-        mode: mode,
-        state: true
-      });
-
+      await update(ref(db, 'control/lamp'), { mode: mode, state: true });
       if (!state.plantStartDate) {
         const now = new Date().toISOString();
         await set(ref(db, 'system/plant_start_date'), now);
         state.plantStartDate = now;
       }
-
       state.mode = mode;
       state.lampState = true;
       updateModeUI();
       renderUI();
-
       alert(`✅ Mode ${config.icon} ${config.label} diterapkan! Lampu menyala ${config.duration} jam/hari.`);
     });
   }
@@ -561,7 +472,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     SAVE HISTORY TO FIREBASE
+     SAVE HISTORY
   ======================================== */
   let lastSaveTime = 0;
   const SAVE_INTERVAL = 300000;
@@ -570,82 +481,45 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = Date.now();
     if (now - lastSaveTime < SAVE_INTERVAL) return;
     lastSaveTime = now;
-
     const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
-
-    set(ref(db, `sensor_history/suhu/${timestamp}`), {
-      value: state.temperature,
-      timestamp: timestamp
-    });
-
-    set(ref(db, `sensor_history/cahaya/${timestamp}`), {
-      value: state.sensorLight,
-      timestamp: timestamp
-    });
-
-    set(ref(db, `sensor_history/lampu/${timestamp}`), {
-      state: state.lampState,
-      timestamp: timestamp
-    });
-
-    console.log('📊 History saved at', timestamp);
+    set(ref(db, `sensor_history/suhu/${timestamp}`), { value: state.temperature, timestamp: timestamp });
+    set(ref(db, `sensor_history/cahaya/${timestamp}`), { value: state.sensorLight, timestamp: timestamp });
+    set(ref(db, `sensor_history/lampu/${timestamp}`), { state: state.lampState, timestamp: timestamp });
   }
 
   /* ========================================
-     EXPORT DATA - CSV
+     EXPORT DATA
   ======================================== */
   async function exportData(period) {
     const status = exportStatus;
     if (status) status.textContent = '⏳ Mengambil data...';
-
     try {
       const now = new Date();
       let startDate;
-      if (period === 'week') {
-        startDate = new Date(now);
-        startDate.setDate(now.getDate() - 7);
-      } else {
-        startDate = new Date(now);
-        startDate.setMonth(now.getMonth() - 1);
-      }
-
+      if (period === 'week') { startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7); } else { startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1); }
       const startStr = startDate.toISOString();
-
       const suhuRef = ref(db, 'sensor_history/suhu');
       const suhuSnapshot = await get(suhuRef);
       const suhuData = suhuSnapshot.val() || {};
-
       const cahayaRef = ref(db, 'sensor_history/cahaya');
       const cahayaSnapshot = await get(cahayaRef);
       const cahayaData = cahayaSnapshot.val() || {};
-
       const timestamps = new Set();
       Object.keys(suhuData).forEach(t => timestamps.add(t));
       Object.keys(cahayaData).forEach(t => timestamps.add(t));
-
       const filtered = [];
       timestamps.forEach(t => {
         if (t >= startStr) {
-          filtered.push({
-            timestamp: t,
-            suhu: suhuData[t]?.value ?? null,
-            cahaya: cahayaData[t]?.value ?? null
-          });
+          filtered.push({ timestamp: t, suhu: suhuData[t]?.value ?? null, cahaya: cahayaData[t]?.value ?? null });
         }
       });
-
       filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-
-      if (filtered.length === 0) {
-        if (status) status.textContent = '⚠️ Tidak ada data untuk periode ini.';
-        return;
-      }
-
+      if (filtered.length === 0) { if (status) status.textContent = '⚠️ Tidak ada data untuk periode ini.';
+        return; }
       let csv = 'Timestamp,Suhu (°C),Cahaya (%)\n';
-      filtered.forEach(row => {
-        csv += `${row.timestamp},${row.suhu ?? ''},${row.cahaya ?? ''}\n`;
-      });
-
+      filtered.forEach(row => { csv += `${row.timestamp},${row.suhu ?? ''},${row.cahaya ?? ''}\n`; });
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -655,93 +529,64 @@ document.addEventListener("DOMContentLoaded", () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-
       if (status) status.textContent = `✅ Berhasil ekspor ${filtered.length} data.`;
-    } catch (error) {
-      console.error('Export error:', error);
-      if (status) status.textContent = '❌ Gagal ekspor data. Cek console.';
-    }
+    } catch (error) { console.error('Export error:', error);
+      if (status) status.textContent = '❌ Gagal ekspor data. Cek console.'; }
   }
 
-  if (exportBtn && exportPeriod) {
-    exportBtn.addEventListener('click', () => {
-      const period = exportPeriod.value;
-      exportData(period);
-    });
-  }
+  if (exportBtn && exportPeriod) { exportBtn.addEventListener('click', () => { const period = exportPeriod.value;
+      exportData(period); }); }
 
-  /* ========================================
-     EXPORT PDF - GRAFIK
-  ======================================== */
   async function exportPDF() {
     const status = exportStatus;
     if (status) status.textContent = '⏳ Membuat PDF...';
-
     try {
       const tempCanvas = document.getElementById('tempChart');
       const lightCanvas = document.getElementById('lightChart');
-
-      if (!tempCanvas || !lightCanvas) {
-        alert('Grafik tidak ditemukan!');
+      if (!tempCanvas || !lightCanvas) { alert('Grafik tidak ditemukan!');
         if (status) status.textContent = '❌ Grafik tidak ditemukan.';
-        return;
-      }
-
+        return; }
       const tempImg = tempCanvas.toDataURL('image/png');
       const lightImg = lightCanvas.toDataURL('image/png');
-
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-
       doc.setFontSize(16);
       doc.text('📊 Laporan Sensor Greenhouse', pageWidth / 2, 20, { align: 'center' });
       doc.setFontSize(10);
       doc.text(`📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, 28, { align: 'center' });
-
       const imgWidth = (pageWidth - 20) / 2 - 4;
       const imgHeight = imgWidth * 0.6;
-
       doc.addImage(tempImg, 'PNG', 8, 35, imgWidth, imgHeight);
       doc.setFontSize(11);
       doc.text('🌡️ Suhu Realtime', 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
-
       doc.addImage(lightImg, 'PNG', 8 + imgWidth + 8, 35, imgWidth, imgHeight);
       doc.text('💡 Intensitas Cahaya', 8 + imgWidth + 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
-
       const now = new Date();
       doc.setFontSize(9);
       doc.text(`🔄 Data terakhir: ${now.toLocaleString('id-ID')}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
       doc.text('Sistem IoT Greenhouse - Tugas Akhir', pageWidth / 2, pageHeight - 4, { align: 'center' });
-
       const filename = `laporan_grafik_${now.toISOString().slice(0,10)}.pdf`;
       doc.save(filename);
-
       if (status) status.textContent = `✅ PDF berhasil diunduh! (${filename})`;
-    } catch (error) {
-      console.error('PDF export error:', error);
+    } catch (error) { console.error('PDF export error:', error);
       if (status) status.textContent = '❌ Gagal ekspor PDF. Cek console.';
-      alert('Gagal ekspor PDF. Pastikan grafik sudah dimuat.');
-    }
+      alert('Gagal ekspor PDF. Pastikan grafik sudah dimuat.'); }
   }
 
-  if (exportPdfBtn) {
-    exportPdfBtn.addEventListener('click', exportPDF);
-  }
+  if (exportPdfBtn) { exportPdfBtn.addEventListener('click', exportPDF); }
 
   /* ========================================
-     ADMIN PANEL – FUNGSI CRUD USER
+     ADMIN PANEL
   ======================================== */
   function loadUserList() {
     if (!userList) return;
     const userListRef = ref(db, 'users');
     onValue(userListRef, (snapshot) => {
       const users = snapshot.val();
-      if (!users) {
-        userList.innerHTML = '<p style="color:var(--muted); text-align:center; padding:20px;">Belum ada user terdaftar.</p>';
-        return;
-      }
+      if (!users) { userList.innerHTML = '<p style="color:var(--muted); text-align:center; padding:20px;">Belum ada user terdaftar.</p>';
+        return; }
       let html = `<table style="width:100%; text-align:left; border-collapse:collapse; font-size:14px;">
         <thead>
           <tr style="border-bottom:1px solid rgba(255,255,255,.1);">
@@ -773,177 +618,122 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.changeRole = function(username, newRole) {
-    if (currentUser.role !== 'admin') {
-      alert('❌ Hanya admin yang bisa mengubah role!');
-      return;
-    }
+    if (currentUser.role !== 'admin') { alert('❌ Hanya admin yang bisa mengubah role!');
+      return; }
     if (!confirm(`Ubah role ${username} menjadi ${newRole}?`)) return;
-    update(ref(db, `users/${username}`), { role: newRole })
-      .then(() => {
-        if (addUserMsg) {
-          addUserMsg.textContent = '✅ Role berhasil diubah!';
-          addUserMsg.style.color = '#22c55e';
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        if (addUserMsg) {
-          addUserMsg.textContent = '❌ Gagal mengubah role.';
-          addUserMsg.style.color = '#ef4444';
-        }
-      });
+    update(ref(db, `users/${username}`), { role: newRole }).then(() => { if (addUserMsg) { addUserMsg.textContent = '✅ Role berhasil diubah!';
+        addUserMsg.style.color = '#22c55e'; } }).catch(err => { console.error(err);
+      if (addUserMsg) { addUserMsg.textContent = '❌ Gagal mengubah role.';
+        addUserMsg.style.color = '#ef4444'; } });
   };
 
   window.deleteUser = function(username) {
-    if (currentUser.role !== 'admin') {
-      alert('❌ Hanya admin yang bisa menghapus user!');
-      return;
-    }
+    if (currentUser.role !== 'admin') { alert('❌ Hanya admin yang bisa menghapus user!');
+      return; }
     if (!confirm(`Hapus user ${username}?`)) return;
-    set(ref(db, `users/${username}`), null)
-      .then(() => {
-        if (addUserMsg) {
-          addUserMsg.textContent = '✅ User berhasil dihapus!';
-          addUserMsg.style.color = '#22c55e';
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        if (addUserMsg) {
-          addUserMsg.textContent = '❌ Gagal menghapus user.';
-          addUserMsg.style.color = '#ef4444';
-        }
-      });
+    set(ref(db, `users/${username}`), null).then(() => { if (addUserMsg) { addUserMsg.textContent = '✅ User berhasil dihapus!';
+        addUserMsg.style.color = '#22c55e'; } }).catch(err => { console.error(err);
+      if (addUserMsg) { addUserMsg.textContent = '❌ Gagal menghapus user.';
+        addUserMsg.style.color = '#ef4444'; } });
   };
 
   if (addUserForm) {
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (currentUser.role !== 'admin') {
-        alert('❌ Hanya admin yang bisa menambah user!');
-        return;
-      }
+      if (currentUser.role !== 'admin') { alert('❌ Hanya admin yang bisa menambah user!');
+        return; }
       const username = document.getElementById('newUsername').value.trim();
       const password = document.getElementById('newPassword').value.trim();
       const nama = document.getElementById('newNama').value.trim() || username;
       const role = document.getElementById('newRole').value;
-
-      if (!username || !password) {
-        if (addUserMsg) {
-          addUserMsg.textContent = '❌ Username dan password wajib diisi!';
-          addUserMsg.style.color = '#ef4444';
-        }
-        return;
-      }
-      if (username.length < 3) {
-        if (addUserMsg) {
-          addUserMsg.textContent = '❌ Username minimal 3 karakter!';
-          addUserMsg.style.color = '#ef4444';
-        }
-        return;
-      }
-      if (password.length < 4) {
-        if (addUserMsg) {
-          addUserMsg.textContent = '❌ Password minimal 4 karakter!';
-          addUserMsg.style.color = '#ef4444';
-        }
-        return;
-      }
-
+      if (!username || !password) { if (addUserMsg) { addUserMsg.textContent = '❌ Username dan password wajib diisi!';
+          addUserMsg.style.color = '#ef4444'; }
+        return; }
+      if (username.length < 3) { if (addUserMsg) { addUserMsg.textContent = '❌ Username minimal 3 karakter!';
+          addUserMsg.style.color = '#ef4444'; }
+        return; }
+      if (password.length < 4) { if (addUserMsg) { addUserMsg.textContent = '❌ Password minimal 4 karakter!';
+          addUserMsg.style.color = '#ef4444'; }
+        return; }
       const userRef = ref(db, `users/${username}`);
       try {
         const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-          if (addUserMsg) {
-            addUserMsg.textContent = '❌ Username sudah terdaftar!';
-            addUserMsg.style.color = '#ef4444';
-          }
-          return;
-        }
-        await set(userRef, {
-          password: password,
-          nama: nama,
-          role: role,
-          createdAt: new Date().toISOString()
-        });
-        if (addUserMsg) {
-          addUserMsg.textContent = '✅ User berhasil ditambahkan!';
-          addUserMsg.style.color = '#22c55e';
-        }
+        if (snapshot.exists()) { if (addUserMsg) { addUserMsg.textContent = '❌ Username sudah terdaftar!';
+            addUserMsg.style.color = '#ef4444'; }
+          return; }
+        await set(userRef, { password: password, nama: nama, role: role, createdAt: new Date().toISOString() });
+        if (addUserMsg) { addUserMsg.textContent = '✅ User berhasil ditambahkan!';
+          addUserMsg.style.color = '#22c55e'; }
         document.getElementById('newUsername').value = '';
         document.getElementById('newPassword').value = '';
         document.getElementById('newNama').value = '';
         document.getElementById('newRole').value = 'petani';
-      } catch (err) {
-        console.error(err);
-        if (addUserMsg) {
-          addUserMsg.textContent = '❌ Gagal menambahkan user: ' + err.message;
-          addUserMsg.style.color = '#ef4444';
-        }
-      }
+      } catch (err) { console.error(err);
+        if (addUserMsg) { addUserMsg.textContent = '❌ Gagal menambahkan user: ' + err.message;
+          addUserMsg.style.color = '#ef4444'; } }
     });
   }
 
   /* ========================================
-     FIREBASE REALTIME – BACA PER PATH
+     FIREBASE REALTIME
   ======================================== */
-
-  // ----- 1. SENSOR -----
   const sensorRef = ref(db, 'sensor');
   onValue(sensorRef, (snapshot) => {
     const data = snapshot.val();
     if (data) {
       state.temperature = data.suhu || 0;
       state.sensorLight = data.cahaya || 0;
-
       const time = new Date().toLocaleTimeString();
       if (tempChart) {
         tempLabels.push(time);
         tempData.push(state.temperature);
-        if (tempLabels.length > MAX_DATA_POINTS) {
-          tempLabels.shift();
-          tempData.shift();
-        }
+        if (tempLabels.length > MAX_DATA_POINTS) { tempLabels.shift();
+          tempData.shift(); }
         tempChart.update();
       }
       if (lightChart) {
         lightLabels.push(time);
         lampData.push(state.lampState ? 100 : 0);
         sensorData.push(state.sensorLight);
-        if (lightLabels.length > MAX_DATA_POINTS) {
-          lightLabels.shift();
+        if (lightLabels.length > MAX_DATA_POINTS) { lightLabels.shift();
           lampData.shift();
-          sensorData.shift();
-        }
+          sensorData.shift(); }
         lightChart.update();
+      }
+      if (lampStatusChart) {
+        lampStatusChart.data.labels.push(time);
+        lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
+        if (lampStatusChart.data.labels.length > MAX_DATA_POINTS) {
+          lampStatusChart.data.labels.shift();
+          lampStatusChart.data.datasets[0].data.shift();
+        }
+        lampStatusChart.update();
       }
     }
     renderUI();
-  }, (error) => {
-    console.error("❌ Sensor error:", error);
-  });
+  }, (error) => { console.error("❌ Sensor error:", error); });
 
-  // ----- 2. CONTROL -----
   const controlRef = ref(db, 'control');
   onValue(controlRef, (snapshot) => {
     const data = snapshot.val();
     if (data && data.lamp) {
       state.lampState = data.lamp.state || false;
       state.mode = data.lamp.mode || 'manual';
-
       if (lightChart && lightLabels.length > 0) {
         const lastIndex = lightLabels.length - 1;
         lampData[lastIndex] = state.lampState ? 100 : 0;
         lightChart.update();
       }
+      if (lampStatusChart && lampStatusChart.data.labels.length > 0) {
+        const lastIndex = lampStatusChart.data.labels.length - 1;
+        lampStatusChart.data.datasets[0].data[lastIndex] = state.lampState ? 1 : 0;
+        lampStatusChart.update();
+      }
     }
     renderUI();
     updateModeUI();
-  }, (error) => {
-    console.error("❌ Control error:", error);
-  });
+  }, (error) => { console.error("❌ Control error:", error); });
 
-  // ----- 3. SYSTEM -----
   const systemRef = ref(db, 'system');
   onValue(systemRef, (snapshot) => {
     const data = snapshot.val();
@@ -953,9 +743,210 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateOverheat();
     updateModeUI();
-  }, (error) => {
-    console.error("❌ System error:", error);
-  });
+  }, (error) => { console.error("❌ System error:", error); });
+
+  /* ========================================
+     ANALYTICS – FITUR TAMBAHAN
+  ======================================== */
+  function updateStats(data) {
+    if (!data || data.length === 0) return;
+    const suhuValues = data.map(d => d.suhu).filter(v => v !== null && !isNaN(v));
+    const cahayaValues = data.map(d => d.cahaya).filter(v => v !== null && !isNaN(v));
+    if (suhuValues.length === 0) return;
+    const avgTemp = suhuValues.reduce((a, b) => a + b, 0) / suhuValues.length;
+    const maxTemp = Math.max(...suhuValues);
+    const minTemp = Math.min(...suhuValues);
+    const avgLight = cahayaValues.length > 0 ? cahayaValues.reduce((a, b) => a + b, 0) / cahayaValues.length : 0;
+    document.getElementById('avgTemp').textContent = avgTemp.toFixed(1) + '°C';
+    document.getElementById('maxTemp').textContent = maxTemp.toFixed(1) + '°C';
+    document.getElementById('minTemp').textContent = minTemp.toFixed(1) + '°C';
+    document.getElementById('avgLight').textContent = avgLight.toFixed(1) + '%';
+  }
+
+  function updateCategories(data) {
+    if (!data || data.length === 0) return;
+    let cold = 0,
+      normal = 0,
+      warm = 0,
+      hot = 0;
+    data.forEach(d => {
+      const temp = d.suhu;
+      if (temp < 20) cold++;
+      else if (temp >= 20 && temp < 25) normal++;
+      else if (temp >= 25 && temp < 30) warm++;
+      else hot++;
+    });
+    const total = data.length;
+    const coldPct = (cold / total * 100).toFixed(0);
+    const normalPct = (normal / total * 100).toFixed(0);
+    const warmPct = (warm / total * 100).toFixed(0);
+    const hotPct = (hot / total * 100).toFixed(0);
+    document.getElementById('coldBar').style.width = coldPct + '%';
+    document.getElementById('coldPercent').textContent = coldPct + '%';
+    document.getElementById('normalBar').style.width = normalPct + '%';
+    document.getElementById('normalPercent').textContent = normalPct + '%';
+    document.getElementById('warmBar').style.width = warmPct + '%';
+    document.getElementById('warmPercent').textContent = warmPct + '%';
+    document.getElementById('hotBar').style.width = hotPct + '%';
+    document.getElementById('hotPercent').textContent = hotPct + '%';
+  }
+
+  function updateLampTime(data) {
+    if (!data || data.length < 2) return;
+    let onSeconds = 0;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i].lampState) {
+        const d1 = new Date(data[i].timestamp);
+        const d0 = new Date(data[i - 1].timestamp);
+        onSeconds += (d1 - d0) / 1000;
+      }
+    }
+    const totalSeconds = (data.length - 1) * 30;
+    const offSeconds = totalSeconds - onSeconds;
+    const onHours = Math.floor(onSeconds / 3600);
+    const onMinutes = Math.floor((onSeconds % 3600) / 60);
+    const offHours = Math.floor(offSeconds / 3600);
+    const offMinutes = Math.floor((offSeconds % 3600) / 60);
+    document.getElementById('lampOnTime').textContent = onHours + ' jam ' + onMinutes + ' menit';
+    document.getElementById('lampOffTime').textContent = offHours + ' jam ' + offMinutes + ' menit';
+    const onPct = (onSeconds / totalSeconds * 100).toFixed(1);
+    const offPct = (offSeconds / totalSeconds * 100).toFixed(1);
+    document.getElementById('lampOnBar').style.width = onPct + '%';
+    document.getElementById('lampOffBar').style.width = offPct + '%';
+    document.getElementById('onPercent').textContent = 'ON: ' + onPct + '%';
+    document.getElementById('offPercent').textContent = 'OFF: ' + offPct + '%';
+  }
+
+  async function updateTrend() {
+    const suhuRef = ref(db, 'sensor_history/suhu');
+    const snapshot = await get(query(suhuRef, orderByKey(), limitToLast(7)));
+    const data = snapshot.val();
+    if (!data) return;
+    const keys = Object.keys(data).sort();
+    const container = document.getElementById('trendContainer');
+    container.innerHTML = '';
+    const dayMap = {};
+    keys.forEach(key => { const day = key.split('T')[0];
+      dayMap[day] = data[key].value; });
+    const days = Object.keys(dayMap);
+    let prevTemp = null;
+    days.forEach((day, index) => {
+      const temp = dayMap[day];
+      const div = document.createElement('div');
+      div.style.cssText = 'text-align:center; padding:8px; background:rgba(255,255,255,.04); border-radius:8px;';
+      const date = new Date(day + 'T00:00:00');
+      const label = date.toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric' });
+      let arrow = '',
+        arrowColor = '';
+      if (prevTemp !== null) { if (temp > prevTemp) { arrow = '▲';
+          arrowColor = '#22c55e'; } else if (temp < prevTemp) { arrow = '▼';
+          arrowColor = '#ef4444'; } else { arrow = '•';
+          arrowColor = '#94a3b8'; } }
+      prevTemp = temp;
+      div.innerHTML = `
+        <div style="font-size:11px; color:var(--muted);">${label}</div>
+        <div style="font-size:18px; font-weight:700;">${temp.toFixed(1)}°C</div>
+        <div style="font-size:12px; color:${arrowColor};">${arrow}</div>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  async function updateHeatmap() {
+    const suhuRef = ref(db, 'sensor_history/suhu');
+    const snapshot = await get(query(suhuRef, orderByKey(), limitToLast(168)));
+    const data = snapshot.val();
+    if (!data) return;
+    const keys = Object.keys(data).sort();
+    const last7Days = keys.slice(-168);
+    const hourMap = {};
+    last7Days.forEach(key => {
+      const date = new Date(key.replace('T', ' ').replace(/-/g, '/'));
+      const hour = date.getHours();
+      const day = key.split('T')[0];
+      if (!hourMap[day]) hourMap[day] = {};
+      hourMap[day][hour] = data[key].value;
+    });
+    const days = Object.keys(hourMap).sort();
+    const hours = Array.from({ length: 24 }, (_, i) => i);
+    const table = document.getElementById('heatmapTable');
+    let html = '<thead><tr><th style="padding:4px;">Jam</th>';
+    days.forEach(day => {
+      const date = new Date(day + 'T00:00:00');
+      html += `<th style="padding:4px; font-size:10px;">${date.toLocaleDateString('id-ID', { weekday: 'short' })}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    hours.forEach(hour => {
+      html += `<tr><td style="padding:4px; font-size:10px; color:var(--muted);">${hour}:00</td>`;
+      days.forEach(day => {
+        const temp = hourMap[day]?.[hour];
+        let color = '#1e293b';
+        let text = '-';
+        if (temp !== undefined) {
+          text = temp.toFixed(1);
+          if (temp < 20) color = '#3b82f6';
+          else if (temp < 25) color = '#22c55e';
+          else if (temp < 30) color = '#f59e0b';
+          else color = '#ef4444';
+        }
+        html += `<td style="padding:4px; text-align:center; background:${color}; border-radius:4px; font-size:10px; color:white;">${text}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+  }
+
+  function updateHistogram(data) {
+    if (!data || data.length === 0) return;
+    const suhuValues = data.map(d => d.suhu).filter(v => v !== null && !isNaN(v));
+    if (suhuValues.length === 0) return;
+    const bins = [18, 20, 22, 24, 26, 28, 30, 32, 34];
+    const counts = new Array(bins.length - 1).fill(0);
+    const labels = [];
+    for (let i = 0; i < bins.length - 1; i++) {
+      labels.push(bins[i] + '-' + bins[i + 1] + '°C');
+      suhuValues.forEach(v => { if (v >= bins[i] && v < bins[i + 1]) counts[i]++; });
+    }
+    const ctx = document.getElementById('histogramChart')?.getContext('2d');
+    if (!ctx) return;
+    if (window.histogramChartInstance) { window.histogramChartInstance.destroy(); }
+    window.histogramChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ label: 'Frekuensi', data: counts, backgroundColor: 'rgba(34,197,94,0.5)', borderColor: '#22c55e', borderWidth: 1, borderRadius: 4 }] },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return context.parsed.y + ' data'; } } } },
+        scales: {
+          x: { ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  async function loadAllAnalytics() {
+    try {
+      const suhuRef = ref(db, 'sensor_history/suhu');
+      const snapshot = await get(query(suhuRef, orderByKey(), limitToLast(500)));
+      const rawData = snapshot.val();
+      if (!rawData) return;
+      const keys = Object.keys(rawData).sort();
+      const data = keys.map(key => ({ timestamp: key, suhu: rawData[key]?.value || 0, cahaya: 0, lampState: false }));
+      const cahayaRef = ref(db, 'sensor_history/cahaya');
+      const cahayaSnap = await get(query(cahayaRef, orderByKey(), limitToLast(500)));
+      const cahayaData = cahayaSnap.val() || {};
+      const lampuRef = ref(db, 'sensor_history/lampu');
+      const lampuSnap = await get(query(lampuRef, orderByKey(), limitToLast(500)));
+      const lampuData = lampuSnap.val() || {};
+      data.forEach(d => { d.cahaya = cahayaData[d.timestamp]?.value || 0;
+        d.lampState = lampuData[d.timestamp]?.state || false; });
+      updateStats(data);
+      updateCategories(data);
+      updateLampTime(data);
+      updateHistogram(data);
+    } catch (e) { console.warn('Analytics load error:', e); }
+  }
 
   /* ========================================
      TOAST NOTIFICATION
@@ -975,37 +966,21 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
     toast.textContent = message;
     document.body.appendChild(toast);
-    setTimeout(() => {
-      toast.style.opacity = '0';
+    setTimeout(() => { toast.style.opacity = '0';
       toast.style.transition = 'opacity 0.5s';
-      setTimeout(() => toast.remove(), 500);
-    }, 5000);
+      setTimeout(() => toast.remove(), 500); }, 5000);
   }
 
   /* ========================================
-     CONTROLS – ON/OFF (FIX DISPLAY)
+     CONTROLS
   ======================================== */
-
   if (btnOn) {
-    btnOn.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), true)
-        .then(() => {
-          state.lampState = true;
-          renderUI();
-        })
-        .catch(err => console.error("Set state error:", err));
-    });
+    btnOn.addEventListener("click", () => { set(ref(db, "control/lamp/state"), true).then(() => { state.lampState = true;
+        renderUI(); }).catch(err => console.error("Set state error:", err)); });
   }
-
   if (btnOff) {
-    btnOff.addEventListener("click", () => {
-      set(ref(db, "control/lamp/state"), false)
-        .then(() => {
-          state.lampState = false;
-          renderUI();
-        })
-        .catch(err => console.error("Set state error:", err));
-    });
+    btnOff.addEventListener("click", () => { set(ref(db, "control/lamp/state"), false).then(() => { state.lampState = false;
+        renderUI(); }).catch(err => console.error("Set state error:", err)); });
   }
 
   /* ========================================
@@ -1013,64 +988,38 @@ document.addEventListener("DOMContentLoaded", () => {
   ======================================== */
   const menuToggle = document.getElementById("menuToggle");
   const sidebar = document.querySelector(".sidebar");
-
   let overlay = document.querySelector(".mobile-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
+  if (!overlay) { overlay = document.createElement("div");
     overlay.className = "mobile-overlay";
-    document.body.appendChild(overlay);
-  }
+    document.body.appendChild(overlay); }
 
-  function openMenu() {
-    sidebar.classList.add("active");
+  function openMenu() { sidebar.classList.add("active");
     overlay.classList.add("active");
-    document.body.style.overflow = "hidden";
-  }
+    document.body.style.overflow = "hidden"; }
 
-  function closeMenu() {
-    sidebar.classList.remove("active");
+  function closeMenu() { sidebar.classList.remove("active");
     overlay.classList.remove("active");
-    document.body.style.overflow = "";
-  }
+    document.body.style.overflow = ""; }
 
-  function toggleMenu() {
-    if (sidebar.classList.contains("active")) {
-      closeMenu();
-    } else {
-      openMenu();
-    }
-  }
+  function toggleMenu() { if (sidebar.classList.contains("active")) { closeMenu(); } else { openMenu(); } }
 
   if (menuToggle) {
     menuToggle.addEventListener("click", toggleMenu);
-    menuToggle.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      toggleMenu();
-    }, { passive: false });
+    menuToggle.addEventListener("touchstart", (e) => { e.preventDefault();
+      toggleMenu(); }, { passive: false });
   }
-
   overlay.addEventListener("click", closeMenu);
-  overlay.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    closeMenu();
-  }, { passive: false });
-
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 768) {
-      closeMenu();
-    }
-  });
-
+  overlay.addEventListener("touchstart", (e) => { e.preventDefault();
+    closeMenu(); }, { passive: false });
+  window.addEventListener("resize", () => { if (window.innerWidth > 768) { closeMenu(); } });
   console.log("✅ Mobile sidebar toggle ready!");
 
   /* ========================================
      SIDEBAR NAVIGATION
   ======================================== */
   console.log("🔧 INIT: Simple Navigation");
-
   const menuItems = document.querySelectorAll(".menu-item");
   const sections = document.querySelectorAll(".page-section");
-
   menuItems.forEach((item) => {
     item.addEventListener("click", function(e) {
       e.preventDefault();
@@ -1081,27 +1030,17 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("🎯 Target:", target);
       sections.forEach(s => s.classList.add("hidden"));
       const targetSection = document.getElementById(target);
-      if (targetSection) {
-        targetSection.classList.remove("hidden");
-        console.log("✅ Berhasil ke:", target);
-      } else {
-        console.error("❌ GAGAL! Section", target, "tidak ditemukan!");
-      }
+      if (targetSection) { targetSection.classList.remove("hidden");
+        console.log("✅ Berhasil ke:", target); } else { console.error("❌ GAGAL! Section", target, "tidak ditemukan!"); }
       const sidebarEl = document.querySelector(".sidebar");
-      if (sidebarEl && window.innerWidth <= 768) {
-        sidebarEl.classList.remove("active");
-        document.querySelector(".mobile-overlay")?.classList.remove("active");
-      }
+      if (sidebarEl && window.innerWidth <= 768) { sidebarEl.classList.remove("active");
+        document.querySelector(".mobile-overlay")?.classList.remove("active"); }
     });
   });
-
   const defaultSection = document.getElementById("dashboard");
-  if (defaultSection) {
-    sections.forEach(s => s.classList.add("hidden"));
+  if (defaultSection) { sections.forEach(s => s.classList.add("hidden"));
     defaultSection.classList.remove("hidden");
-    console.log("✅ Dashboard aktif");
-  }
-
+    console.log("✅ Dashboard aktif"); }
   console.log("✅ Navigation ready!");
 
   /* ========================================
@@ -1111,44 +1050,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const now = new Date();
     const dateText = document.getElementById("dateText");
     const clockText = document.getElementById("clockText");
-    if (dateText) {
-      dateText.innerText = now.toLocaleDateString('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    }
-    if (clockText) {
-      clockText.innerText = now.toLocaleTimeString('id-ID');
-    }
+    if (dateText) { dateText.innerText = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); }
+    if (clockText) { clockText.innerText = now.toLocaleTimeString('id-ID'); }
   }
-
   updateClock();
   setInterval(updateClock, 1000);
 
   /* ========================================
-     LOAD ADMIN PANEL (jika admin)
+     LOAD ADMIN PANEL & ANALYTICS
   ======================================== */
-  if (currentUser && currentUser.role === 'admin') {
-    loadUserList();
-  }
+  if (currentUser && currentUser.role === 'admin') { loadUserList(); }
 
-  console.log("✅ Elements loaded:", {
-    connStatus: !!connStatus,
-    monitorTemp: !!monitorTemp,
-    monitorLight: !!monitorLight,
-    monitorLampStatus: !!monitorLampStatus,
-    btnOn: !!btnOn,
-    btnOff: !!btnOff,
-    controlSection: !!controlSection
-  });
-
-  /* ========================================
-     LOAD CHART HISTORY
-  ======================================== */
   loadChartHistory();
-
+  loadAllAnalytics();
   updateModeUI();
 
   console.log("🚀 App siap!");
