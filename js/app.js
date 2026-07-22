@@ -164,12 +164,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (lightChartEl) {
     lightChart = new Chart(lightChartEl, {
       type: "line",
-      data: { labels: lightLabels, datasets: [{ label: "Lamp Output (%)", data: lampData, borderColor: "#facc15", backgroundColor: "rgba(250,204,21,0.2)", borderWidth: 2, fill: false, tension: 0.4, pointRadius: 2 }, { label: "Sensor Light (%)", data: sensorData, borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.2)", borderWidth: 2, fill: false, tension: 0.4, pointRadius: 2 }] },
+      data: { labels: lightLabels, datasets: [{ label: "Sensor Light (%)", data: sensorData, borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.2)", borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
       options: { responsive: true, plugins: { legend: { labels: { color: "#cbd5e1" } } }, scales: { x: { ticks: { color: "#94a3b8" } }, y: { ticks: { color: "#94a3b8" } } } }
     });
   }
 
-  // ===== BAR CHART UNTUK STATUS LAMPU =====
+  // BAR CHART UNTUK STATUS LAMPU
   const lampStatusChartEl = document.getElementById('lampStatusChart');
   if (lampStatusChartEl) {
     lampStatusChart = new Chart(lampStatusChartEl, {
@@ -247,7 +247,6 @@ document.addEventListener("DOMContentLoaded", () => {
         tempLabels.push(label);
         tempData.push(suhuData[key]?.value || 0);
         sensorData.push(cahayaData[key]?.value || 0);
-        lampData.push(lampuData[key]?.state ? 100 : 0);
 
         if (lampStatusChart) {
           lampStatusChart.data.labels.push(label);
@@ -392,6 +391,60 @@ document.addEventListener("DOMContentLoaded", () => {
       const now = new Date();
       dashLastUpdate.innerText = now.toLocaleTimeString('id-ID');
     }
+
+    // ===== QUICK STATS =====
+    const statTemp = document.getElementById('statTemp');
+    const statTempStatus = document.getElementById('statTempStatus');
+    const statLight = document.getElementById('statLight');
+    const statLightStatus = document.getElementById('statLightStatus');
+    const statLamp = document.getElementById('statLamp');
+    const statLampIcon = document.getElementById('statLampIcon');
+    const statDay = document.getElementById('statDay');
+    const statDayLabel = document.getElementById('statDayLabel');
+    const statModeLabel = document.getElementById('statModeLabel');
+    const chartStatus = document.getElementById('chartStatus');
+    const dashMaxTemp = document.getElementById('dashMaxTemp');
+
+    if (statTemp) statTemp.textContent = state.temperature.toFixed(1);
+    if (statTempStatus) {
+      const temp = state.temperature;
+      if (temp > 35) { statTempStatus.textContent = '🔴 Panas!';
+        statTempStatus.style.color = '#ef4444'; } else if (temp > 28) { statTempStatus.textContent = '🟠 Hangat';
+        statTempStatus.style.color = '#f59e0b'; } else { statTempStatus.textContent = '✅ Normal';
+        statTempStatus.style.color = '#22c55e'; }
+    }
+    if (statLight) statLight.textContent = state.sensorLight;
+    if (statLightStatus) {
+      const light = state.sensorLight;
+      if (light > 80) { statLightStatus.textContent = '☀️ Terang';
+        statLightStatus.style.color = '#facc15'; } else if (light > 50) { statLightStatus.textContent = '🌤️ Sedang';
+        statLightStatus.style.color = '#f59e0b'; } else { statLightStatus.textContent = '🌙 Redup';
+        statLightStatus.style.color = '#94a3b8'; }
+    }
+    if (statLamp) {
+      statLamp.textContent = state.lampState ? 'ON' : 'OFF';
+      statLamp.style.color = state.lampState ? '#22c55e' : '#ef4444';
+      if (statLampIcon) {
+        statLampIcon.style.color = state.lampState ? '#22c55e' : '#ef4444';
+        statLampIcon.style.background = state.lampState ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+      }
+    }
+    const days = getDaysSincePlanting();
+    const config = getModeConfig(state.mode || 'manual');
+    if (statDay) statDay.textContent = days;
+    if (statDayLabel) statDayLabel.textContent = days;
+    if (statModeLabel) statModeLabel.textContent = config.label;
+
+    if (chartStatus) {
+      const temp = state.temperature;
+      if (temp > 35) chartStatus.textContent = '🔴 Panas!';
+      else if (temp > 28) chartStatus.textContent = '🟠 Hangat';
+      else chartStatus.textContent = '🟢 Stabil';
+    }
+    if (dashMaxTemp) {
+      const max = Math.max(...tempData.slice(-10));
+      dashMaxTemp.textContent = max ? max.toFixed(1) + '°C' : '--°C';
+    }
   }
 
   function updateDashChart() {
@@ -488,91 +541,199 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ========================================
-     EXPORT DATA
+     EXPORT DATA – CSV RAPI
   ======================================== */
   async function exportData(period) {
     const status = exportStatus;
     if (status) status.textContent = '⏳ Mengambil data...';
+
     try {
       const now = new Date();
       let startDate;
-      if (period === 'week') { startDate = new Date(now);
-        startDate.setDate(now.getDate() - 7); } else { startDate = new Date(now);
-        startDate.setMonth(now.getMonth() - 1); }
+      if (period === 'week') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+      } else {
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+      }
+
       const startStr = startDate.toISOString();
-      const suhuRef = ref(db, 'sensor_history/suhu');
-      const suhuSnapshot = await get(suhuRef);
-      const suhuData = suhuSnapshot.val() || {};
-      const cahayaRef = ref(db, 'sensor_history/cahaya');
-      const cahayaSnapshot = await get(cahayaRef);
-      const cahayaData = cahayaSnapshot.val() || {};
+
+      const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
+        get(ref(db, 'sensor_history/suhu')),
+        get(ref(db, 'sensor_history/cahaya')),
+        get(ref(db, 'sensor_history/lampu'))
+      ]);
+
+      const suhuData = suhuSnap.val() || {};
+      const cahayaData = cahayaSnap.val() || {};
+      const lampuData = lampuSnap.val() || {};
+
       const timestamps = new Set();
       Object.keys(suhuData).forEach(t => timestamps.add(t));
       Object.keys(cahayaData).forEach(t => timestamps.add(t));
+      Object.keys(lampuData).forEach(t => timestamps.add(t));
+
       const filtered = [];
       timestamps.forEach(t => {
         if (t >= startStr) {
-          filtered.push({ timestamp: t, suhu: suhuData[t]?.value ?? null, cahaya: cahayaData[t]?.value ?? null });
+          filtered.push({
+            timestamp: t,
+            suhu: suhuData[t]?.value ?? null,
+            cahaya: cahayaData[t]?.value ?? null,
+            lampState: lampuData[t]?.state ?? null
+          });
         }
       });
+
       filtered.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-      if (filtered.length === 0) { if (status) status.textContent = '⚠️ Tidak ada data untuk periode ini.';
-        return; }
-      let csv = 'Timestamp,Suhu (°C),Cahaya (%)\n';
-      filtered.forEach(row => { csv += `${row.timestamp},${row.suhu ?? ''},${row.cahaya ?? ''}\n`; });
-      const blob = new Blob([csv], { type: 'text/csv' });
+
+      if (filtered.length === 0) {
+        if (status) status.textContent = '⚠️ Tidak ada data untuk periode ini.';
+        return;
+      }
+
+      const periodLabel = period === 'week' ? '1 Minggu Terakhir' : '1 Bulan Terakhir';
+      const exportDate = new Date().toLocaleString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      let csv = '';
+      csv += `"LAPORAN DATA SENSOR GREENHOUSE"\n`;
+      csv += `"${'='.repeat(50)}"\n`;
+      csv += `"Tanggal Export","${exportDate}"\n`;
+      csv += `"Periode","${periodLabel}"\n`;
+      csv += `"Total Data","${filtered.length}"\n`;
+      csv += `"Sumber","IoT Greenhouse - Tugas Akhir"\n`;
+      csv += `"${'='.repeat(50)}"\n`;
+      csv += `\n`;
+
+      csv += `"No","Timestamp","Suhu (°C)","Cahaya (%)","Status Lampu"\n`;
+
+      filtered.forEach((row, index) => {
+        const date = new Date(row.timestamp.replace('T', ' ').replace(/-/g, '/'));
+        const formattedTime = date.toLocaleString('id-ID', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+
+        const suhu = row.suhu !== null ? row.suhu.toFixed(1) : '';
+        const cahaya = row.cahaya !== null ? row.cahaya : '';
+        const lampu = row.lampState === true ? 'ON' : (row.lampState === false ? 'OFF' : '');
+
+        csv += `"${index + 1}","${formattedTime}","${suhu}","${cahaya}","${lampu}"\n`;
+      });
+
+      csv += `\n`;
+      csv += `"${'='.repeat(50)}"\n`;
+      csv += `"--- AKHIR LAPORAN ---"\n`;
+      csv += `"Export oleh","${currentUser?.nama || 'User'}"\n`;
+      csv += `"Waktu Export","${new Date().toLocaleString('id-ID')}"\n`;
+
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sensor_data_${period}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `laporan_sensor_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      if (status) status.textContent = `✅ Berhasil ekspor ${filtered.length} data.`;
-    } catch (error) { console.error('Export error:', error);
-      if (status) status.textContent = '❌ Gagal ekspor data. Cek console.'; }
+
+      if (status) {
+        status.textContent = `✅ Berhasil ekspor ${filtered.length} data!`;
+        status.style.color = '#22c55e';
+      }
+
+    } catch (error) {
+      console.error('Export error:', error);
+      if (exportStatus) {
+        exportStatus.textContent = '❌ Gagal ekspor data. Cek console.';
+        exportStatus.style.color = '#ef4444';
+      }
+    }
   }
 
   if (exportBtn && exportPeriod) { exportBtn.addEventListener('click', () => { const period = exportPeriod.value;
       exportData(period); }); }
 
+  /* ========================================
+     EXPORT PDF
+  ======================================== */
   async function exportPDF() {
     const status = exportStatus;
     if (status) status.textContent = '⏳ Membuat PDF...';
+
     try {
+      if (typeof window.jspdf === 'undefined') {
+        alert('❌ Library PDF tidak ditemukan. Pastikan file jsPDF sudah di-load.');
+        if (status) status.textContent = '❌ Library PDF tidak ditemukan.';
+        return;
+      }
+
       const tempCanvas = document.getElementById('tempChart');
       const lightCanvas = document.getElementById('lightChart');
-      if (!tempCanvas || !lightCanvas) { alert('Grafik tidak ditemukan!');
+
+      if (!tempCanvas || !lightCanvas) {
+        alert('Grafik tidak ditemukan!');
         if (status) status.textContent = '❌ Grafik tidak ditemukan.';
-        return; }
+        return;
+      }
+
       const tempImg = tempCanvas.toDataURL('image/png');
       const lightImg = lightCanvas.toDataURL('image/png');
+
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF('landscape', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
+
       doc.setFontSize(16);
-      doc.text('📊 Laporan Sensor Greenhouse', pageWidth / 2, 20, { align: 'center' });
+      doc.text('📊 LAPORAN SENSOR GREENHOUSE', pageWidth / 2, 20, { align: 'center' });
       doc.setFontSize(10);
       doc.text(`📅 Tanggal: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pageWidth / 2, 28, { align: 'center' });
+
       const imgWidth = (pageWidth - 20) / 2 - 4;
       const imgHeight = imgWidth * 0.6;
+
       doc.addImage(tempImg, 'PNG', 8, 35, imgWidth, imgHeight);
       doc.setFontSize(11);
       doc.text('🌡️ Suhu Realtime', 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
+
       doc.addImage(lightImg, 'PNG', 8 + imgWidth + 8, 35, imgWidth, imgHeight);
       doc.text('💡 Intensitas Cahaya', 8 + imgWidth + 8 + imgWidth / 2, 35 + imgHeight + 5, { align: 'center' });
+
       const now = new Date();
       doc.setFontSize(9);
       doc.text(`🔄 Data terakhir: ${now.toLocaleString('id-ID')}`, pageWidth / 2, pageHeight - 8, { align: 'center' });
       doc.text('Sistem IoT Greenhouse - Tugas Akhir', pageWidth / 2, pageHeight - 4, { align: 'center' });
-      const filename = `laporan_grafik_${now.toISOString().slice(0,10)}.pdf`;
+
+      const filename = `laporan_grafik_${now.toISOString().slice(0, 10)}.pdf`;
       doc.save(filename);
-      if (status) status.textContent = `✅ PDF berhasil diunduh! (${filename})`;
-    } catch (error) { console.error('PDF export error:', error);
-      if (status) status.textContent = '❌ Gagal ekspor PDF. Cek console.';
-      alert('Gagal ekspor PDF. Pastikan grafik sudah dimuat.'); }
+
+      if (status) {
+        status.textContent = `✅ PDF berhasil diunduh! (${filename})`;
+        status.style.color = '#22c55e';
+      }
+    } catch (error) {
+      console.error('PDF export error:', error);
+      if (status) {
+        status.textContent = '❌ Gagal ekspor PDF: ' + error.message;
+        status.style.color = '#ef4444';
+      }
+      alert('❌ Gagal ekspor PDF. Pastikan grafik sudah dimuat.');
+    }
   }
 
   if (exportPdfBtn) { exportPdfBtn.addEventListener('click', exportPDF); }
@@ -693,10 +854,8 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       if (lightChart) {
         lightLabels.push(time);
-        lampData.push(state.lampState ? 100 : 0);
         sensorData.push(state.sensorLight);
         if (lightLabels.length > MAX_DATA_POINTS) { lightLabels.shift();
-          lampData.shift();
           sensorData.shift(); }
         lightChart.update();
       }
@@ -719,11 +878,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (data && data.lamp) {
       state.lampState = data.lamp.state || false;
       state.mode = data.lamp.mode || 'manual';
-      if (lightChart && lightLabels.length > 0) {
-        const lastIndex = lightLabels.length - 1;
-        lampData[lastIndex] = state.lampState ? 100 : 0;
-        lightChart.update();
-      }
       if (lampStatusChart && lampStatusChart.data.labels.length > 0) {
         const lastIndex = lampStatusChart.data.labels.length - 1;
         lampStatusChart.data.datasets[0].data[lastIndex] = state.lampState ? 1 : 0;
@@ -792,16 +946,37 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateLampTime(data) {
-    if (!data || data.length < 2) return;
+    if (!data || data.length < 2) {
+      document.getElementById('lampOnTime').textContent = 'Belum ada data';
+      document.getElementById('lampOffTime').textContent = 'Belum ada data';
+      document.getElementById('lampOnBar').style.width = '50%';
+      document.getElementById('lampOffBar').style.width = '50%';
+      document.getElementById('onPercent').textContent = 'ON: 0%';
+      document.getElementById('offPercent').textContent = 'OFF: 0%';
+      return;
+    }
     let onSeconds = 0;
+    let validData = 0;
     for (let i = 1; i < data.length; i++) {
-      if (data[i].lampState) {
-        const d1 = new Date(data[i].timestamp);
-        const d0 = new Date(data[i - 1].timestamp);
-        onSeconds += (d1 - d0) / 1000;
+      const d1 = new Date(data[i].timestamp);
+      const d0 = new Date(data[i - 1].timestamp);
+      if (!isNaN(d1.getTime()) && !isNaN(d0.getTime())) {
+        validData++;
+        if (data[i].lampState) {
+          onSeconds += (d1 - d0) / 1000;
+        }
       }
     }
-    const totalSeconds = (data.length - 1) * 30;
+    if (validData === 0) {
+      document.getElementById('lampOnTime').textContent = 'Belum ada data';
+      document.getElementById('lampOffTime').textContent = 'Belum ada data';
+      document.getElementById('lampOnBar').style.width = '50%';
+      document.getElementById('lampOffBar').style.width = '50%';
+      document.getElementById('onPercent').textContent = 'ON: 0%';
+      document.getElementById('offPercent').textContent = 'OFF: 0%';
+      return;
+    }
+    const totalSeconds = validData * 30;
     const offSeconds = totalSeconds - onSeconds;
     const onHours = Math.floor(onSeconds / 3600);
     const onMinutes = Math.floor((onSeconds % 3600) / 60);
