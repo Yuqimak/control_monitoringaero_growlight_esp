@@ -1934,3 +1934,111 @@ canvas{
     margin-top: 8px !important;
   }
 }
+/* ========================================
+   ANALYTICS – TAMBAHAN STYLING
+======================================== */
+
+.analytics-card {
+  background: linear-gradient(180deg, rgba(20,28,40,.92), rgba(10,15,25,.82));
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 20px;
+  backdrop-filter: var(--glass);
+  box-shadow: var(--shadow);
+}
+
+.analytics-card h3 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.analytics-card h4 {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.stat-item {
+  transition: transform 0.2s;
+}
+.stat-item:hover {
+  transform: translateY(-2px);
+}
+
+#trendContainer {
+  gap: 8px;
+}
+#trendContainer > div {
+  transition: transform 0.2s;
+}
+#trendContainer > div:hover {
+  transform: scale(1.05);
+}
+
+#heatmapTable td {
+  transition: opacity 0.2s;
+  min-width: 40px;
+}
+#heatmapTable td:hover {
+  opacity: 0.7;
+}
+
+/* ========================================
+   MOBILE FIX
+======================================== */
+@media (max-width: 768px) {
+  .analytics-card {
+    padding: 12px;
+    border-radius: 16px;
+  }
+  .analytics-card h3 {
+    font-size: 14px;
+  }
+  #statsContainer {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+  #statsContainer .stat-item {
+    padding: 8px !important;
+  }
+  #statsContainer .stat-item div:first-child {
+    font-size: 10px !important;
+  }
+  #statsContainer .stat-item div:last-child {
+    font-size: 18px !important;
+  }
+  .analytics-card > div[style*="grid-template-columns: 1fr 1fr;"] {
+    grid-template-columns: 1fr !important;
+  }
+  #trendContainer {
+    grid-template-columns: repeat(4,1fr) !important;
+    gap: 4px !important;
+  }
+  #trendContainer > div {
+    padding: 4px !important;
+  }
+  #trendContainer > div div:first-child {
+    font-size: 9px !important;
+  }
+  #trendContainer > div div:nth-child(2) {
+    font-size: 14px !important;
+  }
+  #trendContainer > div div:last-child {
+    font-size: 10px !important;
+  }
+  #heatmapTable td {
+    font-size: 8px !important;
+    padding: 2px !important;
+    min-width: 28px !important;
+  }
+  #heatmapTable th {
+    font-size: 8px !important;
+    padding: 2px !important;
+  }
+  #heatmapTable tr td:first-child {
+    font-size: 8px !important;
+    padding: 2px !important;
+  }
+  #histogramChart {
+    max-height: 150px !important;
+  }
+}
