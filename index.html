@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=250" />
+  <link rel="stylesheet" href="css/style.css?v=252" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Library untuk Export PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -141,7 +141,7 @@
               <div class="card-icon blue-box">📊</div>
               <div>
                 <h3>Grafik Cepat</h3>
-                <p class="card-sub">10 Data Suhu Terakhir</p>
+                <p class="card-sub">15 Data Suhu Terakhir</p>
               </div>
             </div>
             <canvas id="dashTempChart"></canvas>
@@ -245,33 +245,47 @@
       </section>
 
       <!-- ======================================
-           ANALYTICS
+           ANALYTICS (DENGAN WRAPPER & EXPAND)
       ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
         
         <!-- GRAFIK UTAMA -->
         <div class="analytics-grid">
+          <!-- SUHU -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>Suhu Realtime</h3>
               <button class="time-btn">24 Jam Terakhir</button>
             </div>
-            <canvas id="tempChart"></canvas>
+            <div class="chart-wrapper" id="wrapper-tempChart">
+              <button class="chart-expand-btn" onclick="toggleExpand('wrapper-tempChart')">🔍 Expand</button>
+              <canvas id="tempChart"></canvas>
+            </div>
           </div>
+
+          <!-- INTENSITAS -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>History Intensitas</h3>
               <button class="time-btn">24 Jam Terakhir</button>
             </div>
-            <canvas id="lightChart"></canvas>
+            <div class="chart-wrapper" id="wrapper-lightChart">
+              <button class="chart-expand-btn" onclick="toggleExpand('wrapper-lightChart')">🔍 Expand</button>
+              <canvas id="lightChart"></canvas>
+            </div>
           </div>
+
+          <!-- STATUS LAMPU -->
           <div class="analytics-card">
             <div class="analytics-head">
               <h3>Status Lampu</h3>
               <button class="time-btn">24 Jam Terakhir</button>
             </div>
-            <canvas id="lampStatusChart"></canvas>
+            <div class="chart-wrapper" id="wrapper-lampStatusChart">
+              <button class="chart-expand-btn" onclick="toggleExpand('wrapper-lampStatusChart')">🔍 Expand</button>
+              <canvas id="lampStatusChart"></canvas>
+            </div>
           </div>
         </div>
 
@@ -468,6 +482,6 @@
     </main>
   </div>
 
-  <script type="module" src="js/app.js?v=251"></script>
+  <script type="module" src="js/app.js?v=252"></script>
 </body>
 </html>
