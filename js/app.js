@@ -145,7 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ========================================
      CHART
   ======================================== */
-  const MAX_DATA_POINTS = 100; // 24 jam (interval 30 detik = ~50 data, 100 aman)
+  const MAX_DATA_POINTS = 100;
   const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
   let lampStatusChart = null;
 
@@ -169,7 +169,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ===== BAR CHART UNTUK STATUS LAMPU (FIX Y-AXIS) =====
+  // BAR CHART UNTUK STATUS LAMPU
   const lampStatusChartEl = document.getElementById('lampStatusChart');
   if (lampStatusChartEl) {
     lampStatusChart = new Chart(lampStatusChartEl, {
@@ -265,11 +265,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const time = parts[1].split('-').slice(0, 2).join(':');
         const label = date + ' ' + time;
 
-        // Normalisasi cahaya ke persentase (asumsi max 5000 lux)
+        // Normalisasi cahaya (asumsi max 5000 lux)
         const rawCahaya = cahayaData[key]?.value || 0;
         const normalizedCahaya = Math.min(100, Math.round(rawCahaya / 5000 * 100));
 
-        // Analytics charts
         tempLabels.push(label);
         tempData.push(suhuData[key]?.value || 0);
         sensorData.push(normalizedCahaya);
@@ -279,7 +278,6 @@ document.addEventListener("DOMContentLoaded", () => {
           lampStatusChart.data.datasets[0].data.push(lampuData[key]?.state ? 1 : 0);
         }
 
-        // Dashboard mini chart
         dashTempLabels.push(label);
         dashTempData.push(suhuData[key]?.value || 0);
       });
@@ -427,7 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
       dashLastUpdate.innerText = now.toLocaleTimeString('id-ID');
     }
 
-    // ===== QUICK STATS =====
+    // QUICK STATS
     const statTemp = document.getElementById('statTemp');
     const statTempStatus = document.getElementById('statTempStatus');
     const statLight = document.getElementById('statLight');
@@ -872,7 +870,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const data = snapshot.val();
     if (data) {
       state.temperature = data.suhu || 0;
-      // Normalisasi cahaya ke persentase (asumsi max 5000 lux)
+      // Normalisasi cahaya (asumsi max 5000 lux)
       const rawCahaya = data.cahaya || 0;
       state.sensorLight = Math.min(100, Math.round(rawCahaya / 5000 * 100));
       const time = new Date().toLocaleTimeString();
@@ -888,7 +886,7 @@ document.addEventListener("DOMContentLoaded", () => {
         tempChart.update();
       }
 
-      // Update Light Chart (Analytics) – NORMALISASI
+      // Update Light Chart (Analytics)
       if (lightChart) {
         lightLabels.push(time);
         sensorData.push(state.sensorLight);
@@ -899,7 +897,7 @@ document.addEventListener("DOMContentLoaded", () => {
         lightChart.update();
       }
 
-      // Update Lamp Status Chart – PASTIKAN 0/1
+      // Update Lamp Status Chart
       if (lampStatusChart) {
         lampStatusChart.data.labels.push(time);
         lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
