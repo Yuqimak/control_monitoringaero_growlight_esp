@@ -715,8 +715,6 @@ canvas { width: 100% !important; max-height: 180px; }
   .dashboard-status-grid { grid-template-columns: 1fr !important; }
   #userList table { font-size: 12px; }
   #userList .small-btn { font-size: 10px; padding: 2px 6px; }
-  .chart-wrapper.expanded { transform: scale(1) !important; }
-  .chart-wrapper.expanded canvas { max-height: 200px !important; }
 }
 
 /* ========================================
@@ -776,6 +774,7 @@ canvas { width: 100% !important; max-height: 180px; }
   grid-column: 1 / -1 !important;
   z-index: 10;
   transform: scale(1.02);
+  width: 100% !important;
 }
 .chart-wrapper.expanded canvas { max-height: 400px !important; }
 .chart-expand-btn {
