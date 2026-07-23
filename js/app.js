@@ -265,7 +265,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const time = parts[1].split('-').slice(0, 2).join(':');
         const label = date + ' ' + time;
 
-        // Normalisasi cahaya (asumsi max 5000 lux)
         const rawCahaya = cahayaData[key]?.value || 0;
         const normalizedCahaya = Math.min(100, Math.round(rawCahaya / 5000 * 100));
 
@@ -278,8 +277,10 @@ document.addEventListener("DOMContentLoaded", () => {
           lampStatusChart.data.datasets[0].data.push(lampuData[key]?.state ? 1 : 0);
         }
 
-        dashTempLabels.push(label);
-        dashTempData.push(suhuData[key]?.value || 0);
+        if (dashTempLabels.length < 15) {
+          dashTempLabels.push(label);
+          dashTempData.push(suhuData[key]?.value || 0);
+        }
       });
 
       if (tempChart) tempChart.update();
@@ -870,12 +871,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const data = snapshot.val();
     if (data) {
       state.temperature = data.suhu || 0;
-      // Normalisasi cahaya (asumsi max 5000 lux)
       const rawCahaya = data.cahaya || 0;
       state.sensorLight = Math.min(100, Math.round(rawCahaya / 5000 * 100));
       const time = new Date().toLocaleTimeString();
 
-      // Update Temp Chart (Analytics)
       if (tempChart) {
         tempLabels.push(time);
         tempData.push(state.temperature);
@@ -886,7 +885,6 @@ document.addEventListener("DOMContentLoaded", () => {
         tempChart.update();
       }
 
-      // Update Light Chart (Analytics)
       if (lightChart) {
         lightLabels.push(time);
         sensorData.push(state.sensorLight);
@@ -897,7 +895,6 @@ document.addEventListener("DOMContentLoaded", () => {
         lightChart.update();
       }
 
-      // Update Lamp Status Chart
       if (lampStatusChart) {
         lampStatusChart.data.labels.push(time);
         lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
@@ -908,7 +905,6 @@ document.addEventListener("DOMContentLoaded", () => {
         lampStatusChart.update();
       }
 
-      // UPDATE DASHBOARD MINI CHART
       if (dashTempChart) {
         dashTempLabels.push(time);
         dashTempData.push(state.temperature);
@@ -1185,7 +1181,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const isExpanded = wrapper.classList.contains('expanded');
 
-    // Tutup semua yang lain
     document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
       if (el.id !== wrapperId) {
         el.classList.remove('expanded');
