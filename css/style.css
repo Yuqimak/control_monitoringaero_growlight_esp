@@ -1314,3 +1314,174 @@ html, body {
     max-height: 100px !important;
   }
 }
+/* ========================================
+   CONTROL MOBILE FIX - TUMPANG TINDIH
+======================================== */
+
+@media (max-width: 768px) {
+  /* Control Grid jadi 1 kolom */
+  .control-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  /* Semua card di Control jadi full width */
+  .control-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    grid-column: unset !important;
+    padding: 14px !important;
+    border-radius: 14px !important;
+    margin-bottom: 0 !important;
+  }
+
+  /* Force semua card yang pakai grid-column span */
+  .control-card[style*="grid-column: span"] {
+    grid-column: unset !important;
+    width: 100% !important;
+  }
+
+  /* Mode selector (dropdown + tombol) */
+  .mode-selector {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .mode-selector select {
+    width: 100% !important;
+    padding: 10px !important;
+    font-size: 14px !important;
+    min-width: unset !important;
+  }
+
+  .mode-selector button {
+    width: 100% !important;
+    padding: 10px !important;
+    font-size: 14px !important;
+  }
+
+  /* Mode kontrol buttons (Otomatis/Jadwal/Manual) */
+  .mode-btn {
+    flex: 1 1 auto !important;
+    min-width: 80px !important;
+    padding: 10px !important;
+    font-size: 13px !important;
+  }
+
+  /* Dimmer row */
+  .dimmer-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+  }
+
+  .dimmer-row .adjust-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+  }
+
+  #dimmerInput {
+    width: 60px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+    flex: 0 0 auto !important;
+  }
+
+  /* Input number & range di Control */
+  .control-card input[type="number"],
+  .control-card input[type="range"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .control-card input[type="range"] {
+    min-width: unset !important;
+  }
+
+  /* Button row (ON/OFF) */
+  .button-row {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .button-row .big-btn {
+    flex: 1 !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+
+  /* Info text */
+  .info-text {
+    font-size: 13px !important;
+    margin-top: 8px !important;
+  }
+
+  /* Mode info */
+  .mode-info {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    font-size: 13px !important;
+    padding: 10px 12px !important;
+  }
+
+  /* Fitur baru di Control */
+  .control-card > div[style*="display:flex"],
+  .control-card > div[style*="display: flex"] {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .control-card > div[style*="display:flex"] input[type="number"],
+  .control-card > div[style*="display: flex"] input[type="number"] {
+    min-width: 60px !important;
+    flex: 1 !important;
+  }
+
+  .control-card > div[style*="display:flex"] button {
+    flex: 0 0 auto !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+  }
+
+  /* Total jam */
+  #totalJam {
+    min-width: 60px !important;
+    flex: 1 !important;
+  }
+
+  /* Jadwal start/end */
+  #jadwalStart, #jadwalEnd {
+    min-width: 50px !important;
+    flex: 1 !important;
+  }
+
+  /* Force Day On checkbox */
+  .control-card input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Reset button */
+  #resetPlantBtn {
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    margin-top: 4px !important;
+  }
+
+  /* Unlock btn (admin) */
+  .unlock-btn {
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+}
