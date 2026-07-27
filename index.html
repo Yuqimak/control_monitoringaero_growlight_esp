@@ -412,12 +412,14 @@
         </div>
       </section>
 
-      <!-- ======================================
-           CONTROL
+            <!-- ======================================
+           CONTROL (DENGAN FITUR BARU)
       ======================================= -->
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
         <div class="control-grid" id="controlSection">
+          
+          <!-- KONTROL LAMPU -->
           <div class="control-card">
             <h3>🚨 Emergency Control</h3>
             <div class="button-row">
@@ -427,6 +429,7 @@
             <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
           </div>
 
+          <!-- MODE PERTUMBUHAN (LAMA) -->
           <div class="control-card" style="grid-column: span 2;">
             <h3>🌱 Mode Pertumbuhan Kentang</h3>
             <div class="mode-selector">
@@ -443,11 +446,94 @@
               <span id="currentModeDisplay">Mode: Manual</span>
               <span id="modeDurationDisplay">Durasi: -</span>
             </div>
-            <button id="resetPlantBtn" class="unlock-btn" style="margin-top:12px; background:rgba(239,68,68,.2); color:#ef4444;">🔄 Reset Tanam (Mulai Baru)</button>
           </div>
+
+          <!-- ===== FITUR KONTROL BARU ===== -->
+          <div class="control-card" style="grid-column: span 2; margin-top: 12px; border-top: 1px solid var(--border); padding-top: 16px;">
+            <h3>🎛️ Mode Kontrol Lampu</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+              Pilih cara lampu dikontrol. Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis</button>
+              <button id="modeJadwalBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">⏰ Jadwal</button>
+              <button id="modeManualBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">👋 Manual</button>
+            </div>
+          </div>
+
+          <!-- TOTAL JAM (REPEAT CYCLE) -->
+          <div class="control-card" style="grid-column: span 1;">
+            <h3>🔁 Repeat Cycle</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Total nyala per hari (1-18 jam)
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input type="number" id="totalJam" value="14" min="1" max="18" 
+                style="flex:1; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px; min-width:80px;">
+              <span style="color:var(--muted);">jam</span>
+              <button id="saveTotalJamBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
+            </div>
+            <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+              💡 Siklus ON/OFF otomatis 15/15 menit
+            </p>
+          </div>
+
+          <!-- LUX THRESHOLD -->
+          <div class="control-card" style="grid-column: span 1;">
+            <h3>🌡️ Batas Lux</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Lampu mati jika lux melewati batas ini
+            </p>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <input type="range" id="luxThreshold" min="0" max="5000" value="500" step="50"
+                style="flex:1; min-width:120px;">
+              <span id="luxThresholdDisplay" style="font-weight:600; min-width:70px;">500 lux</span>
+            </div>
+            <button id="saveThresholdBtn" class="big-btn on" style="width:100%; margin-top:8px; padding:10px;">Simpan Threshold</button>
+          </div>
+
+          <!-- JADWAL -->
+          <div class="control-card" style="grid-column: span 1;">
+            <h3>⏰ Jadwal Nyala</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Atur jam lampu menyala setiap hari
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <div style="flex:1; min-width:80px;">
+                <label style="font-size:12px; color:var(--muted);">Mulai</label>
+                <input type="number" id="jadwalStart" value="6" min="0" max="23" 
+                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+              </div>
+              <span style="color:var(--muted);">-</span>
+              <div style="flex:1; min-width:80px;">
+                <label style="font-size:12px; color:var(--muted);">Selesai</label>
+                <input type="number" id="jadwalEnd" value="18" min="0" max="23" 
+                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+              </div>
+              <button id="saveJadwalBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px; margin-top:6px;">Simpan</button>
+            </div>
+          </div>
+
+          <!-- FORCE DAY ON -->
+          <div class="control-card" style="grid-column: span 1;">
+            <h3>☀️ Opsi Pengujian</h3>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+              <label style="color:var(--muted); font-size:14px;">Siang Tetap ON:</label>
+              <input type="checkbox" id="forceDayOn" style="width:22px; height:22px; accent-color:var(--green); cursor:pointer;">
+              <span style="font-size:13px; color:var(--muted);">(abaikan lux untuk pengujian)</span>
+            </div>
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              ⚠️ Hanya untuk pengujian! Jangan lupa matikan.
+            </p>
+          </div>
+
+          <!-- RESET TANAM -->
+          <div style="grid-column: span 2; margin-top:8px;">
+            <button id="resetPlantBtn" class="unlock-btn" style="background:rgba(239,68,68,.2); color:#ef4444;">🔄 Reset Tanam (Mulai Baru)</button>
+          </div>
+
         </div>
       </section>
-
       <!-- ======================================
            ADMIN PANEL
       ======================================= -->
@@ -480,6 +566,6 @@
     </main>
   </div>
 
-  <script type="module" src="js/app.js?v=301"></script>
+  <script type="module" src="js/app.js?v=303"></script>
 </body>
 </html>
