@@ -796,3 +796,521 @@ canvas { width: 100% !important; max-height: 180px; }
   background: rgba(34,197,94,0.3);
   border-color: #22c55e;
 }
+/* ========================================
+   MOBILE LAYOUT FIX - AMURADUL
+======================================== */
+
+/* Pastikan semua konten bisa di-scroll */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+}
+
+.main-content {
+  padding: 12px !important;
+  overflow-x: hidden !important;
+}
+
+/* ===== TOPBAR ===== */
+@media (max-width: 768px) {
+  .topbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .topbar > div:first-child {
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+  }
+
+  .topbar h1 {
+    font-size: 16px !important;
+    margin-bottom: 0 !important;
+  }
+
+  .subtitle {
+    display: none !important;
+  }
+
+  .topbar-right {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  .status-card, .clock-card, .user-card {
+    padding: 6px 10px !important;
+    font-size: 10px !important;
+    border-radius: 12px !important;
+    flex: 1 !important;
+    min-width: 60px !important;
+  }
+
+  .clock-card h3 {
+    font-size: 13px !important;
+  }
+  .clock-card p {
+    font-size: 9px !important;
+  }
+
+  .user-card {
+    font-size: 10px !important;
+    padding: 4px 8px !important;
+  }
+  .logout-btn {
+    font-size: 14px !important;
+    padding: 2px 8px !important;
+  }
+
+  .online-text {
+    font-size: 10px !important;
+    margin-bottom: 2px !important;
+  }
+  .online-text::before {
+    width: 6px !important;
+    height: 6px !important;
+    margin-right: 4px !important;
+  }
+  .firebase-text {
+    font-size: 9px !important;
+  }
+}
+
+/* ===== DASHBOARD ===== */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .dashboard-card {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .dashboard-card .card-head {
+    margin-bottom: 10px !important;
+  }
+  .dashboard-card .card-head h3 {
+    font-size: 13px !important;
+  }
+  .dashboard-card .card-sub {
+    font-size: 10px !important;
+  }
+  .dashboard-card .card-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+  }
+
+  /* Quick Stats */
+  .quick-stats {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .quick-stat {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    gap: 10px !important;
+  }
+  .quick-stat-icon {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 16px !important;
+  }
+  .quick-stat-value {
+    font-size: 16px !important;
+  }
+  .quick-stat-label {
+    font-size: 9px !important;
+  }
+
+  /* Dashboard Main Grid */
+  .dashboard-main-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Dashboard Sensor Grid */
+  .dashboard-sensor-grid {
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 6px !important;
+  }
+  .sensor-item {
+    padding: 8px 4px !important;
+    border-radius: 10px !important;
+  }
+  .sensor-label {
+    font-size: 9px !important;
+  }
+  .sensor-value {
+    font-size: 14px !important;
+  }
+  .sensor-status {
+    font-size: 9px !important;
+  }
+
+  /* Dashboard Status Grid */
+  .dashboard-status-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+  }
+  .status-item {
+    padding: 6px 8px !important;
+    border-radius: 8px !important;
+  }
+  .status-label {
+    font-size: 9px !important;
+  }
+  .status-badge {
+    font-size: 11px !important;
+  }
+
+  /* Dashboard Chart */
+  .dashboard-chart-card canvas {
+    max-height: 80px !important;
+  }
+  .chart-status {
+    font-size: 11px !important;
+    margin-top: 4px !important;
+  }
+}
+
+/* ===== MONITORING ===== */
+@media (max-width: 768px) {
+  .monitor-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .monitor-card {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+  .monitor-card .card-head {
+    margin-bottom: 8px !important;
+  }
+  .monitor-card .card-head h3 {
+    font-size: 13px !important;
+  }
+  .monitor-card .card-sub {
+    font-size: 10px !important;
+  }
+  .monitor-card .card-icon {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+  }
+  .metric {
+    font-size: 24px !important;
+    margin-bottom: 4px !important;
+  }
+  .metric-status {
+    font-size: 12px !important;
+    margin-bottom: 8px !important;
+  }
+}
+
+/* ===== ANALYTICS ===== */
+@media (max-width: 768px) {
+  .analytics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .analytics-card {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+  .analytics-card h3 {
+    font-size: 14px !important;
+    margin-bottom: 4px !important;
+  }
+  .analytics-card h4 {
+    font-size: 12px !important;
+  }
+  .analytics-head {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  .time-btn {
+    font-size: 10px !important;
+    padding: 4px 10px !important;
+  }
+  canvas {
+    max-height: 100px !important;
+  }
+
+  /* Statistik */
+  #statsContainer {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+  }
+  #statsContainer .stat-item {
+    padding: 6px !important;
+  }
+  #statsContainer .stat-item div:first-child {
+    font-size: 9px !important;
+  }
+  #statsContainer .stat-item div:last-child {
+    font-size: 16px !important;
+  }
+
+  /* Kategori + Waktu Lampu */
+  .analytics-card > div[style*="grid-template-columns: 1fr 1fr;"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Trend */
+  #trendContainer {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4px !important;
+  }
+  #trendContainer > div {
+    padding: 4px !important;
+  }
+  #trendContainer > div div:first-child {
+    font-size: 8px !important;
+  }
+  #trendContainer > div div:nth-child(2) {
+    font-size: 13px !important;
+  }
+  #trendContainer > div div:last-child {
+    font-size: 9px !important;
+  }
+
+  /* Heatmap */
+  #heatmapTable td {
+    font-size: 7px !important;
+    padding: 2px !important;
+    min-width: 24px !important;
+  }
+  #heatmapTable th {
+    font-size: 7px !important;
+    padding: 2px !important;
+  }
+  #heatmapTable tr td:first-child {
+    font-size: 7px !important;
+  }
+
+  /* Histogram */
+  #histogramChart {
+    max-height: 120px !important;
+  }
+
+  /* Export */
+  .analytics-card > div[style*="display:flex; gap:12px; flex-wrap:wrap;"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .analytics-card select {
+    font-size: 12px !important;
+    padding: 8px !important;
+  }
+  .analytics-card .big-btn {
+    font-size: 12px !important;
+    padding: 8px !important;
+  }
+}
+
+/* ===== CONTROL ===== */
+@media (max-width: 768px) {
+  .control-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .control-card {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+  .control-card h3 {
+    font-size: 14px !important;
+  }
+  .control-card[style*="grid-column: span 2;"] {
+    grid-column: span 1 !important;
+  }
+
+  .mode-selector {
+    flex-direction: column !important;
+  }
+  .mode-selector select {
+    width: 100% !important;
+    font-size: 14px !important;
+    padding: 8px !important;
+  }
+  .mode-selector button {
+    width: 100% !important;
+    font-size: 14px !important;
+    padding: 10px !important;
+  }
+
+  .button-row {
+    flex-direction: row !important;
+    gap: 6px !important;
+  }
+  .big-btn {
+    padding: 8px !important;
+    font-size: 13px !important;
+  }
+
+  .dimmer-row {
+    flex-wrap: wrap !important;
+  }
+  #dimmerInput {
+    width: 50px !important;
+    height: 32px !important;
+    font-size: 13px !important;
+  }
+  .adjust-btn {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 14px !important;
+  }
+
+  .mode-info {
+    flex-direction: column !important;
+    gap: 4px !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+  }
+  .info-text {
+    font-size: 12px !important;
+  }
+
+  /* Fitur Baru di Control */
+  #totalJam {
+    font-size: 14px !important;
+    padding: 6px !important;
+    min-width: 60px !important;
+  }
+  #luxThreshold {
+    min-width: 100px !important;
+  }
+  #jadwalStart, #jadwalEnd {
+    padding: 6px !important;
+    font-size: 14px !important;
+    min-width: 60px !important;
+  }
+}
+
+/* ===== ADMIN ===== */
+@media (max-width: 768px) {
+  .admin-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .admin-card {
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+  .admin-card h3 {
+    font-size: 14px !important;
+  }
+  .admin-card input, .admin-card select {
+    padding: 8px !important;
+    font-size: 13px !important;
+  }
+
+  #userList table {
+    font-size: 11px !important;
+  }
+  #userList th, #userList td {
+    padding: 4px 2px !important;
+  }
+  #userList .small-btn {
+    font-size: 9px !important;
+    padding: 2px 6px !important;
+  }
+}
+
+/* ===== SIDEBAR ===== */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 250px !important;
+    padding: 16px 12px !important;
+  }
+
+  .logo {
+    gap: 10px !important;
+    margin-bottom: 24px !important;
+  }
+  .logo h2 {
+    font-size: 16px !important;
+  }
+  .logo p {
+    font-size: 11px !important;
+  }
+  .logo-icon {
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 18px !important;
+  }
+
+  .menu-item {
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+    border-radius: 12px !important;
+  }
+
+  .system-box {
+    padding: 12px !important;
+  }
+  .system-title {
+    font-size: 12px !important;
+  }
+  .system-online {
+    font-size: 12px !important;
+  }
+}
+
+/* ===== OVERHEAT ALERT ===== */
+@media (max-width: 768px) {
+  #overheatContainer {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+  }
+  #overheatContainer > div {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+  }
+  #overheatContainer > div > div:last-child {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  #overheatContainer .online-text {
+    font-size: 12px !important;
+  }
+  #overheatContainer .firebase-text {
+    font-size: 11px !important;
+  }
+
+  /* Expand chart */
+  .chart-wrapper.expanded {
+    transform: scale(1) !important;
+    padding: 4px !important;
+  }
+  .chart-wrapper.expanded canvas {
+    max-height: 180px !important;
+  }
+  .chart-expand-btn {
+    font-size: 9px !important;
+    padding: 2px 8px !important;
+  }
+}
+
+/* ===== CHART WRAPPER ===== */
+@media (max-width: 768px) {
+  .chart-wrapper {
+    padding: 4px !important;
+  }
+  .chart-wrapper canvas {
+    max-height: 100px !important;
+  }
+}
