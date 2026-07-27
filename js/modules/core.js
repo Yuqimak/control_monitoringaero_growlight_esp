@@ -2,7 +2,6 @@
 // CORE: State, DOM, Utils
 // ============================================
 
-// ---- STATE ----
 export const state = {
   temperature: 0,
   sensorLight: 0,
@@ -16,7 +15,6 @@ export const state = {
 export let currentUser = null;
 export function setUser(user) { currentUser = user; }
 
-// ---- DOM ----
 export const $ = (id) => {
   const el = document.getElementById(id);
   if (!el) console.warn(`Element #${id} not found!`);
@@ -26,28 +24,45 @@ export const $ = (id) => {
 export const DOM = {};
 
 export function initDOM() {
+  // ===== ELEMENT DARI HTML TERBARU =====
   const ids = [
-    'connStatus', 'monitorTemp', 'monitorLight', 'monitorLampStatus',
-    'btnOn', 'btnOff', 'controlSection',
-    'dashTemp', 'dashLight', 'dashLampStatus',
-    'dashTempStatus', 'dashLightStatus', 'dashLampLabel',
-    'dashConnStatus', 'dashDataCount', 'dashLastUpdate',
-    'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
-    'userName',
-    'growthMode', 'applyModeBtn',
-    'currentModeDisplay', 'modeDurationDisplay',
-    'modeIcon', 'modeName', 'modeDuration',
-    'dayCounter', 'timelineMessage', 'resetPlantBtn',
-    'exportPeriod', 'exportBtn', 'exportStatus', 'exportPdfBtn',
-    'overheatContainer', 'overheatMessage', 'lampStateText',
+    // Topbar
+    'connStatus', 'userName', 'dateText', 'clockText', 'menuToggle',
+    // Dashboard - Quick Stats
     'statTemp', 'statTempStatus', 'statLight', 'statLightStatus',
     'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
-    'chartStatus', 'dashMaxTemp'
+    // Dashboard - Chart & Mode
+    'dashTempChart', 'chartStatus',
+    'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
+    // Dashboard - System Status
+    'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
+    // Dashboard - Overheat
+    'overheatContainer', 'overheatMessage',
+    // Monitoring
+    'monitorTemp', 'monitorLight', 'monitorLampStatus',
+    'tempStatus', 'lightStatus', 'lampStatusText',
+    // Analytics (nanti ditambah)
+    'tempChart', 'lightChart', 'lampStatusChart',
+    'avgTemp', 'maxTemp', 'minTemp', 'avgLight',
+    'coldBar', 'coldPercent', 'normalBar', 'normalPercent',
+    'warmBar', 'warmPercent', 'hotBar', 'hotPercent',
+    'lampOnTime', 'lampOffTime', 'lampOnBar', 'lampOffBar',
+    'onPercent', 'offPercent',
+    'trendContainer', 'heatmapTable', 'histogramChart',
+    'exportPeriod', 'exportBtn', 'exportStatus', 'exportPdfBtn',
+    // Control
+    'btnOn', 'btnOff', 'lampStateText',
+    'growthMode', 'applyModeBtn',
+    'currentModeDisplay', 'modeDurationDisplay',
+    'resetPlantBtn', 'controlSection',
+    // Admin
+    'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
+    'newUsername', 'newPassword', 'newNama', 'newRole'
   ];
+  
   ids.forEach(id => { DOM[id] = $(id); });
 }
 
-// ---- UTILS ----
 export function animateValue(el, start, end, duration = 300) {
   if (!el) return;
   let startTime = null;
