@@ -9,7 +9,16 @@ export const state = {
   mode: 'manual',
   plantStartDate: null,
   alert: '',
-  unlocked: false
+  unlocked: false,
+  // 🔥 FITUR BARU
+  controlMode: 'otomatis',
+  totalJam: 14,
+  cycleOn: 15,
+  cycleOff: 15,
+  luxThreshold: 500,
+  forceDayOn: false,
+  jadwalStart: 6,
+  jadwalEnd: 18
 };
 
 export let currentUser = null;
@@ -24,42 +33,29 @@ export const $ = (id) => {
 export const DOM = {};
 
 export function initDOM() {
-  // ===== ELEMENT DARI HTML TERBARU =====
   const ids = [
-    // Topbar
     'connStatus', 'userName', 'dateText', 'clockText', 'menuToggle',
-    // Dashboard - Quick Stats
     'statTemp', 'statTempStatus', 'statLight', 'statLightStatus',
     'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
-    // Dashboard - Chart & Mode
-    'dashTempChart', 'chartStatus',
     'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
-    // Dashboard - System Status
     'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
-    // Dashboard - Overheat
+    'dashTempChart', 'chartStatus',
     'overheatContainer', 'overheatMessage',
-    // Monitoring
     'monitorTemp', 'monitorLight', 'monitorLampStatus',
     'tempStatus', 'lightStatus', 'lampStatusText',
-    // Analytics (nanti ditambah)
-    'tempChart', 'lightChart', 'lampStatusChart',
-    'avgTemp', 'maxTemp', 'minTemp', 'avgLight',
-    'coldBar', 'coldPercent', 'normalBar', 'normalPercent',
-    'warmBar', 'warmPercent', 'hotBar', 'hotPercent',
-    'lampOnTime', 'lampOffTime', 'lampOnBar', 'lampOffBar',
-    'onPercent', 'offPercent',
-    'trendContainer', 'heatmapTable', 'histogramChart',
-    'exportPeriod', 'exportBtn', 'exportStatus', 'exportPdfBtn',
-    // Control
     'btnOn', 'btnOff', 'lampStateText',
     'growthMode', 'applyModeBtn',
     'currentModeDisplay', 'modeDurationDisplay',
     'resetPlantBtn', 'controlSection',
-    // Admin
+    // 🔥 FITUR BARU
+    'modeAutoBtn', 'modeJadwalBtn', 'modeManualBtn',
+    'totalJam', 'saveTotalJamBtn',
+    'luxThreshold', 'saveThresholdBtn', 'luxThresholdDisplay',
+    'forceDayOn',
+    'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
     'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
     'newUsername', 'newPassword', 'newNama', 'newRole'
   ];
-  
   ids.forEach(id => { DOM[id] = $(id); });
 }
 
