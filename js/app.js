@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js
+// MAIN ENTRY – app.js (DENGAN FITUR BARU)
 // ============================================
 
 import { db } from './firebase.js';
@@ -47,6 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initFirebase();
   initControls();
   initExpandChart();
+  initModeControls(); // 🔥 FITUR BARU
   
   // Export buttons
   if (DOM.exportBtn && DOM.exportPeriod) {
@@ -101,18 +102,26 @@ function initFirebase() {
     renderUI();
   });
   
-  // System
+  // System (untuk fitur baru)
   onValue(ref(db, 'system'), (snap) => {
     const d = snap.val();
     if (d) {
       state.plantStartDate = d.plant_start_date || null;
       state.alert = d.alert || '';
+      state.controlMode = d.control_mode || 'otomatis';
+      state.totalJam = d.total_jam || 14;
+      state.cycleOn = d.cycle_on || 15;
+      state.cycleOff = d.cycle_off || 15;
+      state.luxThreshold = d.lux_threshold || 500;
+      state.forceDayOn = d.force_day_on || false;
+      state.jadwalStart = d.jadwal_start || 6;
+      state.jadwalEnd = d.jadwal_end || 18;
     }
     renderUI();
   });
 }
 
-// ===== CONTROLS =====
+// ===== CONTROLS (EXISTING) =====
 function initControls() {
   // ON/OFF
   if (DOM.btnOn) {
@@ -130,7 +139,7 @@ function initControls() {
     });
   }
   
-  // MODE PERTUMBUHAN
+  // MODE PERTUMBUHAN (LAMA)
   if (DOM.applyModeBtn && DOM.growthMode) {
     DOM.applyModeBtn.addEventListener('click', async () => {
       const mode = DOM.growthMode.value;
@@ -168,6 +177,122 @@ function initControls() {
       showToast('✅ Tanaman di-reset!', 'success');
     });
   }
+}
+
+// ===== 🔥 FITUR BARU: MODE KONTROL (JADWAL, LUX, REPEAT CYCLE) =====
+function initModeControls() {
+  // 1. Pilih Mode Kontrol (Otomatis/Jadwal/Manual)
+  const modeAutoBtn = document.getElementById('modeAutoBtn');
+  const modeJadwalBtn = document.getElementById('modeJadwalBtn');
+  const modeManualBtn = document.getElementById('modeManualBtn');
+  
+  if (modeAutoBtn) {
+    modeAutoBtn.addEventListener('click', () => {
+      setModeControl('otomatis');
+    });
+  }
+  if (modeJadwalBtn) {
+    modeJadwalBtn.addEventListener('click', () => {
+      setModeControl('jadwal');
+    });
+  }
+  if (modeManualBtn) {
+    modeManualBtn.addEventListener('click', () => {
+      setModeControl('manual');
+    });
+  }
+  
+  // 2. Simpan Total Jam (Repeat Cycle)
+  const totalJamInput = document.getElementById('totalJam');
+  const saveTotalJamBtn = document.getElementById('saveTotalJamBtn');
+  if (saveTotalJamBtn && totalJamInput) {
+    saveTotalJamBtn.addEventListener('click', () => {
+      const val = parseInt(totalJamInput.value);
+      if (val < 1 || val > 18) {
+        showToast('❌ Total jam harus 1-18 jam', 'error');
+        return;
+      }
+      set(ref(db, 'system/total_jam'), val)
+        .then(() => showToast('✅ Total jam disimpan!', 'success'))
+        .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    });
+  }
+  
+  // 3. Simpan Lux Threshold
+  const luxThresholdInput = document.getElementById('luxThreshold');
+  const saveThresholdBtn = document.getElementById('saveThresholdBtn');
+  if (saveThresholdBtn && luxThresholdInput) {
+    saveThresholdBtn.addEventListener('click', () => {
+      const val = parseInt(luxThresholdInput.value);
+      if (val < 0 || val > 5000) {
+        showToast('❌ Threshold harus 0-5000 lux', 'error');
+        return;
+      }
+      set(ref(db, 'system/lux_threshold'), val)
+        .then(() => showToast('✅ Threshold lux disimpan!', 'success'))
+        .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    });
+    
+    // Preview slider
+    luxThresholdInput.addEventListener('input', (e) => {
+      const display = document.getElementById('luxThresholdDisplay');
+      if (display) display.textContent = e.target.value + ' lux';
+    });
+  }
+  
+  // 4. Force Day ON (checkbox)
+  const forceDayOnCheck = document.getElementById('forceDayOn');
+  if (forceDayOnCheck) {
+    forceDayOnCheck.addEventListener('change', () => {
+      set(ref(db, 'system/force_day_on'), forceDayOnCheck.checked)
+        .then(() => showToast(forceDayOnCheck.checked ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info'))
+        .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    });
+  }
+  
+  // 5. Simpan Jadwal (jam nyala-mati)
+  const jadwalStart = document.getElementById('jadwalStart');
+  const jadwalEnd = document.getElementById('jadwalEnd');
+  const saveJadwalBtn = document.getElementById('saveJadwalBtn');
+  if (saveJadwalBtn && jadwalStart && jadwalEnd) {
+    saveJadwalBtn.addEventListener('click', () => {
+      const start = parseInt(jadwalStart.value);
+      const end = parseInt(jadwalEnd.value);
+      if (start < 0 || start > 23 || end < 0 || end > 23) {
+        showToast('❌ Jam harus 0-23', 'error');
+        return;
+      }
+      set(ref(db, 'system/jadwal_start'), start);
+      set(ref(db, 'system/jadwal_end'), end)
+        .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
+        .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    });
+  }
+}
+
+// ===== FUNGSI SET MODE KONTROL =====
+function setModeControl(mode) {
+  set(ref(db, 'system/control_mode'), mode)
+    .then(() => {
+      state.controlMode = mode;
+      const display = document.getElementById('currentModeDisplay');
+      if (display) {
+        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+        display.textContent = labels[mode] || mode;
+      }
+      // Update tombol
+      document.querySelectorAll('.mode-btn').forEach(btn => {
+        btn.style.background = 'rgba(255,255,255,0.1)';
+        btn.style.border = '1px solid rgba(255,255,255,0.1)';
+      });
+      const activeBtn = document.getElementById(`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}Btn`);
+      if (activeBtn) {
+        activeBtn.style.background = '#22c55e';
+        activeBtn.style.border = '1px solid #22c55e';
+      }
+      showToast(`✅ Mode ${mode} aktif`, 'success');
+    })
+    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
 }
 
 // ===== EXPAND CHART =====
