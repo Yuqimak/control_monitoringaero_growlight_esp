@@ -64,8 +64,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(updateClock, 1000);
   
   // Show user info
-  if (DOM.userNameEl) {
-    DOM.userNameEl.textContent = `👋 ${currentUser?.nama || 'User'}`;
+  if (DOM.userName) {
+    DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
   }
   
   console.log("🚀 App siap!");
