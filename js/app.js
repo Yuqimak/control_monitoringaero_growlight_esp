@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FIXED)
+// MAIN ENTRY – app.js (FIXED - OPSI 2)
 // ============================================
 
 import { db } from './firebase.js';
@@ -49,7 +49,6 @@ document.addEventListener("DOMContentLoaded", () => {
   initExpandChart();
   initModeControls();
   
-  // Export buttons
   if (DOM.exportBtn && DOM.exportPeriod) {
     DOM.exportBtn.addEventListener('click', () => exportData(DOM.exportPeriod.value));
   }
@@ -57,14 +56,11 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.exportPdfBtn.addEventListener('click', exportPDF);
   }
   
-  // Load history
   loadChartHistory();
   
-  // Clock
   updateClock();
   setInterval(updateClock, 1000);
   
-  // Show user info
   if (DOM.userName) {
     DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
   }
@@ -72,9 +68,11 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 App siap!");
 });
 
-// ===== FIREBASE LISTENERS =====
+// ============================================
+// FIREBASE LISTENERS
+// ============================================
 function initFirebase() {
-  // Sensor (realtime)
+  // Sensor
   onValue(ref(db, 'sensor'), (snap) => {
     const d = snap.val();
     if (d) {
@@ -128,10 +126,22 @@ function initFirebase() {
       if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
       if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
       
-      // Update UI tombol mode sesuai state
       updateModeButtonUI(state.controlMode);
     }
     renderUI();
+  });
+  
+  // ===== LISTENER BARU: control/lamp/mode =====
+  onValue(ref(db, 'control/lamp/mode'), (snap) => {
+    const mode = snap.val();
+    if (mode && (mode === 'otomatis' || mode === 'jadwal' || mode === 'manual')) {
+      state.controlMode = mode;
+      if (DOM.currentModeDisplay2) {
+        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+        DOM.currentModeDisplay2.textContent = labels[mode] || mode;
+      }
+      updateModeButtonUI(mode);
+    }
   });
 }
 
@@ -215,7 +225,9 @@ function initControls() {
   }
 }
 
-// ===== MODE KONTROL (FIXED) =====
+// ============================================
+// MODE KONTROL (FIXED - OPSI 2)
+// ============================================
 function initModeControls() {
   if (DOM.modeAutoBtn) {
     DOM.modeAutoBtn.addEventListener('click', () => {
@@ -283,20 +295,29 @@ function initModeControls() {
   }
 }
 
-// ===== SET MODE CONTROL (FIXED WITH DEBUG) =====
+// ============================================
+// SET MODE CONTROL (FIXED - OPSI 2)
+// ============================================
 function setModeControl(mode) {
+  console.log("🟢 [setModeControl] Dipanggil dengan mode:", mode);
+  
+  if (!db) {
+    console.error("❌ Firebase database tidak terdefinisi!");
+    showToast('❌ Firebase tidak terhubung!', 'error');
+    return;
+  }
+  
   // ===== KIRIM KE control/lamp/mode (AGAR ESP32 BISA BACA) =====
-  set(ref(db, 'control/lamp/mode'), mode)  // ← UBAH KE SINI
+  set(ref(db, 'control/lamp/mode'), mode)
     .then(() => {
       console.log("✅ Mode dikirim ke control/lamp/mode:", mode);
       state.controlMode = mode;
       
-      // ===== TETAP KIRIM JUGA KE system/control_mode (untuk referensi) =====
+      // ===== TETAP KIRIM JUGA KE system/control_mode =====
       set(ref(db, 'system/control_mode'), mode)
         .then(() => console.log("✅ Mode juga dikirim ke system/control_mode:", mode))
         .catch(err => console.warn("⚠️ Gagal kirim ke system/control_mode:", err));
       
-      // Update UI
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         DOM.currentModeDisplay2.textContent = labels[mode] || mode;
@@ -306,7 +327,7 @@ function setModeControl(mode) {
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
     .catch(err => {
-      console.error("❌ Gagal simpan mode:", err);
+      console.error("❌ Gagal simpan mode ke control/lamp/mode:", err);
       showToast('❌ Gagal: ' + err.message, 'error');
     });
 }
