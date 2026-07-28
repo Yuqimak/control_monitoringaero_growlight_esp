@@ -533,4 +533,37 @@
       </section>
 
       <!-- ======================================
-           ADMIN
+           ADMIN PANEL
+      ======================================= -->
+      <section class="section page-section hidden" id="admin">
+        <h2 class="section-title purple">👑 ADMIN PANEL</h2>
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>📋 Daftar User</h3>
+            <div id="userList" style="max-height:400px; overflow-y:auto;">
+              <p style="color:var(--muted); text-align:center; padding:20px;">Memuat data user...</p>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>➕ Tambah User</h3>
+            <form id="addUserForm" style="display:flex; flex-direction:column; gap:12px;">
+              <input type="text" id="newUsername" placeholder="Username" required>
+              <input type="password" id="newPassword" placeholder="Password" required>
+              <input type="text" id="newNama" placeholder="Nama Lengkap">
+              <select id="newRole">
+                <option value="petani">Petani</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button type="submit" class="unlock-btn">➕ Tambah User</button>
+            </form>
+            <p id="addUserMsg" style="margin-top:10px; font-size:14px;"></p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js?v=308"></script>
+</body>
+</html>
