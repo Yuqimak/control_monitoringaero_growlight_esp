@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik
+// ANALYTICS: Charts, Export, Statistik (FIXED)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -105,7 +105,9 @@ export function updateCharts(time) {
   }
 }
 
-// ---- LOAD HISTORY ----
+// ============================================
+// LOAD HISTORY (FIXED)
+// ============================================
 export async function loadChartHistory() {
   try {
     const suhuSnap = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_POINTS)));
@@ -144,12 +146,247 @@ export async function loadChartHistory() {
     if (tempChart) tempChart.update();
     if (lightChart) lightChart.update();
     if (lampStatusChart) lampStatusChart.update();
+    
+    // ===== TAMBAHAN: Update semua statistik =====
+    updateStats(suhuData);
+    updateLampStats(lampuData);
+    updateCategoryStats(suhuData);
+    updateTrend(suhuData);
+    updateHeatmap(suhuData);
+    updateHistogram(suhuData);
+    
+    console.log("✅ Analytics: Data history berhasil dimuat!");
   } catch(e) {
-    console.warn('Could not load chart history:', e);
+    console.warn('❌ Gagal load chart history:', e);
   }
 }
 
-// ---- EXPORT CSV ----
+// ============================================
+// UPDATE STATISTIK (Rata, Max, Min)
+// ============================================
+function updateStats(data) {
+  const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
+  if (values.length === 0) {
+    document.getElementById('avgTemp').textContent = '--°C';
+    document.getElementById('maxTemp').textContent = '--°C';
+    document.getElementById('minTemp').textContent = '--°C';
+    document.getElementById('avgLight').textContent = '--%';
+    return;
+  }
+  
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  const max = Math.max(...values);
+  const min = Math.min(...values);
+  
+  document.getElementById('avgTemp').textContent = avg.toFixed(1) + '°C';
+  document.getElementById('maxTemp').textContent = max.toFixed(1) + '°C';
+  document.getElementById('minTemp').textContent = min.toFixed(1) + '°C';
+  
+  // Rata cahaya (ambil dari data terakhir)
+  const lightData = Object.values(data).filter(d => d.cahaya !== undefined);
+  if (lightData.length > 0) {
+    const avgLight = lightData.reduce((a, b) => a + (b.cahaya || 0), 0) / lightData.length;
+    document.getElementById('avgLight').textContent = Math.round(avgLight) + '%';
+  }
+}
+
+// ============================================
+// UPDATE KATEGORI SUHU
+// ============================================
+function updateCategoryStats(data) {
+  const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
+  if (values.length === 0) {
+    ['cold', 'normal', 'warm', 'hot'].forEach(id => {
+      document.getElementById(id + 'Percent').textContent = '0%';
+      document.getElementById(id + 'Bar').style.width = '0%';
+    });
+    return;
+  }
+  
+  const total = values.length;
+  const cold = values.filter(v => v < 25).length;
+  const normal = values.filter(v => v >= 25 && v < 30).length;
+  const warm = values.filter(v => v >= 30 && v < 34).length;
+  const hot = values.filter(v => v >= 34).length;
+  
+  const calc = (count) => Math.round((count / total) * 100);
+  
+  document.getElementById('coldPercent').textContent = calc(cold) + '%';
+  document.getElementById('normalPercent').textContent = calc(normal) + '%';
+  document.getElementById('warmPercent').textContent = calc(warm) + '%';
+  document.getElementById('hotPercent').textContent = calc(hot) + '%';
+  
+  document.getElementById('coldBar').style.width = calc(cold) + '%';
+  document.getElementById('normalBar').style.width = calc(normal) + '%';
+  document.getElementById('warmBar').style.width = calc(warm) + '%';
+  document.getElementById('hotBar').style.width = calc(hot) + '%';
+}
+
+// ============================================
+// UPDATE STATISTIK LAMPU
+// ============================================
+function updateLampStats(data) {
+  const values = Object.values(data);
+  const total = values.length;
+  if (total === 0) {
+    document.getElementById('lampOnTime').textContent = '-- jam -- menit';
+    document.getElementById('lampOffTime').textContent = '-- jam -- menit';
+    document.getElementById('onPercent').textContent = 'ON: 0%';
+    document.getElementById('offPercent').textContent = 'OFF: 0%';
+    document.getElementById('lampOnBar').style.width = '0%';
+    document.getElementById('lampOffBar').style.width = '0%';
+    return;
+  }
+  
+  const onCount = values.filter(d => d.state === true).length;
+  const offCount = total - onCount;
+  
+  const onPercent = Math.round((onCount / total) * 100);
+  const offPercent = Math.round((offCount / total) * 100);
+  
+  // Asumsi 1 data = interval 5 menit
+  const totalMinutes = total * 5;
+  const onMinutes = onCount * 5;
+  const offMinutes = offCount * 5;
+  
+  const onHours = Math.floor(onMinutes / 60);
+  const onMins = onMinutes % 60;
+  const offHours = Math.floor(offMinutes / 60);
+  const offMins = offMinutes % 60;
+  
+  document.getElementById('lampOnTime').textContent = `${onHours} jam ${onMins} menit`;
+  document.getElementById('lampOffTime').textContent = `${offHours} jam ${offMins} menit`;
+  document.getElementById('onPercent').textContent = `ON: ${onPercent}%`;
+  document.getElementById('offPercent').textContent = `OFF: ${offPercent}%`;
+  document.getElementById('lampOnBar').style.width = onPercent + '%';
+  document.getElementById('lampOffBar').style.width = offPercent + '%';
+}
+
+// ============================================
+// UPDATE TREN 7 HARI
+// ============================================
+function updateTrend(data) {
+  const container = document.getElementById('trendContainer');
+  if (!container) return;
+  
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  
+  container.innerHTML = '';
+  days.forEach(day => {
+    const dayData = Object.keys(data).filter(key => key.startsWith(day));
+    const values = dayData.map(key => data[key].value || 0).filter(v => v > 0);
+    const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+    
+    const el = document.createElement('div');
+    el.style.cssText = 'text-align:center; background:rgba(255,255,255,.04); padding:8px 4px; border-radius:8px;';
+    el.innerHTML = `
+      <div style="font-size:11px; color:var(--muted);">${day.slice(5)}</div>
+      <div style="font-size:16px; font-weight:600; color:${avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : '#22c55e'};">${avg ? avg.toFixed(1) + '°' : '--'}</div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+// ============================================
+// UPDATE HEATMAP
+// ============================================
+function updateHeatmap(data) {
+  const table = document.getElementById('heatmapTable');
+  if (!table) return;
+  
+  const now = new Date();
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  
+  const hours = ['00-06', '06-12', '12-18', '18-24'];
+  
+  let html = '<thead><tr><th>Hari</th>';
+  hours.forEach(h => { html += `<th style="font-size:10px; color:var(--muted);">${h}</th>`; });
+  html += '</tr></thead><tbody>';
+  
+  days.forEach(day => {
+    html += `<tr><td style="font-size:11px; color:var(--muted);">${day.slice(5)}</td>`;
+    hours.forEach(range => {
+      const [start, end] = range.split('-').map(Number);
+      const dayData = Object.keys(data).filter(key => key.startsWith(day));
+      const values = dayData
+        .map(key => ({ key, val: data[key].value || 0 }))
+        .filter(d => {
+          const hour = parseInt(d.key.split('T')[1].split('-')[0]);
+          return hour >= start && hour < end;
+        });
+      
+      const avg = values.length > 0 ? values.reduce((a, b) => a + b.val, 0) / values.length : 0;
+      const color = avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : avg > 20 ? '#22c55e' : '#3b82f6';
+      html += `<td style="background:${color}40; text-align:center; padding:4px; border-radius:4px; font-size:12px;">${avg ? avg.toFixed(1) : '-'}</td>`;
+    });
+    html += '</tr>';
+  });
+  
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+// ============================================
+// UPDATE HISTOGRAM
+// ============================================
+function updateHistogram(data) {
+  const canvas = document.getElementById('histogramChart');
+  if (!canvas) return;
+  
+  const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
+  if (values.length === 0) {
+    new Chart(canvas, {
+      type: 'bar',
+      data: { labels: ['0-10', '10-20', '20-30', '30-40', '40+'], datasets: [{ data: [0,0,0,0,0], backgroundColor: '#64748b' }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+    return;
+  }
+  
+  const bins = [0, 10, 20, 30, 40];
+  const counts = bins.map((bin, i) => {
+    const next = bins[i+1] || Infinity;
+    return values.filter(v => v >= bin && v < next).length;
+  });
+  
+  const labels = ['0-10°C', '10-20°C', '20-30°C', '30-40°C', '40+°C'];
+  
+  new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Frekuensi',
+        data: counts,
+        backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#7c3aed'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#94a3b8' } },
+        y: { ticks: { color: '#94a3b8', stepSize: 1 } }
+      }
+    }
+  });
+}
+
+// ============================================
+// EXPORT CSV & PDF
+// ============================================
 export async function exportData(period) {
   const status = DOM.exportStatus;
   if (status) status.textContent = '⏳ Mengambil data...';
@@ -212,7 +449,6 @@ export async function exportData(period) {
   }
 }
 
-// ---- EXPORT PDF ----
 export async function exportPDF() {
   if (DOM.exportStatus) DOM.exportStatus.textContent = '⏳ Membuat PDF...';
   try {
