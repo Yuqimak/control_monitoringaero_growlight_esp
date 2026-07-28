@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FIXED)
+// ANALYTICS: Charts, Export, Statistik (FULL FIXED)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -106,7 +106,7 @@ export function updateCharts(time) {
 }
 
 // ============================================
-// LOAD HISTORY (FIXED)
+// LOAD HISTORY (FULL FIXED)
 // ============================================
 export async function loadChartHistory() {
   try {
@@ -147,8 +147,8 @@ export async function loadChartHistory() {
     if (lightChart) lightChart.update();
     if (lampStatusChart) lampStatusChart.update();
     
-    // ===== TAMBAHAN: Update semua statistik =====
-    updateStats(suhuData);
+    // ===== UPDATE SEMUA STATISTIK =====
+    updateStats(suhuData, cahayaData);
     updateLampStats(lampuData);
     updateCategoryStats(suhuData);
     updateTrend(suhuData);
@@ -162,31 +162,34 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// UPDATE STATISTIK (Rata, Max, Min)
+// UPDATE STATISTIK (Rata, Max, Min, Rata Cahaya)
 // ============================================
-function updateStats(data) {
-  const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
-  if (values.length === 0) {
+function updateStats(suhuData, cahayaData) {
+  // === SUHU ===
+  const suhuValues = Object.values(suhuData).map(d => d.value || 0).filter(v => v > 0);
+  if (suhuValues.length > 0) {
+    const avg = suhuValues.reduce((a, b) => a + b, 0) / suhuValues.length;
+    const max = Math.max(...suhuValues);
+    const min = Math.min(...suhuValues);
+    
+    document.getElementById('avgTemp').textContent = avg.toFixed(1) + '°C';
+    document.getElementById('maxTemp').textContent = max.toFixed(1) + '°C';
+    document.getElementById('minTemp').textContent = min.toFixed(1) + '°C';
+  } else {
     document.getElementById('avgTemp').textContent = '--°C';
     document.getElementById('maxTemp').textContent = '--°C';
     document.getElementById('minTemp').textContent = '--°C';
-    document.getElementById('avgLight').textContent = '--%';
-    return;
   }
   
-  const avg = values.reduce((a, b) => a + b, 0) / values.length;
-  const max = Math.max(...values);
-  const min = Math.min(...values);
-  
-  document.getElementById('avgTemp').textContent = avg.toFixed(1) + '°C';
-  document.getElementById('maxTemp').textContent = max.toFixed(1) + '°C';
-  document.getElementById('minTemp').textContent = min.toFixed(1) + '°C';
-  
-  // Rata cahaya (ambil dari data terakhir)
-  const lightData = Object.values(data).filter(d => d.cahaya !== undefined);
-  if (lightData.length > 0) {
-    const avgLight = lightData.reduce((a, b) => a + (b.cahaya || 0), 0) / lightData.length;
-    document.getElementById('avgLight').textContent = Math.round(avgLight) + '%';
+  // === CAHAYA (RATA-RATA) ===
+  const cahayaValues = Object.values(cahayaData).map(d => d.value || 0).filter(v => v > 0);
+  if (cahayaValues.length > 0) {
+    const avgCahaya = cahayaValues.reduce((a, b) => a + b, 0) / cahayaValues.length;
+    // Normalisasi ke persen (asumsi max 5000 lux = 100%)
+    const persen = Math.min(100, Math.round(avgCahaya / 5000 * 100));
+    document.getElementById('avgLight').textContent = persen + '%';
+  } else {
+    document.getElementById('avgLight').textContent = '--%';
   }
 }
 
@@ -244,15 +247,26 @@ function updateLampStats(data) {
   const onPercent = Math.round((onCount / total) * 100);
   const offPercent = Math.round((offCount / total) * 100);
   
-  // Asumsi 1 data = interval 5 menit
-  const totalMinutes = total * 5;
-  const onMinutes = onCount * 5;
-  const offMinutes = offCount * 5;
+  // Asumsi 1 data = interval 5 menit (kode baru) atau 30 detik (kode lama)
+  // Kita ambil rata-rata interval dari timestamp
+  const timestamps = Object.keys(data).sort();
+  let avgInterval = 5; // default 5 menit
+  if (timestamps.length > 1) {
+    const t1 = new Date(timestamps[0].replace('T', ' ').replace(/-/g, '/')).getTime();
+    const t2 = new Date(timestamps[1].replace('T', ' ').replace(/-/g, '/')).getTime();
+    avgInterval = Math.round((t2 - t1) / 60000); // menit
+    if (avgInterval < 1) avgInterval = 1;
+    if (avgInterval > 10) avgInterval = 5;
+  }
+  
+  const totalMinutes = total * avgInterval;
+  const onMinutes = onCount * avgInterval;
+  const offMinutes = offCount * avgInterval;
   
   const onHours = Math.floor(onMinutes / 60);
-  const onMins = onMinutes % 60;
+  const onMins = Math.round(onMinutes % 60);
   const offHours = Math.floor(offMinutes / 60);
-  const offMins = offMinutes % 60;
+  const offMins = Math.round(offMinutes % 60);
   
   document.getElementById('lampOnTime').textContent = `${onHours} jam ${onMins} menit`;
   document.getElementById('lampOffTime').textContent = `${offHours} jam ${offMins} menit`;
@@ -274,7 +288,8 @@ function updateTrend(data) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push(key);
   }
   
   container.innerHTML = '';
@@ -285,9 +300,11 @@ function updateTrend(data) {
     
     const el = document.createElement('div');
     el.style.cssText = 'text-align:center; background:rgba(255,255,255,.04); padding:8px 4px; border-radius:8px;';
+    const dayLabel = day.slice(5); // MM-DD
+    const tempColor = avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : avg > 20 ? '#22c55e' : '#3b82f6';
     el.innerHTML = `
-      <div style="font-size:11px; color:var(--muted);">${day.slice(5)}</div>
-      <div style="font-size:16px; font-weight:600; color:${avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : '#22c55e'};">${avg ? avg.toFixed(1) + '°' : '--'}</div>
+      <div style="font-size:11px; color:var(--muted);">${dayLabel}</div>
+      <div style="font-size:16px; font-weight:600; color:${tempColor};">${avg ? avg.toFixed(1) + '°' : '--'}</div>
     `;
     container.appendChild(el);
   });
@@ -305,7 +322,8 @@ function updateHeatmap(data) {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    days.push(d.toISOString().slice(0, 10));
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push(key);
   }
   
   const hours = ['00-06', '06-12', '12-18', '18-24'];
@@ -327,8 +345,15 @@ function updateHeatmap(data) {
         });
       
       const avg = values.length > 0 ? values.reduce((a, b) => a + b.val, 0) / values.length : 0;
-      const color = avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : avg > 20 ? '#22c55e' : '#3b82f6';
-      html += `<td style="background:${color}40; text-align:center; padding:4px; border-radius:4px; font-size:12px;">${avg ? avg.toFixed(1) : '-'}</td>`;
+      let bgColor = 'rgba(100,116,139,0.2)';
+      let textColor = '#94a3b8';
+      if (avg > 0) {
+        if (avg > 30) { bgColor = 'rgba(239,68,68,0.4)'; textColor = '#ef4444'; }
+        else if (avg > 25) { bgColor = 'rgba(245,158,11,0.4)'; textColor = '#f59e0b'; }
+        else if (avg > 20) { bgColor = 'rgba(34,197,94,0.4)'; textColor = '#22c55e'; }
+        else { bgColor = 'rgba(59,130,246,0.4)'; textColor = '#3b82f6'; }
+      }
+      html += `<td style="background:${bgColor}; text-align:center; padding:6px 4px; border-radius:4px; font-size:12px; color:${textColor};">${avg ? avg.toFixed(1) : '-'}</td>`;
     });
     html += '</tr>';
   });
@@ -345,22 +370,24 @@ function updateHistogram(data) {
   if (!canvas) return;
   
   const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
+  let chart = Chart.getChart(canvas);
+  if (chart) chart.destroy();
+  
   if (values.length === 0) {
     new Chart(canvas, {
       type: 'bar',
       data: { labels: ['0-10', '10-20', '20-30', '30-40', '40+'], datasets: [{ data: [0,0,0,0,0], backgroundColor: '#64748b' }] },
-      options: { responsive: true, plugins: { legend: { display: false } } }
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8', stepSize: 1 } } } }
     });
     return;
   }
   
-  const bins = [0, 10, 20, 30, 40];
+  const bins = [0, 10, 20, 25, 30, 35, 40];
+  const labels = ['0-10°C', '10-20°C', '20-25°C', '25-30°C', '30-35°C', '35-40°C', '40+°C'];
   const counts = bins.map((bin, i) => {
     const next = bins[i+1] || Infinity;
     return values.filter(v => v >= bin && v < next).length;
   });
-  
-  const labels = ['0-10°C', '10-20°C', '20-30°C', '30-40°C', '40+°C'];
   
   new Chart(canvas, {
     type: 'bar',
@@ -369,7 +396,7 @@ function updateHistogram(data) {
       datasets: [{
         label: 'Frekuensi',
         data: counts,
-        backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#7c3aed'],
+        backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#f59e0b', '#ef4444', '#ef4444', '#7c3aed'],
         borderRadius: 4
       }]
     },
@@ -377,7 +404,7 @@ function updateHistogram(data) {
       responsive: true,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#94a3b8' } },
+        x: { ticks: { color: '#94a3b8', maxTicksLimit: 7 } },
         y: { ticks: { color: '#94a3b8', stepSize: 1 } }
       }
     }
@@ -429,7 +456,7 @@ export async function exportData(period) {
     csv += `"Tanggal Export","${new Date().toLocaleString('id-ID')}"\n`;
     csv += `"Periode","${period === 'week' ? '1 Minggu' : '1 Bulan'}"\n`;
     csv += `"Total Data","${filtered.length}"\n\n`;
-    csv += `"No","Timestamp","Suhu (°C)","Cahaya (%)","Status Lampu"\n`;
+    csv += `"No","Timestamp","Suhu (°C)","Cahaya (lux)","Status Lampu"\n`;
     filtered.forEach((row, i) => {
       csv += `"${i+1}","${formatTime(row.timestamp)}","${row.suhu?.toFixed(1) || ''}","${row.cahaya || ''}","${row.lampState === true ? 'ON' : row.lampState === false ? 'OFF' : ''}"\n`;
     });
