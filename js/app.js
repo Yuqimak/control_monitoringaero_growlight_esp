@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js
+// MAIN ENTRY – app.js (FIXED)
 // ============================================
 
 import { db } from './firebase.js';
@@ -127,9 +127,37 @@ function initFirebase() {
       if (DOM.totalJam) DOM.totalJam.value = state.totalJam;
       if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
       if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
+      
+      // Update UI tombol mode sesuai state
+      updateModeButtonUI(state.controlMode);
     }
     renderUI();
   });
+}
+
+// ===== UPDATE UI TOMBOL MODE =====
+function updateModeButtonUI(mode) {
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.style.background = 'rgba(255,255,255,0.05)';
+    btn.style.border = '1px solid rgba(255,255,255,0.1)';
+    btn.style.color = 'white';
+  });
+  
+  const map = {
+    otomatis: 'modeAutoBtn',
+    jadwal: 'modeJadwalBtn',
+    manual: 'modeManualBtn'
+  };
+  
+  const activeId = map[mode];
+  if (activeId) {
+    const activeBtn = document.getElementById(activeId);
+    if (activeBtn) {
+      activeBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+      activeBtn.style.border = '1px solid #22c55e';
+      activeBtn.style.color = 'white';
+    }
+  }
 }
 
 // ===== CONTROLS =====
@@ -187,11 +215,26 @@ function initControls() {
   }
 }
 
-// ===== MODE KONTROL =====
+// ===== MODE KONTROL (FIXED) =====
 function initModeControls() {
-  if (DOM.modeAutoBtn) DOM.modeAutoBtn.addEventListener('click', () => setModeControl('otomatis'));
-  if (DOM.modeJadwalBtn) DOM.modeJadwalBtn.addEventListener('click', () => setModeControl('jadwal'));
-  if (DOM.modeManualBtn) DOM.modeManualBtn.addEventListener('click', () => setModeControl('manual'));
+  if (DOM.modeAutoBtn) {
+    DOM.modeAutoBtn.addEventListener('click', () => {
+      console.log("🟢 [Tombol] Otomatis diklik");
+      setModeControl('otomatis');
+    });
+  }
+  if (DOM.modeJadwalBtn) {
+    DOM.modeJadwalBtn.addEventListener('click', () => {
+      console.log("🟢 [Tombol] Jadwal diklik");
+      setModeControl('jadwal');
+    });
+  }
+  if (DOM.modeManualBtn) {
+    DOM.modeManualBtn.addEventListener('click', () => {
+      console.log("🟢 [Tombol] Manual diklik");
+      setModeControl('manual');
+    });
+  }
   
   if (DOM.saveTotalJamBtn && DOM.totalJam) {
     DOM.saveTotalJamBtn.addEventListener('click', () => {
@@ -240,27 +283,33 @@ function initModeControls() {
   }
 }
 
+// ===== SET MODE CONTROL (FIXED WITH DEBUG) =====
 function setModeControl(mode) {
+  console.log("🟢 [setModeControl] Dipanggil dengan mode:", mode);
+  
+  if (!db) {
+    console.error("❌ Firebase database tidak terdefinisi!");
+    showToast('❌ Firebase tidak terhubung!', 'error');
+    return;
+  }
+  
   set(ref(db, 'system/control_mode'), mode)
     .then(() => {
+      console.log("✅ [setModeControl] Berhasil disimpan ke Firebase:", mode);
       state.controlMode = mode;
+      
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         DOM.currentModeDisplay2.textContent = labels[mode] || mode;
       }
-      document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.style.background = 'rgba(255,255,255,0.05)';
-        btn.style.border = '1px solid rgba(255,255,255,0.1)';
-        btn.style.color = 'white';
-      });
-      const activeBtn = document.getElementById(`mode${mode.charAt(0).toUpperCase() + mode.slice(1)}Btn`);
-      if (activeBtn) {
-        activeBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-        activeBtn.style.border = '1px solid #22c55e';
-      }
+      
+      updateModeButtonUI(mode);
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
-    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    .catch(err => {
+      console.error("❌ [setModeControl] Gagal simpan ke Firebase:", err);
+      showToast('❌ Gagal: ' + err.message, 'error');
+    });
 }
 
 // ===== EXPAND CHART =====
