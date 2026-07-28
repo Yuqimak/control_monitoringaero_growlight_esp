@@ -252,39 +252,18 @@
         <div class="analytics-grid">
           <div class="analytics-card">
             <div class="analytics-head">
-              <h3>🌡️ Suhu Realtime (Rainbow Chart)</h3>
+              <h3>Suhu Realtime</h3>
               <button class="time-btn">24 Jam Terakhir</button>
             </div>
             <div class="chart-wrapper" id="wrapper-tempChart">
               <button class="chart-expand-btn" onclick="toggleExpand('wrapper-tempChart')">📊 Expand</button>
               <canvas id="tempChart"></canvas>
             </div>
-            
-            <!-- CUSTOM LEGEND UNTUK RAINBOW CHART -->
-            <div class="legend-info" id="customLegend" style="display:flex; flex-wrap:wrap; gap:10px; margin:12px 0 0 0; justify-content:center;">
-              <div class="legend-item" data-index="0" style="display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:13px; cursor:pointer; padding:4px 12px; border-radius:20px; border:1px solid transparent; transition:all 0.2s; user-select:none;">
-                <span class="legend-color" style="width:14px; height:14px; border-radius:50%; background:#ef4444; border:2px solid rgba(255,255,255,0.1);"></span>
-                🔴 Panas (&gt;30°C)
-              </div>
-              <div class="legend-item" data-index="1" style="display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:13px; cursor:pointer; padding:4px 12px; border-radius:20px; border:1px solid transparent; transition:all 0.2s; user-select:none;">
-                <span class="legend-color" style="width:14px; height:14px; border-radius:50%; background:#f59e0b; border:2px solid rgba(255,255,255,0.1);"></span>
-                🟡 Hangat (25-30°C)
-              </div>
-              <div class="legend-item" data-index="2" style="display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:13px; cursor:pointer; padding:4px 12px; border-radius:20px; border:1px solid transparent; transition:all 0.2s; user-select:none;">
-                <span class="legend-color" style="width:14px; height:14px; border-radius:50%; background:#22c55e; border:2px solid rgba(255,255,255,0.1);"></span>
-                🟢 Normal (20-25°C)
-              </div>
-              <div class="legend-item" data-index="3" style="display:flex; align-items:center; gap:6px; color:#94a3b8; font-size:13px; cursor:pointer; padding:4px 12px; border-radius:20px; border:1px solid transparent; transition:all 0.2s; user-select:none;">
-                <span class="legend-color" style="width:14px; height:14px; border-radius:50%; background:#3b82f6; border:2px solid rgba(255,255,255,0.1);"></span>
-                🔵 Dingin (&lt;20°C)
-              </div>
-            </div>
-            <p style="text-align:center; font-size:12px; color:#64748b; margin:8px 0 0 0;">💡 Klik dot warna di atas untuk menyembunyikan/munculkan data</p>
           </div>
 
           <div class="analytics-card">
             <div class="analytics-head">
-              <h3>💡 History Intensitas</h3>
+              <h3>History Intensitas</h3>
               <button class="time-btn">24 Jam Terakhir</button>
             </div>
             <div class="chart-wrapper" id="wrapper-lightChart">
@@ -295,7 +274,7 @@
 
           <div class="analytics-card">
             <div class="analytics-head">
-              <h3>⚡ Status Lampu</h3>
+              <h3>Status Lampu</h3>
               <button class="time-btn">24 Jam Terakhir</button>
             </div>
             <div class="chart-wrapper" id="wrapper-lampStatusChart">
@@ -540,4 +519,18 @@
               <input type="checkbox" id="forceDayOn" style="width:22px; height:22px; accent-color:var(--green); cursor:pointer;">
               <span style="font-size:13px; color:var(--muted);">(abaikan lux untuk pengujian)</span>
             </div>
-            <p style="font-size:12px; color:#f59e0
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              ⚠️ Hanya untuk pengujian! Jangan lupa matikan.
+            </p>
+          </div>
+
+          <!-- RESET TANAM -->
+          <div class="control-card">
+            <button id="resetPlantBtn" class="unlock-btn" style="background:rgba(239,68,68,.2); color:#ef4444; width:100%;">🔄 Reset Tanam (Mulai Baru)</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ======================================
+           ADMIN
