@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FIXED)
+// ANALYTICS: Charts, Export, Statistik (RAINBOW SIMPLE)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -22,15 +22,7 @@ export function initCharts() {
     scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } }
   };
   
-  const tEl = document.getElementById('tempChart');
-  if (tEl) {
-    tempChart = new Chart(tEl, {
-      type: 'line',
-      data: { labels: tempLabels, datasets: [{ label: 'Temperature (°C)', data: tempData, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
-      options: opts
-    });
-  }
-  
+  // Light chart
   const lEl = document.getElementById('lightChart');
   if (lEl) {
     lightChart = new Chart(lEl, {
@@ -40,6 +32,7 @@ export function initCharts() {
     });
   }
   
+  // Lamp status chart (bar)
   const lsEl = document.getElementById('lampStatusChart');
   if (lsEl) {
     lampStatusChart = new Chart(lsEl, {
@@ -56,6 +49,7 @@ export function initCharts() {
     });
   }
   
+  // Dashboard mini chart
   const dEl = document.getElementById('dashTempChart');
   if (dEl) {
     dashTempChart = new Chart(dEl, {
@@ -66,15 +60,94 @@ export function initCharts() {
   }
 }
 
+// ---- CREATE RAINBOW CHART (SIMPLE & AMAN) ----
+function createRainbowChart(canvasId, labels, data) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  // Buat gradien rainbow
+  const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0, '#ef4444');   // Merah (panas)
+  gradient.addColorStop(0.33, '#f59e0b'); // Kuning (hangat)
+  gradient.addColorStop(0.66, '#22c55e'); // Hijau (normal)
+  gradient.addColorStop(1, '#3b82f6');   // Biru (dingin)
+
+  // Warna titik per data
+  const pointColors = data.map(v => {
+    if (v > 30) return '#ef4444';
+    if (v > 25) return '#f59e0b';
+    if (v > 20) return '#22c55e';
+    return '#3b82f6';
+  });
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Suhu (°C)',
+        data: data,
+        borderColor: gradient,
+        borderWidth: 3,
+        pointBackgroundColor: pointColors,
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        backgroundColor: function(context) {
+          const chart = context.chart;
+          const {ctx, chartArea} = chart;
+          if (!chartArea) return null;
+          const areaGrad = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          areaGrad.addColorStop(0, 'rgba(34,197,94,0.25)');
+          areaGrad.addColorStop(1, 'rgba(34,197,94,0.02)');
+          return areaGrad;
+        },
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#cbd5e1', usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,0.9)',
+          titleColor: '#f1f5f9',
+          bodyColor: '#cbd5e1',
+          borderColor: 'rgba(255,255,255,0.08)',
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 12,
+          callbacks: {
+            label: function(ctx) {
+              return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}°C`;
+            },
+            afterLabel: function(ctx) {
+              const v = ctx.parsed.y;
+              if (v > 30) return '🔥 Panas!';
+              if (v > 25) return '🌤️ Hangat';
+              if (v > 20) return '✅ Normal';
+              return '❄️ Dingin';
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.04)' }, min: 15, max: 40 }
+      },
+      animation: { duration: 800, easing: 'easeOutQuart' }
+    }
+  });
+
+  return chart;
+}
+
 // ---- UPDATE CHARTS ----
 export function updateCharts(time) {
-  if (tempChart) {
-    tempLabels.push(time);
-    tempData.push(state.temperature);
-    if (tempLabels.length > MAX_POINTS) { tempLabels.shift(); tempData.shift(); }
-    tempChart.update();
-  }
-  
   if (lightChart) {
     lightLabels.push(time);
     sensorData.push(state.sensorLight);
@@ -135,7 +208,16 @@ export async function loadChartHistory() {
       }
     });
     
-    if (tempChart) tempChart.update();
+    // ===== BUAT RAINBOW CHART UNTUK SUHU =====
+    const chartLabels = keys.map(key => key.substring(11, 16));
+    const chartValues = keys.map(key => suhuData[key]?.value || 0);
+    
+    if (document.getElementById('tempChart')) {
+      // Hapus chart lama jika ada
+      if (tempChart) { tempChart.destroy(); tempChart = null; }
+      tempChart = createRainbowChart('tempChart', chartLabels, chartValues);
+    }
+    
     if (lightChart) lightChart.update();
     if (lampStatusChart) lampStatusChart.update();
     
@@ -152,7 +234,8 @@ export async function loadChartHistory() {
   }
 }
 
-// ---- UPDATE STATISTIK ----
+// ===== SEMUA FUNGSI STATISTIK DI BAWAH INI (SAMA SEPERTI SEBELUMNYA) =====
+
 function updateStats(suhuData, cahayaData) {
   const suhuValues = Object.values(suhuData).map(d => d.value || 0).filter(v => v > 0);
   if (suhuValues.length > 0) {
@@ -171,7 +254,6 @@ function updateStats(suhuData, cahayaData) {
   }
 }
 
-// ---- UPDATE KATEGORI SUHU ----
 function updateCategoryStats(data) {
   const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
   if (values.length === 0) {
@@ -197,7 +279,6 @@ function updateCategoryStats(data) {
   document.getElementById('hotBar').style.width = calc(hot) + '%';
 }
 
-// ---- UPDATE LAMP STATS ----
 function updateLampStats(data) {
   const values = Object.values(data);
   const total = values.length;
@@ -217,7 +298,6 @@ function updateLampStats(data) {
   document.getElementById('lampOffBar').style.width = offPercent + '%';
 }
 
-// ---- UPDATE TREN ----
 function updateTrend(data) {
   const container = document.getElementById('trendContainer');
   if (!container) return;
@@ -243,7 +323,6 @@ function updateTrend(data) {
   });
 }
 
-// ---- UPDATE HEATMAP ----
 function updateHeatmap(data) {
   const table = document.getElementById('heatmapTable');
   if (!table) return;
@@ -285,7 +364,6 @@ function updateHeatmap(data) {
   table.innerHTML = html;
 }
 
-// ---- UPDATE HISTOGRAM ----
 function updateHistogram(data) {
   const canvas = document.getElementById('histogramChart');
   if (!canvas) return;
