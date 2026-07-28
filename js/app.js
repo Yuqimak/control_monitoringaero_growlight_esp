@@ -285,19 +285,18 @@ function initModeControls() {
 
 // ===== SET MODE CONTROL (FIXED WITH DEBUG) =====
 function setModeControl(mode) {
-  console.log("🟢 [setModeControl] Dipanggil dengan mode:", mode);
-  
-  if (!db) {
-    console.error("❌ Firebase database tidak terdefinisi!");
-    showToast('❌ Firebase tidak terhubung!', 'error');
-    return;
-  }
-  
-  set(ref(db, 'system/control_mode'), mode)
+  // ===== KIRIM KE control/lamp/mode (AGAR ESP32 BISA BACA) =====
+  set(ref(db, 'control/lamp/mode'), mode)  // ← UBAH KE SINI
     .then(() => {
-      console.log("✅ [setModeControl] Berhasil disimpan ke Firebase:", mode);
+      console.log("✅ Mode dikirim ke control/lamp/mode:", mode);
       state.controlMode = mode;
       
+      // ===== TETAP KIRIM JUGA KE system/control_mode (untuk referensi) =====
+      set(ref(db, 'system/control_mode'), mode)
+        .then(() => console.log("✅ Mode juga dikirim ke system/control_mode:", mode))
+        .catch(err => console.warn("⚠️ Gagal kirim ke system/control_mode:", err));
+      
+      // Update UI
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         DOM.currentModeDisplay2.textContent = labels[mode] || mode;
@@ -307,7 +306,7 @@ function setModeControl(mode) {
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
     .catch(err => {
-      console.error("❌ [setModeControl] Gagal simpan ke Firebase:", err);
+      console.error("❌ Gagal simpan mode:", err);
       showToast('❌ Gagal: ' + err.message, 'error');
     });
 }
