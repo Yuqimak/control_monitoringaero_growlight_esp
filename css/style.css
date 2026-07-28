@@ -1485,3 +1485,159 @@ html, body {
     font-size: 14px !important;
   }
 }
+/* ========================================
+   CONTROL MOBILE FIX - FINAL
+======================================== */
+
+@media (max-width: 768px) {
+  .control-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .control-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-column: unset !important;
+    grid-row: unset !important;
+    margin: 0 !important;
+    padding: 14px !important;
+    border-radius: 14px !important;
+    display: block !important;
+    position: relative !important;
+    z-index: auto !important;
+    clear: both !important;
+    float: none !important;
+  }
+
+  .control-card[style*="grid-column: span"] {
+    grid-column: unset !important;
+    width: 100% !important;
+  }
+
+  .control-card:not(:last-child) {
+    margin-bottom: 0 !important;
+  }
+
+  .mode-selector {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .mode-selector select {
+    width: 100% !important;
+    padding: 10px !important;
+    font-size: 14px !important;
+    min-width: unset !important;
+  }
+  .mode-selector button {
+    width: 100% !important;
+    padding: 10px !important;
+    font-size: 14px !important;
+  }
+
+  .mode-btn {
+    flex: 1 1 auto !important;
+    min-width: 80px !important;
+    padding: 10px 12px !important;
+    font-size: 13px !important;
+  }
+
+  .button-row {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  .button-row .big-btn {
+    flex: 1 !important;
+    padding: 10px !important;
+    font-size: 14px !important;
+  }
+
+  .dimmer-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    align-items: center !important;
+    width: 100% !important;
+  }
+  .dimmer-row .adjust-btn {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+    flex-shrink: 0 !important;
+  }
+  #dimmerInput {
+    width: 60px !important;
+    height: 36px !important;
+    font-size: 14px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .control-card input[type="number"],
+  .control-card input[type="range"] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .control-card input[type="range"] {
+    min-width: unset !important;
+  }
+
+  #totalJam {
+    min-width: 60px !important;
+    flex: 1 !important;
+  }
+  #jadwalStart, #jadwalEnd {
+    min-width: 50px !important;
+    flex: 1 !important;
+  }
+
+  .mode-info {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    font-size: 13px !important;
+    padding: 10px 12px !important;
+    width: 100% !important;
+  }
+
+  .info-text {
+    font-size: 13px !important;
+    margin-top: 8px !important;
+  }
+
+  .control-card input[type="checkbox"] {
+    width: 18px !important;
+    height: 18px !important;
+    flex-shrink: 0 !important;
+  }
+
+  #resetPlantBtn {
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    margin-top: 4px !important;
+  }
+
+  .unlock-btn {
+    width: 100% !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+  }
+
+  .control-card > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .control-card[style*="margin-top"] {
+    margin-top: 0 !important;
+  }
+  .control-card[style*="border-top"] {
+    border-top: none !important;
+    padding-top: 14px !important;
+  }
+}
