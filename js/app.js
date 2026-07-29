@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FIXED - OPSI 2)
+// MAIN ENTRY – app.js (OPSI 1 - KEMARIN BISA)
 // ============================================
 
 import { db } from './firebase.js';
@@ -130,19 +130,6 @@ function initFirebase() {
     }
     renderUI();
   });
-  
-  // ===== LISTENER BARU: control/lamp/mode =====
-  onValue(ref(db, 'control/lamp/mode'), (snap) => {
-    const mode = snap.val();
-    if (mode && (mode === 'otomatis' || mode === 'jadwal' || mode === 'manual')) {
-      state.controlMode = mode;
-      if (DOM.currentModeDisplay2) {
-        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-        DOM.currentModeDisplay2.textContent = labels[mode] || mode;
-      }
-      updateModeButtonUI(mode);
-    }
-  });
 }
 
 // ===== UPDATE UI TOMBOL MODE =====
@@ -226,7 +213,7 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL (FIXED - OPSI 2)
+// MODE KONTROL (OPSI 1 - KEMARIN BISA)
 // ============================================
 function initModeControls() {
   if (DOM.modeAutoBtn) {
@@ -296,7 +283,7 @@ function initModeControls() {
 }
 
 // ============================================
-// SET MODE CONTROL (FIXED - OPSI 2)
+// SET MODE CONTROL (OPSI 1 - KEMARIN BISA)
 // ============================================
 function setModeControl(mode) {
   console.log("🟢 [setModeControl] Dipanggil dengan mode:", mode);
@@ -307,16 +294,11 @@ function setModeControl(mode) {
     return;
   }
   
-  // ===== KIRIM KE control/lamp/mode (AGAR ESP32 BISA BACA) =====
-  set(ref(db, 'control/lamp/mode'), mode)
+  // ===== KIRIM KE system/control_mode (SESUAI YANG DIBACA ESP32 OLD) =====
+  set(ref(db, 'system/control_mode'), mode)
     .then(() => {
-      console.log("✅ Mode dikirim ke control/lamp/mode:", mode);
+      console.log("✅ Mode dikirim ke system/control_mode:", mode);
       state.controlMode = mode;
-      
-      // ===== TETAP KIRIM JUGA KE system/control_mode =====
-      set(ref(db, 'system/control_mode'), mode)
-        .then(() => console.log("✅ Mode juga dikirim ke system/control_mode:", mode))
-        .catch(err => console.warn("⚠️ Gagal kirim ke system/control_mode:", err));
       
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
@@ -327,7 +309,7 @@ function setModeControl(mode) {
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
     .catch(err => {
-      console.error("❌ Gagal simpan mode ke control/lamp/mode:", err);
+      console.error("❌ Gagal simpan mode ke system/control_mode:", err);
       showToast('❌ Gagal: ' + err.message, 'error');
     });
 }
