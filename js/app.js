@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (OPSI 1 - KEMARIN BISA)
+// MAIN ENTRY – app.js (REVISI FINAL - OPSI 1)
 // ============================================
 
 import { db } from './firebase.js';
@@ -213,7 +213,7 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL (OPSI 1 - KEMARIN BISA)
+// MODE KONTROL (OPSI 1)
 // ============================================
 function initModeControls() {
   if (DOM.modeAutoBtn) {
@@ -283,7 +283,7 @@ function initModeControls() {
 }
 
 // ============================================
-// SET MODE CONTROL (OPSI 1 - KEMARIN BISA)
+// SET MODE CONTROL (OPSI 1 - KIRIM KE system/control_mode)
 // ============================================
 function setModeControl(mode) {
   console.log("🟢 [setModeControl] Dipanggil dengan mode:", mode);
@@ -294,7 +294,7 @@ function setModeControl(mode) {
     return;
   }
   
-  // ===== KIRIM KE system/control_mode (SESUAI YANG DIBACA ESP32 OLD) =====
+  // ===== KIRIM KE system/control_mode (SESUAI YANG DIBACA ESP32) =====
   set(ref(db, 'system/control_mode'), mode)
     .then(() => {
       console.log("✅ Mode dikirim ke system/control_mode:", mode);
