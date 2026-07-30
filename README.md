@@ -34,3 +34,42 @@ Proyek ini dirancang untuk mengontrol lampu pertumbuhan tanaman secara otomatis 
 ---
 
 ## 📁 **Struktur Proyek**
+control_monitoringaero_growlight_esp/
+├── index.html # Halaman utama dashboard
+├── login.html # Halaman login
+├── css/
+│ └── style.css # Styling dashboard
+├── js/
+│ ├── app.js # Main entry (Opsi 1)
+│ ├── firebase.js # Konfigurasi Firebase
+│ └── modules/
+│ ├── admin.js # Manajemen user
+│ ├── analytics.js # Charts & statistik
+│ ├── core.js # State & DOM
+│ └── ui.js # Render UI
+├── esp32/
+│ └── main.ino # Kode ESP32 (terbaru)
+└── README.md
+
+---
+
+## 🚀 **Cara Setup**
+
+### 1. **Firebase**
+1. Buat project di [Firebase Console](https://console.firebase.google.com).
+2. Aktifkan **Realtime Database**.
+3. Salin `firebaseConfig` ke `js/firebase.js`.
+4. Atur **Rules** seperti di bawah:
+
+```json
+{
+  "rules": {
+    ".read": true,
+    ".write": false,
+    "sensor": { ".write": true },
+    "sensor_history": { ".write": true },
+    "control": { ".write": true },
+    "system": { ".write": true },
+    "users": { ".write": true }
+  }
+}
