@@ -133,7 +133,7 @@
           </div>
         </div>
 
-        <!-- GRAFIK + MODE -->
+        <!-- GRAFIK CEPAT (tanpa Mode Pertumbuhan) -->
         <div class="dashboard-main-grid">
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
@@ -146,25 +146,24 @@
             <canvas id="dashTempChart"></canvas>
             <div class="chart-status" id="chartStatus">🟢 Stabil</div>
           </div>
+          <!-- MODE KONTROL (pindah ke dashboard) -->
           <div class="dashboard-card">
             <div class="card-head">
-              <div class="card-icon orange-box">🌱</div>
+              <div class="card-icon purple-box">🎛️</div>
               <div>
-                <h3>Mode Pertumbuhan</h3>
-                <p class="card-sub">Fase Tanaman Kentang</p>
+                <h3>Mode Kontrol</h3>
+                <p class="card-sub">Sistem Lampu</p>
               </div>
             </div>
-            <div class="dashboard-mode-display">
-              <div class="mode-status">
-                <span class="mode-icon" id="modeIcon">🌱</span>
-                <span class="mode-name" id="modeName">Bibit</span>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span style="font-size:13px; color:var(--muted);">Mode aktif:</span>
+                <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
               </div>
-              <div class="mode-details">
-                <span>⏰ <span id="modeDuration">4</span> jam/hari</span>
-                <span>📅 Hari ke-<span id="dayCounter">0</span></span>
-              </div>
-              <div id="timelineMessage" style="font-size:12px; color:var(--muted); padding:6px 10px; background:rgba(255,255,255,.04); border-radius:8px; margin-top:4px;">
-                🌱 Mulai tanam untuk tracking
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button id="modeAutoBtn" class="mode-btn" style="flex:1; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; cursor:pointer; font-size:12px;">🤖 Otomatis</button>
+                <button id="modeJadwalBtn" class="mode-btn" style="flex:1; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; cursor:pointer; font-size:12px;">⏰ Jadwal</button>
+                <button id="modeManualBtn" class="mode-btn" style="flex:1; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; cursor:pointer; font-size:12px;">👋 Manual</button>
               </div>
             </div>
           </div>
@@ -410,7 +409,7 @@
       </section>
 
       <!-- ======================================
-           CONTROL (FULLY FIXED)
+           CONTROL
     ======================================= -->
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
@@ -423,40 +422,22 @@
               <button id="btnOn" class="big-btn on">ON</button>
               <button id="btnOff" class="big-btn off">OFF</button>
             </div>
-            <p class="info-text">Status Lampu : <span id="lampStateText">ON</span></p>
+            <p class="info-text">Status Lampu : <span id="lampStateText">OFF</span></p>
           </div>
 
-          <!-- MODE PERTUMBUHAN -->
-          <div class="control-card">
-            <h3>🌱 Mode Pertumbuhan Kentang</h3>
-            <div class="mode-selector">
-              <select id="growthMode" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px;">
-                <option value="bibit">🌱 Bibit (3-5 jam)</option>
-                <option value="vegetatif">🌿 Vegetatif (12-16 jam)</option>
-                <option value="generatif">🥔 Generatif (12 jam)</option>
-                <option value="panen">🌾 Panen (8-10 jam)</option>
-                <option value="manual">🎛 Manual (User kontrol)</option>
-              </select>
-              <button id="applyModeBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 24px;">Terapkan</button>
-            </div>
-            <div class="mode-info" style="margin-top:12px; display:flex; gap:20px; font-size:13px; color:var(--muted); flex-wrap:wrap;">
-              <span id="currentModeDisplay">Mode: Manual</span>
-              <span id="modeDurationDisplay">Durasi: -</span>
+          <!-- MODE KONTROL (HANYA 1) -->
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>🎛️ Mode Kontrol Lampu</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+              Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis (Lux)</button>
+              <button id="modeJadwalBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">⏰ Jadwal</button>
+              <button id="modeManualBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">👋 Manual</button>
             </div>
           </div>
 
-          <!-- MODE KONTROL -->
-<div class="control-card">
-  <h3>🎛️ Mode Kontrol Lampu</h3>
-  <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
-    Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
-  </p>
-  <div style="display:flex; gap:10px; flex-wrap:wrap;">
-    <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis</button>
-    <button id="modeJadwalBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">⏰ Jadwal</button>
-    <button id="modeManualBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">👋 Manual</button>
-  </div>
-</div>
           <!-- REPEAT CYCLE -->
           <div class="control-card">
             <h3>🔁 Repeat Cycle</h3>
