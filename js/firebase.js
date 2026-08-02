@@ -1,8 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+// PERINGATAN: API Key ini untuk frontend saja. Pastikan Security Rules ketat!
 const firebaseConfig = {
-  apiKey: "auQTo4HZJl2gNEH3ZorcGXqv2iSuqoTWoeL3nDA7", // GANTI DENGAN API KEY ASLI
+  apiKey: "auQTo4HZJl2gNEH3ZorcGXqv2iSuqoTWoeL3nDA7",
   authDomain: "growlightta.firebaseapp.com",
   databaseURL: "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "growlightta",
