@@ -1,10 +1,21 @@
 // ============================================
-// ADMIN: CRUD User
+// ADMIN: CRUD User (FIXED with Password Hashing)
 // ============================================
 
 import { db } from '../firebase.js';
 import { ref, onValue, set, get, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { DOM, showToast, currentUser } from './core.js';
+
+// ✅ FIX: Simple hash function (tanpa library eksternal)
+function simpleHash(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return 'hash_' + Math.abs(hash).toString(36);
+}
 
 export function initAdminPanel() {
   if (!currentUser || currentUser.role !== 'admin') {
@@ -112,8 +123,12 @@ function initAddUserForm() {
         showToast('❌ Username sudah terdaftar!', 'error');
         return;
       }
+      
+      // ✅ FIX: Hash password sebelum disimpan
+      const hashedPassword = simpleHash(password);
+      
       await set(ref(db, `users/${username}`), {
-        password,
+        password: hashedPassword, // Hash!
         nama,
         role,
         createdAt: new Date().toISOString()
@@ -126,4 +141,9 @@ function initAddUserForm() {
       showToast('❌ Gagal menambahkan user: ' + err.message, 'error');
     }
   });
+}
+
+// ✅ FIX: Fungsi verifikasi password untuk login
+export function verifyPassword(inputPassword, storedHash) {
+  return simpleHash(inputPassword) === storedHash;
 }
