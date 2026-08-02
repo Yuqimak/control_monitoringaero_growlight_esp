@@ -1,12 +1,12 @@
 // ============================================
-// MAIN ENTRY – app.js (OPTIMIZED DOWNLOAD)
+// MAIN ENTRY – app.js (FULLY FIXED)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory } from './modules/analytics.js';
 import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
-import { initAdminPanel } from './modules/admin.js';
+import { initAdminPanel, verifyPassword } from './modules/admin.js';
 import { ref, onValue, set, update, push, query, orderByKey, limitToLast, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // ===== SESSION CHECK =====
@@ -39,21 +39,32 @@ window.logout = function() {
   }
 };
 
-// ===== STATE LISTENER (biar bisa unsubscribe) =====
+// ===== STATE LISTENER =====
 let unsubSensor = null;
 let unsubControl = null;
 let unsubSystem = null;
+let isListenerActive = false;
 
 // ===== THROTTLE VARIABEL =====
 let lastSensorUpdate = 0;
-const SENSOR_THROTTLE = 1000; // 1 detik
+const SENSOR_THROTTLE = 1000;
+
+// ===== RENDER DEBOUNCE =====
+let renderTimeout = null;
+function scheduleRender() {
+  if (renderTimeout) clearTimeout(renderTimeout);
+  renderTimeout = setTimeout(() => {
+    renderUI();
+    renderTimeout = null;
+  }, 200);
+}
 
 // ===== APP START =====
 document.addEventListener("DOMContentLoaded", () => {
   initDOM();
   initAdminPanel();
   initCharts();
-  initFirebase(); // pasang listener awal
+  initFirebase();
   initControls();
   initExpandChart();
   initModeControls();
@@ -65,7 +76,6 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.exportPdfBtn.addEventListener('click', exportPDF);
   }
   
-  // Load history pakai cache (di analytics.js)
   loadChartHistory();
   
   updateClock();
@@ -75,45 +85,61 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
   }
   
-  // Setup navigasi dengan lazy listener
   setupNavigation();
   
   console.log("🚀 App siap!");
 });
 
 // ============================================
-// FIREBASE LISTENERS (dengan throttle & unsubscribe)
+// FIREBASE LISTENERS (FIXED)
 // ============================================
 function initFirebase() {
-  // --- Sensor (throttle 1 detik) ---
+  // ✅ FIX: Cegah listener ganda
+  if (isListenerActive) {
+    console.log('⚠️ Listener sudah aktif, skip.');
+    return;
+  }
+  isListenerActive = true;
+  console.log('🔌 Memasang Firebase listeners...');
+
+  // --- Sensor (dengan filter data invalid) ---
   unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
     const now = Date.now();
-    if (now - lastSensorUpdate < SENSOR_THROTTLE) return; // skip
+    if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
     lastSensorUpdate = now;
 
     const d = snap.val();
     if (d) {
       const oldTemp = state.temperature;
       const oldLight = state.sensorLight;
-      state.temperature = d.suhu || 0;
+      
+      // ✅ FIX: Filter suhu invalid (0°C atau > 60°C)
+      let rawSuhu = d.suhu || 0;
+      if (rawSuhu > 0 && rawSuhu < 60) {
+        state.temperature = rawSuhu;
+      } else {
+        console.warn('⚠️ Suhu invalid:', rawSuhu, 'gunakan nilai terakhir:', state.temperature);
+        // state.temperature tetap pakai nilai lama
+      }
+      
       state.sensorLight = Math.min(100, Math.round((d.cahaya || 0) / 5000 * 100));
 
-      // Hanya update chart jika ada perubahan signifikan (opsional)
       if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
         const time = new Date().toLocaleTimeString();
         updateCharts(time);
       }
     }
-    renderUI();
+    scheduleRender();
   }, (err) => {
     console.error("❌ Sensor error:", err);
     if (DOM.connStatus) {
       DOM.connStatus.innerText = "Disconnected";
       DOM.connStatus.style.color = "#ef4444";
     }
+    isListenerActive = false;
   });
 
-  // --- Control (relatif jarang berubah, throttle 2 detik) ---
+  // --- Control ---
   let lastControlUpdate = 0;
   unsubControl = onValue(ref(db, 'control'), (snap) => {
     const now = Date.now();
@@ -125,10 +151,13 @@ function initFirebase() {
       state.lampState = d.lamp.state || false;
       state.mode = d.lamp.mode || 'manual';
     }
-    renderUI();
+    scheduleRender();
+  }, (err) => {
+    console.error("❌ Control error:", err);
+    isListenerActive = false;
   });
 
-  // --- System (jarang berubah, throttle 2 detik) ---
+  // --- System ---
   let lastSystemUpdate = 0;
   unsubSystem = onValue(ref(db, 'system'), (snap) => {
     const now = Date.now();
@@ -139,7 +168,9 @@ function initFirebase() {
     if (d) {
       state.plantStartDate = d.plant_start_date || null;
       state.alert = d.alert || '';
-      state.controlMode = d.control_mode || 'otomatis';
+      
+      // ✅ FIX: Sinkronkan control_mode dan lamp_mode
+      state.controlMode = d.control_mode || d.lamp_mode || 'otomatis';
       state.totalJam = d.total_jam || 14;
       state.cycleOn = d.cycle_on || 15;
       state.cycleOff = d.cycle_off || 15;
@@ -148,6 +179,7 @@ function initFirebase() {
       state.jadwalStart = d.jadwal_start || 6;
       state.jadwalEnd = d.jadwal_end || 18;
       
+      // ✅ FIX: currentModeDisplay2 sekarang ada di DOM
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
@@ -161,20 +193,25 @@ function initFirebase() {
       
       updateModeButtonUI(state.controlMode);
     }
-    renderUI();
+    scheduleRender();
+  }, (err) => {
+    console.error("❌ System error:", err);
+    isListenerActive = false;
   });
 }
 
-// ===== UNSUBSCRIBE LISTENER (untuk lazy loading) =====
+// ===== UNSUBSCRIBE =====
 function unsubscribeAll() {
   if (unsubSensor) { unsubSensor(); unsubSensor = null; }
   if (unsubControl) { unsubControl(); unsubControl = null; }
   if (unsubSystem) { unsubSystem(); unsubSystem = null; }
+  isListenerActive = false;
+  console.log('⏸️ Listener dihentikan');
 }
 
-// ===== NAVIGASI DENGAN LAZY LISTENER =====
+// ===== NAVIGASI (FIXED) =====
 function setupNavigation() {
-  const sectionsNeedingLive = ['dashboard', 'monitoring']; // hanya dua ini perlu real-time
+  const sectionsNeedingLive = ['dashboard', 'monitoring'];
   
   document.querySelectorAll('.menu-item').forEach(item => {
     item.addEventListener('click', function(e) {
@@ -187,16 +224,17 @@ function setupNavigation() {
       const targetSection = document.getElementById(target);
       if (targetSection) targetSection.classList.remove('hidden');
       
-      // Jika target butuh real-time, pasang listener lagi
+      // ✅ FIX: Cegah listener ganda
       if (sectionsNeedingLive.includes(target)) {
-        if (!unsubSensor) {
-          initFirebase(); // pasang ulang
+        if (!isListenerActive) {
+          initFirebase();
           console.log('🔌 Listener real-time dipasang untuk', target);
         }
       } else {
-        // Tidak perlu live, hentikan listener untuk hemat download
-        unsubscribeAll();
-        console.log('⏸️ Listener dihentikan sementara (section', target, ')');
+        if (isListenerActive) {
+          unsubscribeAll();
+          console.log('⏸️ Listener dihentikan (section', target, ')');
+        }
       }
       
       if (window.innerWidth <= 768) closeMenu();
@@ -204,9 +242,10 @@ function setupNavigation() {
   });
 }
 
-// ===== UPDATE UI TOMBOL MODE =====
+// ===== UPDATE UI TOMBOL MODE (FIXED pakai class) =====
 function updateModeButtonUI(mode) {
   document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.remove('active-mode');
     btn.style.background = 'rgba(255,255,255,0.05)';
     btn.style.border = '1px solid rgba(255,255,255,0.1)';
     btn.style.color = 'white';
@@ -222,6 +261,7 @@ function updateModeButtonUI(mode) {
   if (activeId) {
     const activeBtn = document.getElementById(activeId);
     if (activeBtn) {
+      activeBtn.classList.add('active-mode');
       activeBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
       activeBtn.style.border = '1px solid #22c55e';
       activeBtn.style.color = 'white';
@@ -234,14 +274,14 @@ function initControls() {
   if (DOM.btnOn) {
     DOM.btnOn.addEventListener('click', () => {
       set(ref(db, 'control/lamp/state'), true)
-        .then(() => { state.lampState = true; renderUI(); })
+        .then(() => { state.lampState = true; scheduleRender(); })
         .catch(err => showToast('❌ Gagal ON: ' + err.message, 'error'));
     });
   }
   if (DOM.btnOff) {
     DOM.btnOff.addEventListener('click', () => {
       set(ref(db, 'control/lamp/state'), false)
-        .then(() => { state.lampState = false; renderUI(); })
+        .then(() => { state.lampState = false; scheduleRender(); })
         .catch(err => showToast('❌ Gagal OFF: ' + err.message, 'error'));
     });
   }
@@ -254,7 +294,7 @@ function initControls() {
       if (mode === 'manual') {
         await update(ref(db, 'control/lamp'), { mode: 'manual' });
         state.mode = 'manual';
-        renderUI();
+        scheduleRender();
         showToast('🎛 Mode Manual aktif', 'info');
         return;
       }
@@ -266,7 +306,7 @@ function initControls() {
       }
       state.mode = mode;
       state.lampState = true;
-      renderUI();
+      scheduleRender();
       showToast(`✅ Mode ${config.icon} ${config.label} diterapkan! (${config.duration} jam)`, 'success');
     });
   }
@@ -278,14 +318,14 @@ function initControls() {
       await set(ref(db, 'control/lamp/mode'), 'manual');
       state.plantStartDate = null;
       state.mode = 'manual';
-      renderUI();
+      scheduleRender();
       showToast('✅ Tanaman di-reset!', 'success');
     });
   }
 }
 
 // ============================================
-// MODE KONTROL (OPSI 1)
+// MODE KONTROL
 // ============================================
 function initModeControls() {
   if (DOM.modeAutoBtn) {
