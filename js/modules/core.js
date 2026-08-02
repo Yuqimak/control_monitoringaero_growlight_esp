@@ -1,5 +1,5 @@
 // ============================================
-// CORE: State, DOM, Utils
+// CORE: State, DOM, Utils (FIXED)
 // ============================================
 
 export const state = {
@@ -54,7 +54,8 @@ export function initDOM() {
     'forceDayOn',
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
     'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
-    'newUsername', 'newPassword', 'newNama', 'newRole'
+    'newUsername', 'newPassword', 'newNama', 'newRole',
+    'currentModeDisplay2' // ✅ TAMBAHKAN INI
   ];
   ids.forEach(id => { DOM[id] = $(id); });
 }
@@ -90,9 +91,20 @@ export function showToast(msg, type = 'info') {
   }, 3000);
 }
 
+// ✅ FIX: formatTime lebih robust
 export function formatTime(ts) {
   try {
-    const d = new Date(ts.replace('T', ' ').replace(/-/g, '/'));
+    if (!ts) return '-';
+    if (typeof ts === 'string' && ts.includes('T')) {
+      const d = new Date(ts.replace(/-/g, '/').replace('T', ' '));
+      if (isNaN(d.getTime())) return ts;
+      return d.toLocaleString('id-ID', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    }
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return ts;
     return d.toLocaleString('id-ID', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
