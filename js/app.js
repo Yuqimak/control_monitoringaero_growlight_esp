@@ -4,7 +4,7 @@
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, setLastFetchTime } from './modules/analytics.js';
+import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory } from './modules/analytics.js';
 import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, push, query, orderByKey, limitToLast, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
