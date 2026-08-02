@@ -1641,3 +1641,19 @@ html, body {
     padding-top: 14px !important;
   }
 }
+/* ========================================
+   MODE BUTTON ACTIVE
+======================================== */
+.mode-btn.active-mode {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  border: 1px solid #22c55e !important;
+  color: white !important;
+}
+
+/* Mobile Expand Chart */
+@media (max-width: 768px) {
+  .chart-wrapper.expanded canvas { 
+    max-height: 300px !important; 
+    min-height: 200px !important;
+  }
+}
