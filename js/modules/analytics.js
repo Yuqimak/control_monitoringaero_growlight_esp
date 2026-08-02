@@ -105,7 +105,7 @@ export function updateCharts(time) {
 }
 
 // ============================================
-// LOAD HISTORY (FIXED)
+// LOAD HISTORY (FIXED - PAKE parseKeyToTimestamp)
 // ============================================
 export async function loadChartHistory() {
   const cached = localStorage.getItem(CACHE_KEY);
@@ -304,19 +304,36 @@ function updateCategoryStats(data) {
   document.getElementById('hotBar').style.width = calc(hot)+'%';
 }
 
+// ---- LAMP STATS (FIXED: HITUNG DURASI) ----
 function updateLampStats(data) {
   const total = data.length;
-  if (!total) return;
-  const on = data.filter(d => d.lampu === 1).length;
-  const off = total - on;
-  const onP = Math.round((on/total)*100);
+  if (!total || total < 2) {
+    document.getElementById('lampOnTime').textContent = '0 jam';
+    document.getElementById('lampOffTime').textContent = '0 jam';
+    document.getElementById('onPercent').textContent = 'ON: 0%';
+    document.getElementById('offPercent').textContent = 'OFF: 0%';
+    document.getElementById('lampOnBar').style.width = '0%';
+    document.getElementById('lampOffBar').style.width = '0%';
+    return;
+  }
+  
+  let totalOn = 0;
+  for (let i = 1; i < data.length; i++) {
+    const duration = (data[i].timestamp - data[i-1].timestamp) / 3600000;
+    if (data[i-1].lampu === 1) totalOn += duration;
+  }
+  const totalDurasi = (data[data.length-1].timestamp - data[0].timestamp) / 3600000;
+  const totalOff = totalDurasi - totalOn;
+  
+  const onP = totalDurasi > 0 ? Math.round((totalOn / totalDurasi) * 100) : 0;
   const offP = 100 - onP;
-  document.getElementById('lampOnTime').textContent = `${on} jam`;
-  document.getElementById('lampOffTime').textContent = `${off} jam`;
+  
+  document.getElementById('lampOnTime').textContent = totalOn.toFixed(1) + ' jam';
+  document.getElementById('lampOffTime').textContent = totalOff.toFixed(1) + ' jam';
   document.getElementById('onPercent').textContent = `ON: ${onP}%`;
   document.getElementById('offPercent').textContent = `OFF: ${offP}%`;
-  document.getElementById('lampOnBar').style.width = onP+'%';
-  document.getElementById('lampOffBar').style.width = offP+'%';
+  document.getElementById('lampOnBar').style.width = onP + '%';
+  document.getElementById('lampOffBar').style.width = offP + '%';
 }
 
 function updateTrend(data) {
