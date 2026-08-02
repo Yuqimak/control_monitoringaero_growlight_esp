@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FINAL FIX)
+// ANALYTICS: Charts, Export, Statistik (FIXED)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -105,7 +105,7 @@ export function updateCharts(time) {
 }
 
 // ============================================
-// LOAD HISTORY (FIXED UNTUK FORMAT KEY ASLI)
+// LOAD HISTORY (FIXED)
 // ============================================
 export async function loadChartHistory() {
   const cached = localStorage.getItem(CACHE_KEY);
@@ -135,76 +135,94 @@ export async function loadChartHistory() {
       return;
     }
 
-    // Bangun array dengan parsing key yang baru
     const rawData = allKeys.map(key => {
       const suhuEntry = suhuData[key];
       const cahayaEntry = cahayaData[key];
       const lampuEntry = lampuData[key];
       
-      // Ekstrak nilai (entry berbentuk { timestamp: "...", value: ... })
-      const suhu = suhuEntry?.value ?? suhuEntry ?? 0;
+      let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
+      // ✅ FIX: Filter suhu invalid (0°C atau > 60°C)
+      if (suhu <= 0 || suhu > 60) {
+        suhu = 0;
+      }
+      
       const cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
       
-      // Lampu: cek struktur, bisa { state: true/false }, { value: 1/0 }, atau langsung boolean
       let lampu = 0;
       if (lampuEntry !== undefined && lampuEntry !== null) {
         if (typeof lampuEntry === 'object') {
-          const state = lampuEntry.state ?? lampuEntry.value ?? lampuEntry.lampu ?? 0;
-          lampu = (state === true || state === 1 || state === 'ON' || state === 'on') ? 1 : 0;
+          const stateVal = lampuEntry.state ?? lampuEntry.value ?? lampuEntry.lampu ?? 0;
+          lampu = (stateVal === true || stateVal === 1 || stateVal === 'ON' || stateVal === 'on') ? 1 : 0;
         } else {
           lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON' || lampuEntry === 'on') ? 1 : 0;
         }
       }
       
-      // Parse timestamp dari key (format: "2026-7-28T13-41-27-000Z")
       const ts = parseKeyToTimestamp(key);
       
       return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp: ts };
     });
 
-    // Filter 24 jam terakhir
+    // Filter data valid (timestamp > 0 dan suhu > 0)
+    const validData = rawData.filter(d => d.timestamp > 0 && d.suhu > 0);
+    
+    if (validData.length === 0) {
+      console.warn('⚠️ Tidak ada data valid.');
+      return;
+    }
+
     const now = Date.now();
     const oneDayAgo = now - 86400000;
-    const recentData = rawData.filter(d => d.timestamp >= oneDayAgo);
+    const recentData = validData.filter(d => d.timestamp >= oneDayAgo);
 
-    // Sampling 1 titik per jam
-    const hourlyData = reduceToHourly(recentData, 24);
+    // ✅ FIX: Jangan sampling jika data sedikit
+    let chartData;
+    if (recentData.length <= 24) {
+      chartData = recentData;
+    } else {
+      chartData = reduceToHourly(recentData, 24);
+    }
 
-    // Cache
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       timestamp: Date.now(),
-      data: hourlyData
+      data: chartData
     }));
 
-    applyChartData(hourlyData);
-    console.log('✅ History loaded, titik:', hourlyData.length);
+    applyChartData(chartData);
+    console.log('✅ History loaded, titik:', chartData.length);
 
   } catch (e) {
     console.error('❌ Gagal load history:', e);
   }
 }
 
-// ---- PARSING KEY BARU: "2026-7-28T13-41-27-000Z" ----
+// ---- PARSING KEY BARU (FIXED) ----
 function parseKeyToTimestamp(key) {
   try {
-    // Hapus "-000Z" di akhir
     const clean = key.replace(/-000Z$/, '');
-    // Pisah tanggal dan jam
     const [datePart, timePart] = clean.split('T');
-    // Parse tanggal: "2026-7-28" (bisa tanpa leading zero)
     const [year, month, day] = datePart.split('-').map(Number);
-    // Parse jam: "13-41-27"
     const [hour, minute, second] = timePart.split('-').map(Number);
+    
+    // ✅ FIX: Validasi tahun
+    if (year < 2020 || year > 2030) {
+      console.warn('⚠️ Tahun tidak valid:', year, 'key:', key);
+      return Date.now() - 86400000; // fallback 1 hari lalu
+    }
+    
     return new Date(year, month - 1, day, hour, minute, second).getTime();
-  } catch (e) {
+  } catch(e) {
     console.warn('⚠️ Gagal parse key:', key, e);
-    return 0;
+    return Date.now() - 86400000;
   }
 }
 
-// ---- REDUKSI 1 TITIK PER JAM ----
+// ---- REDUKSI 1 TITIK PER JAM (FIXED) ----
 function reduceToHourly(data, totalPoints) {
   if (data.length === 0) return [];
+  // ✅ FIX: Jika data <= totalPoints, return semua
+  if (data.length <= totalPoints) return data;
+  
   data.sort((a, b) => a.timestamp - b.timestamp);
   const start = data[0].timestamp;
   const end = data[data.length - 1].timestamp;
@@ -223,10 +241,12 @@ function reduceToHourly(data, totalPoints) {
   return result;
 }
 
-// ---- APPLY DATA KE CHART ----
+// ---- APPLY DATA KE CHART (FIXED) ----
 function applyChartData(hourlyData) {
   tempLabels.length = 0; tempData.length = 0;
   lightLabels.length = 0; sensorData.length = 0;
+  
+  // ✅ FIX: Cek null sebelum akses
   if (lampStatusChart) {
     lampStatusChart.data.labels = [];
     lampStatusChart.data.datasets[0].data = [];
@@ -301,19 +321,34 @@ function updateCategoryStats(data) {
   document.getElementById('hotBar').style.width = calc(hot)+'%';
 }
 
+// ✅ FIX: updateLampStats hitung durasi aktual
 function updateLampStats(data) {
-  const total = data.length;
-  if (!total) return;
-  const on = data.filter(d => d.lampu === 1).length;
-  const off = total - on;
-  const onP = Math.round((on/total)*100);
-  const offP = 100 - onP;
-  document.getElementById('lampOnTime').textContent = `${on} jam`;
-  document.getElementById('lampOffTime').textContent = `${off} jam`;
+  if (data.length < 2) {
+    document.getElementById('lampOnTime').textContent = '0 jam';
+    document.getElementById('lampOffTime').textContent = '0 jam';
+    document.getElementById('onPercent').textContent = 'ON: 0%';
+    document.getElementById('offPercent').textContent = 'OFF: 0%';
+    document.getElementById('lampOnBar').style.width = '0%';
+    document.getElementById('lampOffBar').style.width = '0%';
+    return;
+  }
+  
+  let totalOn = 0;
+  for (let i = 1; i < data.length; i++) {
+    const duration = (data[i].timestamp - data[i-1].timestamp) / 3600000; // jam
+    if (data[i-1].lampu === 1) totalOn += duration;
+  }
+  const totalDurasi = (data[data.length-1].timestamp - data[0].timestamp) / 3600000;
+  const totalOff = totalDurasi - totalOn;
+  
+  document.getElementById('lampOnTime').textContent = totalOn.toFixed(1) + ' jam';
+  document.getElementById('lampOffTime').textContent = totalOff.toFixed(1) + ' jam';
+  
+  const onP = totalDurasi > 0 ? Math.round((totalOn / totalDurasi) * 100) : 0;
   document.getElementById('onPercent').textContent = `ON: ${onP}%`;
-  document.getElementById('offPercent').textContent = `OFF: ${offP}%`;
-  document.getElementById('lampOnBar').style.width = onP+'%';
-  document.getElementById('lampOffBar').style.width = offP+'%';
+  document.getElementById('offPercent').textContent = `OFF: ${100-onP}%`;
+  document.getElementById('lampOnBar').style.width = onP + '%';
+  document.getElementById('lampOffBar').style.width = (100-onP) + '%';
 }
 
 function updateTrend(data) {
@@ -406,7 +441,7 @@ function updateHistogram(data) {
   });
 }
 
-// ---- EXPORT CSV (FUNGSI ASLI TETAP DIPERTAHANKAN) ----
+// ---- EXPORT CSV ----
 export async function exportData(period) {
   const status = DOM.exportStatus;
   if (status) status.textContent = '⏳ Mengambil data...';
@@ -446,6 +481,7 @@ export async function exportData(period) {
     csv += `"Total Data","${filtered.length}"\n\n`;
     csv += `"No","Timestamp","Suhu (°C)","Cahaya (lux)","Status Lampu"\n`;
     filtered.forEach((row, i) => {
+      // ✅ FIX: Pakai formatTime yang sudah diperbaiki
       csv += `"${i+1}","${formatTime(row.timestamp)}","${row.suhu?.toFixed(1) || ''}","${row.cahaya || ''}","${row.lampState === true ? 'ON' : row.lampState === false ? 'OFF' : ''}"\n`;
     });
     csv += `\n"--- AKHIR LAPORAN ---"`;
@@ -463,7 +499,7 @@ export async function exportData(period) {
   }
 }
 
-// ---- EXPORT PDF (FUNGSI ASLI) ----
+// ---- EXPORT PDF ----
 export async function exportPDF() {
   if (DOM.exportStatus) DOM.exportStatus.textContent = '⏳ Membuat PDF...';
   try {
