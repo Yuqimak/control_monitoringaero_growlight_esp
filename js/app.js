@@ -1,10 +1,10 @@
 // ============================================
-// MAIN ENTRY – app.js (REVISI FINAL - OPSI 1)
+// MAIN ENTRY – app.js (OPTIMIZED DOWNLOAD)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory } from './modules/analytics.js';
+import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, setLastFetchTime } from './modules/analytics.js';
 import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, push, query, orderByKey, limitToLast, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
@@ -39,12 +39,21 @@ window.logout = function() {
   }
 };
 
+// ===== STATE LISTENER (biar bisa unsubscribe) =====
+let unsubSensor = null;
+let unsubControl = null;
+let unsubSystem = null;
+
+// ===== THROTTLE VARIABEL =====
+let lastSensorUpdate = 0;
+const SENSOR_THROTTLE = 1000; // 1 detik
+
 // ===== APP START =====
 document.addEventListener("DOMContentLoaded", () => {
   initDOM();
   initAdminPanel();
   initCharts();
-  initFirebase();
+  initFirebase(); // pasang listener awal
   initControls();
   initExpandChart();
   initModeControls();
@@ -56,6 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.exportPdfBtn.addEventListener('click', exportPDF);
   }
   
+  // Load history pakai cache (di analytics.js)
   loadChartHistory();
   
   updateClock();
@@ -65,21 +75,34 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
   }
   
+  // Setup navigasi dengan lazy listener
+  setupNavigation();
+  
   console.log("🚀 App siap!");
 });
 
 // ============================================
-// FIREBASE LISTENERS
+// FIREBASE LISTENERS (dengan throttle & unsubscribe)
 // ============================================
 function initFirebase() {
-  // Sensor
-  onValue(ref(db, 'sensor'), (snap) => {
+  // --- Sensor (throttle 1 detik) ---
+  unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
+    const now = Date.now();
+    if (now - lastSensorUpdate < SENSOR_THROTTLE) return; // skip
+    lastSensorUpdate = now;
+
     const d = snap.val();
     if (d) {
+      const oldTemp = state.temperature;
+      const oldLight = state.sensorLight;
       state.temperature = d.suhu || 0;
       state.sensorLight = Math.min(100, Math.round((d.cahaya || 0) / 5000 * 100));
-      const time = new Date().toLocaleTimeString();
-      updateCharts(time);
+
+      // Hanya update chart jika ada perubahan signifikan (opsional)
+      if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
+        const time = new Date().toLocaleTimeString();
+        updateCharts(time);
+      }
     }
     renderUI();
   }, (err) => {
@@ -89,9 +112,14 @@ function initFirebase() {
       DOM.connStatus.style.color = "#ef4444";
     }
   });
-  
-  // Control
-  onValue(ref(db, 'control'), (snap) => {
+
+  // --- Control (relatif jarang berubah, throttle 2 detik) ---
+  let lastControlUpdate = 0;
+  unsubControl = onValue(ref(db, 'control'), (snap) => {
+    const now = Date.now();
+    if (now - lastControlUpdate < 2000) return;
+    lastControlUpdate = now;
+
     const d = snap.val();
     if (d?.lamp) {
       state.lampState = d.lamp.state || false;
@@ -99,9 +127,14 @@ function initFirebase() {
     }
     renderUI();
   });
-  
-  // System
-  onValue(ref(db, 'system'), (snap) => {
+
+  // --- System (jarang berubah, throttle 2 detik) ---
+  let lastSystemUpdate = 0;
+  unsubSystem = onValue(ref(db, 'system'), (snap) => {
+    const now = Date.now();
+    if (now - lastSystemUpdate < 2000) return;
+    lastSystemUpdate = now;
+
     const d = snap.val();
     if (d) {
       state.plantStartDate = d.plant_start_date || null;
@@ -129,6 +162,45 @@ function initFirebase() {
       updateModeButtonUI(state.controlMode);
     }
     renderUI();
+  });
+}
+
+// ===== UNSUBSCRIBE LISTENER (untuk lazy loading) =====
+function unsubscribeAll() {
+  if (unsubSensor) { unsubSensor(); unsubSensor = null; }
+  if (unsubControl) { unsubControl(); unsubControl = null; }
+  if (unsubSystem) { unsubSystem(); unsubSystem = null; }
+}
+
+// ===== NAVIGASI DENGAN LAZY LISTENER =====
+function setupNavigation() {
+  const sectionsNeedingLive = ['dashboard', 'monitoring']; // hanya dua ini perlu real-time
+  
+  document.querySelectorAll('.menu-item').forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+      this.classList.add('active');
+      
+      const target = this.dataset.target;
+      document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+      const targetSection = document.getElementById(target);
+      if (targetSection) targetSection.classList.remove('hidden');
+      
+      // Jika target butuh real-time, pasang listener lagi
+      if (sectionsNeedingLive.includes(target)) {
+        if (!unsubSensor) {
+          initFirebase(); // pasang ulang
+          console.log('🔌 Listener real-time dipasang untuk', target);
+        }
+      } else {
+        // Tidak perlu live, hentikan listener untuk hemat download
+        unsubscribeAll();
+        console.log('⏸️ Listener dihentikan sementara (section', target, ')');
+      }
+      
+      if (window.innerWidth <= 768) closeMenu();
+    });
   });
 }
 
@@ -217,22 +289,13 @@ function initControls() {
 // ============================================
 function initModeControls() {
   if (DOM.modeAutoBtn) {
-    DOM.modeAutoBtn.addEventListener('click', () => {
-      console.log("🟢 [Tombol] Otomatis diklik");
-      setModeControl('otomatis');
-    });
+    DOM.modeAutoBtn.addEventListener('click', () => setModeControl('otomatis'));
   }
   if (DOM.modeJadwalBtn) {
-    DOM.modeJadwalBtn.addEventListener('click', () => {
-      console.log("🟢 [Tombol] Jadwal diklik");
-      setModeControl('jadwal');
-    });
+    DOM.modeJadwalBtn.addEventListener('click', () => setModeControl('jadwal'));
   }
   if (DOM.modeManualBtn) {
-    DOM.modeManualBtn.addEventListener('click', () => {
-      console.log("🟢 [Tombol] Manual diklik");
-      setModeControl('manual');
-    });
+    DOM.modeManualBtn.addEventListener('click', () => setModeControl('manual'));
   }
   
   if (DOM.saveTotalJamBtn && DOM.totalJam) {
@@ -282,36 +345,18 @@ function initModeControls() {
   }
 }
 
-// ============================================
-// SET MODE CONTROL (OPSI 1 - KIRIM KE system/control_mode)
-// ============================================
 function setModeControl(mode) {
-  console.log("🟢 [setModeControl] Dipanggil dengan mode:", mode);
-  
-  if (!db) {
-    console.error("❌ Firebase database tidak terdefinisi!");
-    showToast('❌ Firebase tidak terhubung!', 'error');
-    return;
-  }
-  
-  // ===== KIRIM KE system/control_mode (SESUAI YANG DIBACA ESP32) =====
   set(ref(db, 'system/control_mode'), mode)
     .then(() => {
-      console.log("✅ Mode dikirim ke system/control_mode:", mode);
       state.controlMode = mode;
-      
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         DOM.currentModeDisplay2.textContent = labels[mode] || mode;
       }
-      
       updateModeButtonUI(mode);
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
-    .catch(err => {
-      console.error("❌ Gagal simpan mode ke system/control_mode:", err);
-      showToast('❌ Gagal: ' + err.message, 'error');
-    });
+    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
 }
 
 // ===== EXPAND CHART =====
@@ -394,22 +439,6 @@ if (overlay) {
 
 window.addEventListener('resize', () => {
   if (window.innerWidth > 768) closeMenu();
-});
-
-// ===== SIDEBAR NAVIGATION =====
-document.querySelectorAll('.menu-item').forEach(item => {
-  item.addEventListener('click', function(e) {
-    e.preventDefault();
-    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-    this.classList.add('active');
-    
-    const target = this.dataset.target;
-    document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-    const targetSection = document.getElementById(target);
-    if (targetSection) targetSection.classList.remove('hidden');
-    
-    if (window.innerWidth <= 768) closeMenu();
-  });
 });
 
 // ===== DEFAULT SECTION =====
