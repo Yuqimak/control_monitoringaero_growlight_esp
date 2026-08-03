@@ -11,7 +11,7 @@ const MAX_POINTS = 288;
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
 export let tempChart = null, lightChart = null, lampStatusChart = null;
 const dashTempLabels = [], dashTempData = [];
-let dashTempChart = null;
+export let dashTempChart = null; // ✅ EXPORT untuk dashboard
 
 // ---- CACHE ----
 const CACHE_KEY = 'analytics_24h_cache';
@@ -95,16 +95,60 @@ export function updateCharts(time) {
     lampStatusChart.update();
   }
   
+  // ✅ UPDATE DASHBOARD CHART (rolling window 15 data)
   if (dashTempChart) {
     dashTempLabels.push(time);
     dashTempData.push(state.temperature);
-    if (dashTempLabels.length > 15) { dashTempLabels.shift(); dashTempData.shift(); }
+    if (dashTempLabels.length > 15) {
+      dashTempLabels.shift();
+      dashTempData.shift();
+    }
     dashTempChart.update();
   }
 }
 
 // ============================================
-// LOAD HISTORY
+// LOAD 15 DATA TERAKHIR UNTUK DASHBOARD CHART
+// ============================================
+export async function loadDashChartHistory() {
+  try {
+    const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
+    const data = snapshot.val();
+    
+    if (!data) {
+      console.warn('⚠️ Tidak ada data history untuk dashboard chart.');
+      return;
+    }
+
+    const keys = Object.keys(data).sort();
+    const labels = [];
+    const values = [];
+
+    keys.forEach(key => {
+      const entry = data[key];
+      const suhu = entry?.value ?? entry ?? 0;
+      if (suhu > 0) {
+        const date = new Date(parseKeyToTimestamp(key));
+        const label = String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
+        labels.push(label);
+        values.push(suhu);
+      }
+    });
+
+    if (dashTempChart) {
+      dashTempChart.data.labels = labels;
+      dashTempChart.data.datasets[0].data = values;
+      dashTempChart.update();
+    }
+
+    console.log('✅ Dashboard chart diisi dengan 15 data terakhir.');
+  } catch (e) {
+    console.error('❌ Gagal load dashboard chart:', e);
+  }
+}
+
+// ============================================
+// LOAD HISTORY (24 JAM UNTUK ANALYTICS)
 // ============================================
 export async function loadChartHistory() {
   const cached = localStorage.getItem(CACHE_KEY);
