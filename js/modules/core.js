@@ -43,7 +43,7 @@ export function initDOM() {
     // Quick Stats
     'statTemp', 'statTempStatus', 'statLight', 'statLightStatus',
     'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
-    'statLightProgress', // 🔥 BARU
+    'statLightProgress',
     // Dashboard
     'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
     'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
@@ -69,7 +69,7 @@ export function initDOM() {
     'forceDayOn',
     // Jadwal
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
-    // 🔥 KEBUTUHAN CAHAYA (BARU)
+    // KEBUTUHAN CAHAYA
     'totalLightNeeded', 'saveLightNeededBtn', 
     'sunlightHours', 'growlightHours', 'lightProgressDisplay',
     // Admin
