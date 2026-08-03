@@ -1,10 +1,10 @@
 // ============================================
-// MAIN ENTRY – app.js (FULLY FIXED + FITUR CAHAYA)
+// MAIN ENTRY – app.js (FULLY FIXED + FITUR CAHAYA + DASHBOARD CHART)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory } from './modules/analytics.js';
+import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory } from './modules/analytics.js';
 import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, push, query, orderByKey, limitToLast, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
@@ -76,7 +76,8 @@ document.addEventListener("DOMContentLoaded", () => {
     DOM.exportPdfBtn.addEventListener('click', exportPDF);
   }
   
-  loadChartHistory();
+  loadChartHistory();          // buat halaman analytics
+  loadDashChartHistory();      // ✅ TAMBAHKAN INI BUAT DASHBOARD CHART
   
   updateClock();
   setInterval(updateClock, 1000);
