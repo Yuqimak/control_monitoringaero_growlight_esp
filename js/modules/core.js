@@ -37,6 +37,7 @@ export function initDOM() {
     'connStatus', 'userName', 'dateText', 'clockText', 'menuToggle',
     'statTemp', 'statTempStatus', 'statLight', 'statLightStatus',
     'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
+    'statLightProgress', // 🔥 BARU
     'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
     'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
     'dashTempChart', 'chartStatus',
@@ -55,7 +56,10 @@ export function initDOM() {
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
     'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
     'newUsername', 'newPassword', 'newNama', 'newRole',
-    'currentModeDisplay2' // ✅ TAMBAHKAN INI
+    'currentModeDisplay2',
+    // 🔥 FITUR KEBUTUHAN CAHAYA
+    'totalLightNeeded', 'saveLightNeededBtn', 'sunlightHours',
+    'growlightHours', 'lightProgressDisplay'
   ];
   ids.forEach(id => { DOM[id] = $(id); });
 }
