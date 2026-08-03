@@ -1,12 +1,12 @@
 // ============================================
-// MAIN ENTRY – app.js (FULLY FIXED)
+// MAIN ENTRY – app.js (FULLY FIXED + FITUR CAHAYA)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory } from './modules/analytics.js';
 import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
-import { initAdminPanel, verifyPassword } from './modules/admin.js';
+import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, push, query, orderByKey, limitToLast, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 // ===== SESSION CHECK =====
@@ -91,10 +91,9 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ============================================
-// FIREBASE LISTENERS (FIXED)
+// FIREBASE LISTENERS
 // ============================================
 function initFirebase() {
-  // ✅ FIX: Cegah listener ganda
   if (isListenerActive) {
     console.log('⚠️ Listener sudah aktif, skip.');
     return;
@@ -102,7 +101,7 @@ function initFirebase() {
   isListenerActive = true;
   console.log('🔌 Memasang Firebase listeners...');
 
-  // --- Sensor (dengan filter data invalid) ---
+  // --- Sensor ---
   unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
     const now = Date.now();
     if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
@@ -113,20 +112,39 @@ function initFirebase() {
       const oldTemp = state.temperature;
       const oldLight = state.sensorLight;
       
-      // ✅ FIX: Filter suhu invalid (0°C atau > 60°C)
-      let rawSuhu = d.suhu || 0;
-      if (rawSuhu > 0 && rawSuhu < 60) {
-        state.temperature = rawSuhu;
-      } else {
-        console.warn('⚠️ Suhu invalid:', rawSuhu, 'gunakan nilai terakhir:', state.temperature);
-        // state.temperature tetap pakai nilai lama
-      }
+      const rawSuhu = d.suhu || 0;
+      state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
       
       state.sensorLight = Math.min(100, Math.round((d.cahaya || 0) / 5000 * 100));
 
       if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
         const time = new Date().toLocaleTimeString();
         updateCharts(time);
+      }
+      
+      // 🔥 HITUNG AKUMULASI CAHAYA
+      const luxThreshold = state.luxThreshold || 500;
+      const rawLight = d.cahaya || 0;
+      
+      if (rawLight > luxThreshold) {
+        const increment = 1 / 3600;
+        state.accumulatedLight = (state.accumulatedLight || 0) + increment;
+        
+        // Update Firebase tiap 60 detik
+        if (Math.floor(Date.now() / 60000) % 2 === 0) {
+          set(ref(db, 'system/accumulated_light'), state.accumulatedLight);
+        }
+      }
+      
+      // Update UI Progress
+      const totalNeeded = state.totalLightNeeded || 12;
+      const progress = Math.min(100, Math.round((state.accumulatedLight / totalNeeded) * 100));
+      if (DOM.statLightProgress) DOM.statLightProgress.textContent = progress;
+      if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = progress + '%';
+      if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
+      if (DOM.growlightHours) {
+        const growlight = Math.max(0, totalNeeded - (state.accumulatedLight || 0));
+        DOM.growlightHours.textContent = growlight.toFixed(1);
       }
     }
     scheduleRender();
@@ -168,8 +186,6 @@ function initFirebase() {
     if (d) {
       state.plantStartDate = d.plant_start_date || null;
       state.alert = d.alert || '';
-      
-      // ✅ FIX: Sinkronkan control_mode dan lamp_mode
       state.controlMode = d.control_mode || d.lamp_mode || 'otomatis';
       state.totalJam = d.total_jam || 14;
       state.cycleOn = d.cycle_on || 15;
@@ -179,7 +195,20 @@ function initFirebase() {
       state.jadwalStart = d.jadwal_start || 6;
       state.jadwalEnd = d.jadwal_end || 18;
       
-      // ✅ FIX: currentModeDisplay2 sekarang ada di DOM
+      // 🔥 FITUR BARU: Kebutuhan Cahaya
+      state.totalLightNeeded = d.total_light_needed || 12;
+      state.accumulatedLight = d.accumulated_light || 0;
+      state.lastResetDate = d.last_reset_date || '';
+      
+      // Reset akumulasi setiap hari
+      const today = new Date().toISOString().slice(0,10);
+      if (state.lastResetDate !== today) {
+        state.accumulatedLight = 0;
+        state.lastResetDate = today;
+        set(ref(db, 'system/accumulated_light'), 0);
+        set(ref(db, 'system/last_reset_date'), today);
+      }
+      
       if (DOM.currentModeDisplay2) {
         const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
@@ -190,6 +219,20 @@ function initFirebase() {
       if (DOM.totalJam) DOM.totalJam.value = state.totalJam;
       if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
       if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
+      
+      // 🔥 Update UI kebutuhan cahaya
+      if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
+      if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
+      if (DOM.growlightHours) {
+        const growlight = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
+        DOM.growlightHours.textContent = growlight.toFixed(1);
+      }
+      if (DOM.lightProgressDisplay || DOM.statLightProgress) {
+        const progress = Math.min(100, Math.round(((state.accumulatedLight || 0) / (state.totalLightNeeded || 12)) * 100));
+        const display = progress > 100 ? 100 : progress;
+        if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display + '%';
+        if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
+      }
       
       updateModeButtonUI(state.controlMode);
     }
@@ -209,7 +252,7 @@ function unsubscribeAll() {
   console.log('⏸️ Listener dihentikan');
 }
 
-// ===== NAVIGASI (FIXED) =====
+// ===== NAVIGASI =====
 function setupNavigation() {
   const sectionsNeedingLive = ['dashboard', 'monitoring'];
   
@@ -224,7 +267,6 @@ function setupNavigation() {
       const targetSection = document.getElementById(target);
       if (targetSection) targetSection.classList.remove('hidden');
       
-      // ✅ FIX: Cegah listener ganda
       if (sectionsNeedingLive.includes(target)) {
         if (!isListenerActive) {
           initFirebase();
@@ -242,7 +284,7 @@ function setupNavigation() {
   });
 }
 
-// ===== UPDATE UI TOMBOL MODE (FIXED pakai class) =====
+// ===== UPDATE UI TOMBOL MODE =====
 function updateModeButtonUI(mode) {
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.classList.remove('active-mode');
@@ -325,7 +367,7 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL
+// MODE KONTROL & KEBUTUHAN CAHAYA
 // ============================================
 function initModeControls() {
   if (DOM.modeAutoBtn) {
@@ -336,6 +378,23 @@ function initModeControls() {
   }
   if (DOM.modeManualBtn) {
     DOM.modeManualBtn.addEventListener('click', () => setModeControl('manual'));
+  }
+  
+  // 🔥 FITUR BARU: Simpan Kebutuhan Cahaya
+  if (DOM.saveLightNeededBtn && DOM.totalLightNeeded) {
+    DOM.saveLightNeededBtn.addEventListener('click', () => {
+      const val = parseInt(DOM.totalLightNeeded.value);
+      if (val < 6 || val > 18) { 
+        showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error'); 
+        return; 
+      }
+      set(ref(db, 'system/total_light_needed'), val)
+        .then(() => {
+          state.totalLightNeeded = val;
+          showToast('✅ Kebutuhan cahaya disimpan!', 'success');
+        })
+        .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    });
   }
   
   if (DOM.saveTotalJamBtn && DOM.totalJam) {
