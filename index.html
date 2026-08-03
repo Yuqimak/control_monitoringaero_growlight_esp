@@ -125,15 +125,15 @@
             </div>
           </div>
           <div class="quick-stat">
-            <div class="quick-stat-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">📅</div>
+            <div class="quick-stat-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">☀️</div>
             <div class="quick-stat-info">
-              <div class="quick-stat-value"><span id="statDay">--</span></div>
-              <div class="quick-stat-label">Hari ke-<span id="statDayLabel">0</span> · <span id="statModeLabel">Manual</span></div>
+              <div class="quick-stat-value"><span id="statLightProgress">0</span>%</div>
+              <div class="quick-stat-label">Pemenuhan Cahaya</div>
             </div>
           </div>
         </div>
 
-        <!-- GRAFIK CEPAT (tanpa Mode Pertumbuhan) -->
+        <!-- GRAFIK CEPAT + MODE KONTROL -->
         <div class="dashboard-main-grid">
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
@@ -146,7 +146,6 @@
             <canvas id="dashTempChart"></canvas>
             <div class="chart-status" id="chartStatus">🟢 Stabil</div>
           </div>
-          <!-- MODE KONTROL (pindah ke dashboard) -->
           <div class="dashboard-card">
             <div class="card-head">
               <div class="card-icon purple-box">🎛️</div>
@@ -347,11 +346,11 @@
               <div style="margin-top:12px;">
                 <div style="display:flex; justify-content:space-between; font-size:14px;">
                   <span style="color:var(--muted);">Total ON</span>
-                  <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam -- menit</span>
+                  <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:14px; margin-top:4px;">
                   <span style="color:var(--muted);">Total OFF</span>
-                  <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam -- menit</span>
+                  <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam</span>
                 </div>
                 <div style="margin-top:12px;">
                   <div style="display:flex; gap:8px; align-items:center;">
@@ -425,7 +424,7 @@
             <p class="info-text">Status Lampu : <span id="lampStateText">OFF</span></p>
           </div>
 
-          <!-- MODE KONTROL (HANYA 1) -->
+          <!-- MODE KONTROL -->
           <div class="control-card" style="grid-column: span 2;">
             <h3>🎛️ Mode Kontrol Lampu</h3>
             <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
@@ -438,20 +437,25 @@
             </div>
           </div>
 
-          <!-- REPEAT CYCLE -->
-          <div class="control-card">
-            <h3>🔁 Repeat Cycle</h3>
+          <!-- KEBUTUHAN CAHAYA HARIAN (GANTI REPEAT CYCLE) -->
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>☀️ Kebutuhan Cahaya Harian</h3>
             <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
-              Total nyala per hari (1-18 jam)
+              Total cahaya yang dibutuhkan tanaman per hari (6-18 jam)
             </p>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <input type="number" id="totalJam" value="14" min="1" max="18" 
+              <input type="number" id="totalLightNeeded" value="12" min="6" max="18" 
                 style="flex:1; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px; min-width:80px;">
               <span style="color:var(--muted);">jam</span>
-              <button id="saveTotalJamBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
+              <button id="saveLightNeededBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
             </div>
-            <p style="font-size:12px; color:var(--muted); margin-top:6px;">
-              💡 Siklus ON/OFF otomatis 15/15 menit
+            <div style="margin-top:10px; display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--muted);">
+              <span>☀️ Cahaya Matahari: <span id="sunlightHours" style="color:var(--orange); font-weight:600;">0</span> jam</span>
+              <span>💡 Growlight: <span id="growlightHours" style="color:var(--green); font-weight:600;">0</span> jam</span>
+              <span>📊 Progress: <span id="lightProgressDisplay" style="color:var(--blue); font-weight:600;">0%</span></span>
+            </div>
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              💡 Growlight akan nyala otomatis untuk memenuhi sisa kebutuhan cahaya
             </p>
           </div>
 
