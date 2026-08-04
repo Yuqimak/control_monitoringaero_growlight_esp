@@ -197,11 +197,12 @@ export async function loadChartHistory() {
       let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
       let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
       
-      // 🔥 PARSING LAMPU YANG LEBIH HANDAL
+      // 🔥 PARSING LAMPU YANG LEBIH HANDAL (FIXED!)
       let lampu = 0;
       if (lampuEntry !== undefined && lampuEntry !== null) {
-        if (typeof lampuEntry === 'object') {
-          // Coba baca state
+        if (typeof lampuEntry === 'boolean') {
+          lampu = lampuEntry ? 1 : 0;
+        } else if (typeof lampuEntry === 'object') {
           if (lampuEntry.state !== undefined) {
             lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON' || lampuEntry.state === 'on') ? 1 : 0;
           } else if (lampuEntry.value !== undefined) {
@@ -209,9 +210,10 @@ export async function loadChartHistory() {
           } else if (lampuEntry.lampu !== undefined) {
             lampu = (lampuEntry.lampu === true || lampuEntry.lampu === 1 || lampuEntry.lampu === 'ON' || lampuEntry.lampu === 'on') ? 1 : 0;
           }
-        } else {
-          // Langsung boolean / number
-          lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON' || lampuEntry === 'on') ? 1 : 0;
+        } else if (typeof lampuEntry === 'string') {
+          lampu = (lampuEntry === 'true' || lampuEntry === '1' || lampuEntry === 'ON' || lampuEntry === 'on') ? 1 : 0;
+        } else if (typeof lampuEntry === 'number') {
+          lampu = (lampuEntry === 1) ? 1 : 0;
         }
       }
       
@@ -238,10 +240,6 @@ export async function loadChartHistory() {
     } else {
       chartData = reduceToHourly(recentData, 24);
     }
-
-    // 🔥 Cek data lampu di chartData
-    const lampCount = chartData.filter(d => d.lampu !== undefined).length;
-    console.log('📊 Data lampu dalam chartData:', lampCount, 'dari', chartData.length);
 
     localStorage.setItem(CACHE_KEY, JSON.stringify({
       timestamp: Date.now(),
@@ -320,14 +318,12 @@ function applyChartData(hourlyData) {
   if (lightChart) lightChart.update();
   if (lampStatusChart) lampStatusChart.update();
   
-  // 🔥 PASTIKAN UPDATE STATS DIPANGGIL
   updateStats(hourlyData);
   updateCategoryStats(hourlyData);
   updateLampStats(hourlyData);
   updateTrend(hourlyData);
   updateHeatmap(hourlyData);
   updateHistogram(hourlyData);
-  updateLampTable(hourlyData);
 }
 
 // ---- STATISTIK ----
@@ -382,8 +378,8 @@ function updateLampStats(data) {
   console.log('📊 Data lampu valid:', lampData.length);
   
   if (lampData.length < 2) {
-    document.getElementById('lampOnTime').textContent = '0 jam';
-    document.getElementById('lampOffTime').textContent = '0 jam';
+    document.getElementById('lampOnTime').textContent = '0.0 jam';
+    document.getElementById('lampOffTime').textContent = '0.0 jam';
     document.getElementById('onPercent').textContent = 'ON: 0%';
     document.getElementById('offPercent').textContent = 'OFF: 0%';
     document.getElementById('lampOnBar').style.width = '0%';
@@ -410,63 +406,6 @@ function updateLampStats(data) {
   document.getElementById('lampOffBar').style.width = offP + '%';
   
   console.log('✅ Durasi ON:', totalOn.toFixed(2), 'jam, OFF:', totalOff.toFixed(2), 'jam');
-}
-
-// ============================================
-// TABEL STATUS LAMPU PER JAM (BARU)
-// ============================================
-function updateLampTable(data) {
-  const tbody = document.getElementById('lampTableBody');
-  if (!tbody) {
-    console.warn('⚠️ Element #lampTableBody tidak ditemukan');
-    return;
-  }
-  
-  // Filter data lampu
-  const lampData = data.filter(d => d.lampu !== undefined && d.lampu !== null);
-  if (lampData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="2">Tidak ada data lampu</td></tr>';
-    return;
-  }
-  
-  // Kelompokkan per jam
-  const hourData = {};
-  lampData.forEach(d => {
-    const hour = new Date(d.timestamp).getHours();
-    if (!hourData[hour]) hourData[hour] = [];
-    hourData[hour].push(d.lampu);
-  });
-  
-  let html = '';
-  for (let i = 0; i < 24; i++) {
-    const states = hourData[i] || [];
-    const onCount = states.filter(s => s === 1).length;
-    const totalCount = states.length;
-    let status = '-';
-    let color = '#64748b';
-    
-    if (totalCount > 0) {
-      const ratio = onCount / totalCount;
-      if (ratio > 0.5) {
-        status = 'ON';
-        color = '#22c55e';
-      } else if (ratio < 0.5) {
-        status = 'OFF';
-        color = '#ef4444';
-      } else {
-        status = '~ON/OFF';
-        color = '#f59e0b';
-      }
-    }
-    
-    html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-      <td style="padding:6px 4px;">${String(i).padStart(2,'0')}:00</td>
-      <td style="padding:6px 4px; color:${color}; font-weight:600;">${status}</td>
-    </tr>`;
-  }
-  
-  tbody.innerHTML = html;
-  console.log('✅ Tabel lampu diupdate');
 }
 
 function updateTrend(data) {
