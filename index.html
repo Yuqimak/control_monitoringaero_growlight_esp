@@ -5,7 +5,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>IoT Greenhouse Dashboard</title>
+  <title>SIGMA - Sistem Grow Light Monitoring & Automasi</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25,10 +25,14 @@
     ======================================= -->
     <aside class="sidebar">
       <div class="logo">
-        <div class="logo-icon">🌱</div>
+        <div class="logo-icon">
+          <img src="assets/SIGMALOGO-removebg-preview.png" 
+               alt="Logo" 
+               style="width:45px; height:45px; border-radius:12px; object-fit:cover;" />
+        </div>
         <div>
-          <h2>IoT</h2>
-          <p>Greenhouse</p>
+          <h2>SIGMA</h2>
+          <p>Grow Light</p>
         </div>
       </div>
 
@@ -57,9 +61,12 @@
       <header class="topbar">
         <div style="display:flex; align-items:center; gap:12px; flex:1;">
           <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
+          <img src="assets/SIGMALOGO-removebg-preview.png" 
+               alt="Logo" 
+               style="height:36px; width:36px; border-radius:8px; object-fit:cover;" />
           <div>
-            <h1>🌱 IoT Greenhouse</h1>
-            <p class="subtitle">Smart Monitoring & Control System</p>
+            <h1>SIGMA</h1>
+            <p class="subtitle">Sistem Grow Light untuk Monitoring dan Automasi</p>
           </div>
         </div>
         <div class="topbar-right">
@@ -125,15 +132,15 @@
             </div>
           </div>
           <div class="quick-stat">
-            <div class="quick-stat-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">📅</div>
+            <div class="quick-stat-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">☀️</div>
             <div class="quick-stat-info">
-              <div class="quick-stat-value"><span id="statDay">--</span></div>
-              <div class="quick-stat-label">Hari ke-<span id="statDayLabel">0</span> · <span id="statModeLabel">Manual</span></div>
+              <div class="quick-stat-value"><span id="statLightProgress">0</span>%</div>
+              <div class="quick-stat-label">Pemenuhan Cahaya</div>
             </div>
           </div>
         </div>
 
-        <!-- GRAFIK + MODE -->
+        <!-- GRAFIK CEPAT + STATUS LAMPU -->
         <div class="dashboard-main-grid">
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
@@ -148,23 +155,19 @@
           </div>
           <div class="dashboard-card">
             <div class="card-head">
-              <div class="card-icon orange-box">🌱</div>
+              <div class="card-icon purple-box">💡</div>
               <div>
-                <h3>Mode Pertumbuhan</h3>
-                <p class="card-sub">Fase Tanaman Kentang</p>
+                <h3>Status Lampu</h3>
+                <p class="card-sub">ON / OFF</p>
               </div>
             </div>
-            <div class="dashboard-mode-display">
-              <div class="mode-status">
-                <span class="mode-icon" id="modeIcon">🌱</span>
-                <span class="mode-name" id="modeName">Bibit</span>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:13px; color:var(--muted);">Status:</span>
+                <span id="dashLampStatus" style="font-weight:700; font-size:18px; color:#ef4444;">OFF</span>
               </div>
-              <div class="mode-details">
-                <span>⏰ <span id="modeDuration">4</span> jam/hari</span>
-                <span>📅 Hari ke-<span id="dayCounter">0</span></span>
-              </div>
-              <div id="timelineMessage" style="font-size:12px; color:var(--muted); padding:6px 10px; background:rgba(255,255,255,.04); border-radius:8px; margin-top:4px;">
-                🌱 Mulai tanam untuk tracking
+              <div style="display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted);">
+                <span>Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span></span>
               </div>
             </div>
           </div>
@@ -193,8 +196,8 @@
               <span class="status-badge" id="dashLastUpdate">--:--:--</span>
             </div>
             <div class="status-item">
-              <span class="status-label">Suhu Maks</span>
-              <span class="status-badge" id="dashMaxTemp">--°C</span>
+              <span class="status-label">Suhu Terbaru</span>
+              <span class="status-badge" id="dashLatestTemp">--°C</span>
             </div>
           </div>
         </div>
@@ -249,43 +252,38 @@
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
 
-        <div class="analytics-grid">
-          <div class="analytics-card">
-            <div class="analytics-head">
-              <h3>Suhu Realtime</h3>
-              <button class="time-btn">24 Jam Terakhir</button>
-            </div>
-            <div class="chart-wrapper" id="wrapper-tempChart">
-              <button class="chart-expand-btn" onclick="toggleExpand('wrapper-tempChart')">📊 Expand</button>
-              <canvas id="tempChart"></canvas>
-            </div>
+        <div class="analytics-card" style="margin-bottom:20px;">
+          <div class="analytics-head">
+            <h3>🌡️ Suhu Realtime</h3>
+            <button class="time-btn" onclick="toggleFullscreen('wrapper-tempChart')">⛶ Full Screen</button>
           </div>
-
-          <div class="analytics-card">
-            <div class="analytics-head">
-              <h3>History Intensitas</h3>
-              <button class="time-btn">24 Jam Terakhir</button>
-            </div>
-            <div class="chart-wrapper" id="wrapper-lightChart">
-              <button class="chart-expand-btn" onclick="toggleExpand('wrapper-lightChart')">📊 Expand</button>
-              <canvas id="lightChart"></canvas>
-            </div>
+          <div class="chart-wrapper" id="wrapper-tempChart">
+            <canvas id="tempChart"></canvas>
           </div>
+        </div>
 
-          <div class="analytics-card">
-            <div class="analytics-head">
-              <h3>Status Lampu</h3>
-              <button class="time-btn">24 Jam Terakhir</button>
-            </div>
-            <div class="chart-wrapper" id="wrapper-lampStatusChart">
-              <button class="chart-expand-btn" onclick="toggleExpand('wrapper-lampStatusChart')">📊 Expand</button>
-              <canvas id="lampStatusChart"></canvas>
-            </div>
+        <div class="analytics-card" style="margin-bottom:20px;">
+          <div class="analytics-head">
+            <h3>💡 Intensitas Cahaya</h3>
+            <button class="time-btn" onclick="toggleFullscreen('wrapper-lightChart')">⛶ Full Screen</button>
+          </div>
+          <div class="chart-wrapper" id="wrapper-lightChart">
+            <canvas id="lightChart"></canvas>
+          </div>
+        </div>
+
+        <div class="analytics-card" style="margin-bottom:20px;">
+          <div class="analytics-head">
+            <h3>💡 Status Lampu</h3>
+            <button class="time-btn" onclick="toggleFullscreen('wrapper-lampStatusChart')">⛶ Full Screen</button>
+          </div>
+          <div class="chart-wrapper" id="wrapper-lampStatusChart">
+            <canvas id="lampStatusChart"></canvas>
           </div>
         </div>
 
         <!-- STATISTIK -->
-        <div class="analytics-card" style="grid-column: span 3; margin-top:20px;">
+        <div class="analytics-card" style="margin-top:20px;">
           <h3 style="margin-bottom:16px;">📊 Statistik Hari Ini</h3>
           <div id="statsContainer" style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px;">
             <div class="stat-item" style="background:rgba(255,255,255,.04); padding:12px; border-radius:12px; text-align:center;">
@@ -308,7 +306,7 @@
         </div>
 
         <!-- KATEGORI + WAKTU LAMPU -->
-        <div class="analytics-card" style="grid-column: span 3;">
+        <div class="analytics-card">
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
             <div>
               <h4>🌡️ Kategori Suhu Hari Ini</h4>
@@ -348,11 +346,11 @@
               <div style="margin-top:12px;">
                 <div style="display:flex; justify-content:space-between; font-size:14px;">
                   <span style="color:var(--muted);">Total ON</span>
-                  <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam -- menit</span>
+                  <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:14px; margin-top:4px;">
                   <span style="color:var(--muted);">Total OFF</span>
-                  <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam -- menit</span>
+                  <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam</span>
                 </div>
                 <div style="margin-top:12px;">
                   <div style="display:flex; gap:8px; align-items:center;">
@@ -372,13 +370,13 @@
         </div>
 
         <!-- TREN SUHU -->
-        <div class="analytics-card" style="grid-column: span 3;">
+        <div class="analytics-card">
           <h3>📈 Tren Suhu 7 Hari Terakhir</h3>
           <div id="trendContainer" style="margin-top:12px; display:grid; grid-template-columns: repeat(7,1fr); gap:8px;"></div>
         </div>
 
         <!-- HEATMAP -->
-        <div class="analytics-card" style="grid-column: span 3;">
+        <div class="analytics-card">
           <h3>🌡️ Heatmap Suhu (7 Hari x 6 Jam)</h3>
           <div id="heatmapContainer" style="margin-top:12px; overflow-x:auto;">
             <table id="heatmapTable" style="width:100%; border-collapse:collapse; font-size:12px;"></table>
@@ -386,13 +384,13 @@
         </div>
 
         <!-- HISTOGRAM -->
-        <div class="analytics-card" style="grid-column: span 3;">
+        <div class="analytics-card">
           <h3>📊 Distribusi Suhu (Histogram)</h3>
           <canvas id="histogramChart" style="max-height:200px;"></canvas>
         </div>
 
         <!-- EXPORT -->
-        <div class="analytics-card" style="grid-column: span 3;">
+        <div class="analytics-card">
           <div class="analytics-head">
             <h3>📥 Export Data</h3>
             <span style="color:var(--muted); font-size:13px;">Unduh data sensor</span>
@@ -402,4 +400,147 @@
               <option value="week">📅 1 Minggu Terakhir</option>
               <option value="month">📅 1 Bulan Terakhir</option>
             </select>
-            <button id="exportBtn" class="big-btn on" style="flex:0 0 a
+            <button id="exportBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 28px;">⬇️ CSV</button>
+            <button id="exportPdfBtn" class="big-btn" style="flex:0 0 auto; padding:12px 28px; background:linear-gradient(135deg,#8b5cf6,#6d28d9);">📄 PDF</button>
+          </div>
+          <p id="exportStatus" style="margin-top:10px; font-size:13px; color:var(--muted);">Klik tombol untuk mengunduh data.</p>
+        </div>
+      </section>
+
+      <!-- ======================================
+           CONTROL
+    ======================================= -->
+      <section class="section page-section hidden" id="control">
+        <h2 class="section-title orange">🎛 CONTROL</h2>
+        <div class="control-grid" id="controlSection">
+
+          <div class="control-card">
+            <h3>🚨 Emergency Control</h3>
+            <div class="button-row">
+              <button id="btnOn" class="big-btn on">ON</button>
+              <button id="btnOff" class="big-btn off">OFF</button>
+            </div>
+            <p class="info-text">Status Lampu : <span id="lampStateText">OFF</span></p>
+          </div>
+
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>🎛️ Mode Kontrol Lampu</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+              Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis (Lux)</button>
+              <button id="modeJadwalBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">⏰ Jadwal</button>
+              <button id="modeManualBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">👋 Manual</button>
+            </div>
+          </div>
+
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>☀️ Kebutuhan Cahaya Harian</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Total cahaya yang dibutuhkan tanaman per hari (6-18 jam)
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input type="number" id="totalLightNeeded" value="12" min="6" max="18" 
+                style="flex:1; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px; min-width:80px;">
+              <span style="color:var(--muted);">jam</span>
+              <button id="saveLightNeededBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--muted);">
+              <span>☀️ Cahaya Matahari: <span id="sunlightHours" style="color:var(--orange); font-weight:600;">0</span> jam</span>
+              <span>💡 Growlight: <span id="growlightHours" style="color:var(--green); font-weight:600;">0</span> jam</span>
+              <span>📊 Progress: <span id="lightProgressDisplay" style="color:var(--blue); font-weight:600;">0%</span></span>
+            </div>
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              💡 Growlight akan nyala otomatis untuk memenuhi sisa kebutuhan cahaya
+            </p>
+          </div>
+
+          <div class="control-card">
+            <h3>🌡️ Batas Lux</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Lampu mati jika lux melewati batas ini
+            </p>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <input type="range" id="luxThreshold" min="0" max="5000" value="500" step="50"
+                style="flex:1; min-width:120px;">
+              <span id="luxThresholdDisplay" style="font-weight:600; min-width:70px;">500 lux</span>
+            </div>
+            <button id="saveThresholdBtn" class="big-btn on" style="width:100%; margin-top:8px; padding:10px;">Simpan Threshold</button>
+          </div>
+
+          <div class="control-card">
+            <h3>⏰ Jadwal Nyala</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Atur jam lampu menyala setiap hari
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <div style="flex:1; min-width:80px;">
+                <label style="font-size:12px; color:var(--muted);">Mulai</label>
+                <input type="number" id="jadwalStart" value="6" min="0" max="23" 
+                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+              </div>
+              <span style="color:var(--muted);">-</span>
+              <div style="flex:1; min-width:80px;">
+                <label style="font-size:12px; color:var(--muted);">Selesai</label>
+                <input type="number" id="jadwalEnd" value="18" min="0" max="23" 
+                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+              </div>
+              <button id="saveJadwalBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px; margin-top:6px;">Simpan</button>
+            </div>
+          </div>
+
+          <div class="control-card">
+            <h3>☀️ Opsi Pengujian</h3>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+              <label style="color:var(--muted); font-size:14px;">Siang Tetap ON:</label>
+              <input type="checkbox" id="forceDayOn" style="width:22px; height:22px; accent-color:var(--green); cursor:pointer;">
+              <span style="font-size:13px; color:var(--muted);">(abaikan lux untuk pengujian)</span>
+            </div>
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              ⚠️ Hanya untuk pengujian! Jangan lupa matikan.
+            </p>
+          </div>
+
+          <div class="control-card">
+            <button id="resetPlantBtn" class="unlock-btn" style="background:rgba(239,68,68,.2); color:#ef4444; width:100%;">🔄 Reset Tanam (Mulai Baru)</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ======================================
+           ADMIN PANEL
+    ======================================= -->
+      <section class="section page-section hidden" id="admin">
+        <h2 class="section-title purple">👑 ADMIN PANEL</h2>
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>📋 Daftar User</h3>
+            <div id="userList" style="max-height:400px; overflow-y:auto;">
+              <p style="color:var(--muted); text-align:center; padding:20px;">Memuat data user...</p>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>➕ Tambah User</h3>
+            <form id="addUserForm" style="display:flex; flex-direction:column; gap:12px;">
+              <input type="text" id="newUsername" placeholder="Username" required>
+              <input type="password" id="newPassword" placeholder="Password" required>
+              <input type="text" id="newNama" placeholder="Nama Lengkap">
+              <select id="newRole">
+                <option value="petani">Petani</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button type="submit" class="unlock-btn">➕ Tambah User</button>
+            </form>
+            <p id="addUserMsg" style="margin-top:10px; font-size:14px;"></p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js?v=309"></script>
+</body>
+</html>
