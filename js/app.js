@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL FIX - FULL MODE SYNC)
+// MAIN ENTRY – app.js (FINAL - PAKE system/mode & system/state)
 // ============================================
 
 import { db } from './firebase.js';
@@ -41,15 +41,12 @@ window.logout = function() {
 
 // ===== STATE LISTENER =====
 let unsubSensor = null;
-let unsubControl = null;
 let unsubSystem = null;
 let isListenerActive = false;
 
 // ===== THROTTLE VARIABEL =====
 let lastSensorUpdate = 0;
 const SENSOR_THROTTLE = 1000;
-let lastControlUpdate = 0;
-const CONTROL_THROTTLE = 2000;
 let lastSystemUpdate = 0;
 const SYSTEM_THROTTLE = 2000;
 
@@ -100,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ============================================
-// FIREBASE LISTENERS (DENGAN TRY-CATCH)
+// FIREBASE LISTENERS
 // ============================================
 function initFirebase() {
   try {
@@ -133,17 +130,13 @@ function initFirebase() {
             updateCharts(time);
           }
           
-          // Hitung akumulasi cahaya
+          // Hitung akumulasi cahaya (tampilan web aja, ESP32 yang hitung utama)
           const luxThreshold = state.luxThreshold || 500;
           const rawLight = d.cahaya || 0;
           
           if (rawLight > luxThreshold) {
             const increment = 1 / 3600;
             state.accumulatedLight = (state.accumulatedLight || 0) + increment;
-            
-            if (Math.floor(Date.now() / 60000) % 2 === 0) {
-              set(ref(db, 'system/accumulated_light'), state.accumulatedLight);
-            }
           }
           
           // Update UI Progress
@@ -170,35 +163,7 @@ function initFirebase() {
       isListenerActive = false;
     });
 
-    // --- Control ---
-    unsubControl = onValue(ref(db, 'control'), (snap) => {
-      try {
-        const now = Date.now();
-        if (now - lastControlUpdate < CONTROL_THROTTLE) return;
-        lastControlUpdate = now;
-
-        const d = snap.val();
-        if (d?.lamp) {
-          state.lampState = d.lamp.state || false;
-          state.mode = d.lamp.mode || 'manual';
-          
-          // Update status lampu di dashboard
-          const dashLampStatus = document.getElementById('dashLampStatus');
-          if (dashLampStatus) {
-            dashLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
-            dashLampStatus.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-        }
-        scheduleRender();
-      } catch (e) {
-        console.error('❌ Error di listener control:', e);
-      }
-    }, (err) => {
-      console.error("❌ Control error:", err);
-      isListenerActive = false;
-    });
-
-    // --- System ---
+    // --- System (BACA DARI system/mode & system/state) ---
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
       try {
         const now = Date.now();
@@ -207,36 +172,27 @@ function initFirebase() {
 
         const d = snap.val();
         if (d) {
-          state.plantStartDate = d.plant_start_date || null;
-          state.alert = d.alert || '';
+          // 🔥 BACA MODE DARI system/mode
+          state.controlMode = d.mode || 'otomatis';
           
-          // 🔥 BACA MODE DARI system/control_mode (SUMBER UTAMA)
-          state.controlMode = d.control_mode || d.lamp_mode || 'otomatis';
+          // 🔥 BACA STATE LAMPU DARI system/state
+          state.lampState = d.state || false;
           
-          // 🔥 SINKRONKAN control/lamp/mode DENGAN system/control_mode
-          if (state.controlMode) {
-            set(ref(db, 'control/lamp/mode'), state.controlMode);
-          }
-          
-          state.totalJam = d.total_jam || 14;
-          state.cycleOn = d.cycle_on || 15;
-          state.cycleOff = d.cycle_off || 15;
-          state.luxThreshold = d.lux_threshold || 500;
+          // 🔥 BACA KONFIGURASI LAIN
           state.forceDayOn = d.force_day_on || false;
           state.jadwalStart = d.jadwal_start || 6;
           state.jadwalEnd = d.jadwal_end || 18;
-          
+          state.luxThreshold = d.lux_threshold || 500;
           state.totalLightNeeded = d.total_light_needed || 12;
           state.accumulatedLight = d.accumulated_light || 0;
           state.lastResetDate = d.last_reset_date || '';
+          state.alert = d.alert || '';
           
           // Reset akumulasi setiap hari
           const today = new Date().toISOString().slice(0,10);
           if (state.lastResetDate !== today) {
             state.accumulatedLight = 0;
             state.lastResetDate = today;
-            set(ref(db, 'system/accumulated_light'), 0);
-            set(ref(db, 'system/last_reset_date'), today);
           }
           
           // 🔥 UPDATE UI MODE
@@ -245,14 +201,39 @@ function initFirebase() {
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
           
+          // 🔥 UPDATE UI STATE LAMPU
+          const dashLampStatus = document.getElementById('dashLampStatus');
+          if (dashLampStatus) {
+            dashLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
+            dashLampStatus.style.color = state.lampState ? '#22c55e' : '#ef4444';
+          }
+          
+          const lampStateText = document.getElementById('lampStateText');
+          if (lampStateText) {
+            lampStateText.textContent = state.lampState ? 'ON' : 'OFF';
+            lampStateText.style.color = state.lampState ? '#22c55e' : '#ef4444';
+          }
+          
+          const statLamp = document.getElementById('statLamp');
+          if (statLamp) {
+            statLamp.textContent = state.lampState ? 'ON' : 'OFF';
+            statLamp.style.color = state.lampState ? '#22c55e' : '#ef4444';
+          }
+          
+          // 🔥 UPDATE UI KONFIGURASI
           if (DOM.forceDayOn) DOM.forceDayOn.checked = state.forceDayOn;
           if (DOM.luxThresholdDisplay) DOM.luxThresholdDisplay.textContent = state.luxThreshold + ' lux';
           if (DOM.luxThreshold) DOM.luxThreshold.value = state.luxThreshold;
-          if (DOM.totalJam) DOM.totalJam.value = state.totalJam;
           if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
           if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
-          
           if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
+          
+          // 🔥 UPDATE UI SUHU & PROGRESS
+          const dashLatestTemp = document.getElementById('dashLatestTemp');
+          if (dashLatestTemp) {
+            dashLatestTemp.textContent = state.temperature.toFixed(1) + '°C';
+          }
+          
           if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
           if (DOM.growlightHours) {
             const growlight = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
@@ -263,26 +244,6 @@ function initFirebase() {
             const display = progress > 100 ? 100 : progress;
             if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display + '%';
             if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
-          }
-          
-          // 🔥 UPDATE STATUS LAMPU DI DASHBOARD
-          const dashLampStatus = document.getElementById('dashLampStatus');
-          if (dashLampStatus) {
-            dashLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
-            dashLampStatus.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-          
-          // 🔥 UPDATE SUHU TERBARU DI DASHBOARD
-          const dashLatestTemp = document.getElementById('dashLatestTemp');
-          if (dashLatestTemp) {
-            dashLatestTemp.textContent = state.temperature.toFixed(1) + '°C';
-          }
-          
-          // 🔥 UPDATE STATUS LAMPU DI CONTROL
-          const lampStateText = document.getElementById('lampStateText');
-          if (lampStateText) {
-            lampStateText.textContent = state.lampState ? 'ON' : 'OFF';
-            lampStateText.style.color = state.lampState ? '#22c55e' : '#ef4444';
           }
           
           updateModeButtonUI(state.controlMode);
@@ -315,7 +276,6 @@ function initFirebase() {
 function unsubscribeAll() {
   try {
     if (unsubSensor) { unsubSensor(); unsubSensor = null; }
-    if (unsubControl) { unsubControl(); unsubControl = null; }
     if (unsubSystem) { unsubSystem(); unsubSystem = null; }
     isListenerActive = false;
     console.log('⏸️ Listener dihentikan');
@@ -400,11 +360,11 @@ function updateModeButtonUI(mode) {
 // ============================================
 function initControls() {
   try {
-    // ON button
+    // ON button → kirim ke system/state
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
         console.log('🔄 Klik ON');
-        set(ref(db, 'control/lamp/state'), true)
+        set(ref(db, 'system/state'), true)
           .then(() => {
             state.lampState = true;
             scheduleRender();
@@ -414,11 +374,11 @@ function initControls() {
       });
     }
     
-    // OFF button
+    // OFF button → kirim ke system/state
     if (DOM.btnOff) {
       DOM.btnOff.addEventListener('click', () => {
         console.log('🔄 Klik OFF');
-        set(ref(db, 'control/lamp/state'), false)
+        set(ref(db, 'system/state'), false)
           .then(() => {
             state.lampState = false;
             scheduleRender();
@@ -434,9 +394,7 @@ function initControls() {
         if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
         try {
           await set(ref(db, 'system/plant_start_date'), null);
-          await set(ref(db, 'control/lamp/mode'), 'manual');
           state.plantStartDate = null;
-          state.mode = 'manual';
           scheduleRender();
           showToast('✅ Tanaman di-reset!', 'success');
         } catch(e) {
@@ -450,13 +408,13 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL (OTOMATIS, JADWAL, MANUAL) - FIXED
+// MODE KONTROL (OTOMATIS, JADWAL, MANUAL)
 // ============================================
 function initModeControls() {
   try {
     console.log('🔄 Init Mode Controls...');
     
-    // 🔥 MODE OTOMATIS
+    // 🔥 MODE OTOMATIS → kirim ke system/mode
     const modeAutoBtn = document.getElementById('modeAutoBtn');
     if (modeAutoBtn) {
       console.log('✅ modeAutoBtn ditemukan');
@@ -468,7 +426,7 @@ function initModeControls() {
       console.warn('❌ modeAutoBtn TIDAK DITEMUKAN!');
     }
     
-    // 🔥 MODE JADWAL
+    // 🔥 MODE JADWAL → kirim ke system/mode
     const modeJadwalBtn = document.getElementById('modeJadwalBtn');
     if (modeJadwalBtn) {
       console.log('✅ modeJadwalBtn ditemukan');
@@ -480,7 +438,7 @@ function initModeControls() {
       console.warn('❌ modeJadwalBtn TIDAK DITEMUKAN!');
     }
     
-    // 🔥 MODE MANUAL
+    // 🔥 MODE MANUAL → kirim ke system/mode
     const modeManualBtn = document.getElementById('modeManualBtn');
     if (modeManualBtn) {
       console.log('✅ modeManualBtn ditemukan');
@@ -492,7 +450,7 @@ function initModeControls() {
       console.warn('❌ modeManualBtn TIDAK DITEMUKAN!');
     }
     
-    // 🔥 SIMPAN KEBUTUHAN CAHAYA
+    // 🔥 SIMPAN KEBUTUHAN CAHAYA → kirim ke system/total_light_needed
     const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
     const totalLightNeeded = document.getElementById('totalLightNeeded');
     
@@ -516,7 +474,7 @@ function initModeControls() {
       console.warn('❌ saveLightNeededBtn atau totalLightNeeded TIDAK DITEMUKAN!');
     }
     
-    // 🔥 SIMPAN THRESHOLD
+    // 🔥 SIMPAN THRESHOLD → kirim ke system/lux_threshold
     const saveThresholdBtn = document.getElementById('saveThresholdBtn');
     const luxThreshold = document.getElementById('luxThreshold');
     
@@ -545,7 +503,7 @@ function initModeControls() {
       console.warn('❌ saveThresholdBtn atau luxThreshold TIDAK DITEMUKAN!');
     }
     
-    // 🔥 SIMPAN JADWAL
+    // 🔥 SIMPAN JADWAL → kirim ke system/jadwal_start & system/jadwal_end
     const saveJadwalBtn = document.getElementById('saveJadwalBtn');
     const jadwalStart = document.getElementById('jadwalStart');
     const jadwalEnd = document.getElementById('jadwalEnd');
@@ -569,7 +527,7 @@ function initModeControls() {
       console.warn('❌ saveJadwalBtn, jadwalStart, atau jadwalEnd TIDAK DITEMUKAN!');
     }
     
-    // 🔥 FORCE DAY ON
+    // 🔥 FORCE DAY ON → kirim ke system/force_day_on
     const forceDayOn = document.getElementById('forceDayOn');
     if (forceDayOn) {
       forceDayOn.addEventListener('change', function() {
@@ -592,100 +550,31 @@ function initModeControls() {
 }
 
 // ============================================
-// SET MODE KONTROL (KIRIM KE 3 PATH) - FIXED FINAL
+// SET MODE KONTROL (KIRIM KE 1 PATH: system/mode)
 // ============================================
 function setModeControl(mode) {
   console.log('🔄 setModeControl:', mode);
   
-  // 🔥 KIRIM MODE KE 3 PATH SEKALIGUS
-  const updates = {};
-  updates['/system/control_mode'] = mode;
-  updates['/system/lamp_mode'] = mode;
-  updates['/control/lamp/mode'] = mode;
-  
-  // 🔥 KALO MODE MANUAL, SET STATE LAMPU KE TRUE (DEFAULT ON)
-  if (mode === 'manual') {
-    get(ref(db, 'control/lamp/state')).then(snap => {
-      const currentState = snap.val();
-      if (currentState === null || currentState === undefined) {
-        updates['/control/lamp/state'] = true;
+  // 🔥 KIRIM KE 1 PATH (system/mode) - GAK ADA DUPLIKAT LAGI!
+  set(ref(db, 'system/mode'), mode)
+    .then(() => {
+      state.controlMode = mode;
+      
+      // Update UI
+      const display = document.getElementById('currentModeDisplay2');
+      if (display) {
+        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+        display.textContent = labels[mode] || mode;
       }
-      update(ref(db), updates)
-        .then(() => {
-          state.controlMode = mode;
-          state.mode = mode;
-          updateUIAfterModeChange(mode);
-          showToast(`✅ Mode ${mode} aktif`, 'success');
-          console.log('✅ Mode berubah ke:', mode);
-        })
-        .catch(err => {
-          console.error('❌ Gagal ubah mode:', err);
-          showToast('❌ Gagal: ' + err.message, 'error');
-        });
-    }).catch(err => {
-      console.error('❌ Gagal baca state:', err);
-      // Fallback: kirim update tanpa baca state
-      updates['/control/lamp/state'] = true;
-      update(ref(db), updates)
-        .then(() => {
-          state.controlMode = mode;
-          state.mode = mode;
-          updateUIAfterModeChange(mode);
-          showToast(`✅ Mode ${mode} aktif`, 'success');
-        })
-        .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      updateModeButtonUI(mode);
+      
+      showToast(`✅ Mode ${mode} aktif`, 'success');
+      console.log('✅ Mode berubah ke:', mode);
+    })
+    .catch(err => {
+      console.error('❌ Gagal ubah mode:', err);
+      showToast('❌ Gagal: ' + err.message, 'error');
     });
-  } else {
-    // Otomatis atau Jadwal
-    update(ref(db), updates)
-      .then(() => {
-        state.controlMode = mode;
-        state.mode = mode;
-        updateUIAfterModeChange(mode);
-        showToast(`✅ Mode ${mode} aktif`, 'success');
-        console.log('✅ Mode berubah ke:', mode);
-      })
-      .catch(err => {
-        console.error('❌ Gagal ubah mode:', err);
-        showToast('❌ Gagal: ' + err.message, 'error');
-      });
-  }
-}
-
-// ============================================
-// UPDATE UI SETELAH MODE BERUBAH
-// ============================================
-function updateUIAfterModeChange(mode) {
-  try {
-    // Update display mode di dashboard & control
-    const display = document.getElementById('currentModeDisplay2');
-    if (display) {
-      const labels = { 
-        otomatis: '🤖 Otomatis (Lux)', 
-        jadwal: '⏰ Jadwal', 
-        manual: '👋 Manual' 
-      };
-      display.textContent = labels[mode] || mode;
-    }
-    
-    // Update tombol mode
-    updateModeButtonUI(mode);
-    
-    // 🔥 KALO MODE MANUAL, TAMPILKAN STATUS ON/OFF
-    if (mode === 'manual') {
-      get(ref(db, 'control/lamp/state')).then(snap => {
-        const stateVal = snap.val();
-        const statusText = document.getElementById('lampStateText');
-        if (statusText) {
-          statusText.textContent = stateVal ? 'ON' : 'OFF';
-          statusText.style.color = stateVal ? '#22c55e' : '#ef4444';
-        }
-      }).catch(err => console.error('❌ Gagal baca state manual:', err));
-    }
-    
-  } catch (e) {
-    console.error('❌ Error update UI:', e);
-  }
 }
 
 // ============================================
