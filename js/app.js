@@ -185,7 +185,6 @@ document.addEventListener("DOMContentLoaded", () => {
     
     setupNavigation();
     
-    // 🔥 CEK KONEKSI
     cekKoneksi();
     setInterval(cekKoneksi, 30000);
     
@@ -586,4 +585,173 @@ function initModeControls() {
     const jadwalStart = document.getElementById('jadwalStart');
     const jadwalEnd = document.getElementById('jadwalEnd');
     
-   
+    if (saveJadwalBtn && jadwalStart && jadwalEnd) {
+      console.log('✅ saveJadwalBtn ditemukan');
+      saveJadwalBtn.addEventListener('click', function() {
+        const start = parseInt(jadwalStart.value);
+        const end = parseInt(jadwalEnd.value);
+        console.log('🔄 Simpan jadwal:', start, '-', end);
+        if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
+          showToast('❌ Jam harus 0-23', 'error');
+          return;
+        }
+        set(ref(db, 'system/jadwal_start'), start);
+        set(ref(db, 'system/jadwal_end'), end)
+          .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
+          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      });
+    } else {
+      console.warn('❌ saveJadwalBtn, jadwalStart, atau jadwalEnd TIDAK DITEMUKAN!');
+    }
+    
+    const forceDayOn = document.getElementById('forceDayOn');
+    if (forceDayOn) {
+      forceDayOn.addEventListener('change', function() {
+        const val = this.checked;
+        console.log('🔄 Force Day ON:', val);
+        set(ref(db, 'system/force_day_on'), val)
+          .then(() => {
+            state.forceDayOn = val;
+            showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info');
+          })
+          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      });
+    }
+    
+    console.log('✅ Init Mode Controls Selesai');
+    
+  } catch (e) {
+    console.error('❌ Error init mode controls:', e);
+  }
+}
+
+function setModeControl(mode) {
+  console.log('🔄 setModeControl:', mode);
+  
+  set(ref(db, 'system/mode'), mode)
+    .then(() => {
+      state.controlMode = mode;
+      
+      const display = document.getElementById('currentModeDisplay2');
+      if (display) {
+        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+        display.textContent = labels[mode] || mode;
+      }
+      updateModeButtonUI(mode);
+      
+      showToast(`✅ Mode ${mode} aktif`, 'success');
+      console.log('✅ Mode berubah ke:', mode);
+    })
+    .catch(err => {
+      console.error('❌ Gagal ubah mode:', err);
+      showToast('❌ Gagal: ' + err.message, 'error');
+    });
+}
+
+// ============================================
+// EXPAND CHART
+// ============================================
+function initExpandChart() {
+  window.toggleExpand = function(wrapperId) {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+    
+    const isExpanded = wrapper.classList.contains('expanded');
+    
+    document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
+      if (el.id !== wrapperId) el.classList.remove('expanded');
+    });
+    
+    if (isExpanded) {
+      wrapper.classList.remove('expanded');
+    } else {
+      wrapper.classList.add('expanded');
+      setTimeout(() => {
+        wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 300);
+    }
+    
+    const canvas = wrapper.querySelector('canvas');
+    if (canvas) {
+      const chart = Chart.getChart(canvas);
+      if (chart) chart.resize();
+    }
+  };
+}
+
+// ============================================
+// CLOCK
+// ============================================
+function updateClock() {
+  try {
+    const now = new Date();
+    const dateEl = document.getElementById('dateText');
+    const clockEl = document.getElementById('clockText');
+    if (dateEl) {
+      dateEl.innerText = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    }
+    if (clockEl) {
+      clockEl.innerText = now.toLocaleTimeString('id-ID');
+    }
+  } catch (e) {
+    console.error('❌ Error update clock:', e);
+  }
+}
+
+// ============================================
+// SIDEBAR
+// ============================================
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.querySelector('.sidebar');
+const overlay = document.querySelector('.mobile-overlay') || (() => {
+  const el = document.createElement('div');
+  el.className = 'mobile-overlay';
+  document.body.appendChild(el);
+  return el;
+})();
+
+function closeMenu() {
+  try {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  } catch (e) {
+    console.error('❌ Error close menu:', e);
+  }
+}
+
+if (menuToggle) {
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+  });
+  menuToggle.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  }, { passive: false });
+}
+
+if (overlay) {
+  overlay.addEventListener('click', closeMenu);
+  overlay.addEventListener('touchstart', (e) => { e.preventDefault(); closeMenu(); }, { passive: false });
+}
+
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) closeMenu();
+});
+
+// ============================================
+// DEFAULT SECTION
+// ============================================
+const defaultSection = document.getElementById('dashboard');
+if (defaultSection) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+  defaultSection.classList.remove('hidden');
+}
