@@ -1,16 +1,15 @@
 // ============================================
-// CORE: State, DOM, Utils (FULLY FIXED)
+// CORE: State, DOM, Utils
 // ============================================
 
 export const state = {
   temperature: 0,
-  sensorLight: 0,
+  sensorLight: 0, // LUX (BUKAN PERSEN!)
   lampState: false,
   mode: 'manual',
   plantStartDate: null,
   alert: '',
   unlocked: false,
-  // 🔥 FITUR KONTROL
   controlMode: 'otomatis',
   totalJam: 14,
   cycleOn: 15,
@@ -19,7 +18,6 @@ export const state = {
   forceDayOn: false,
   jadwalStart: 6,
   jadwalEnd: 18,
-  // 🔥 FITUR KEBUTUHAN CAHAYA
   totalLightNeeded: 12,
   accumulatedLight: 0,
   lastResetDate: ''
@@ -38,46 +36,31 @@ export const DOM = {};
 
 export function initDOM() {
   const ids = [
-    // Topbar
     'connStatus', 'userName', 'dateText', 'clockText', 'menuToggle',
-    // Quick Stats
     'statTemp', 'statTempStatus', 'statLight', 'statLightStatus',
     'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
     'statLightProgress',
-    // Dashboard
-    'dashLampStatus',
-    'dashLatestTemp',
+    'dashLampStatus', 'dashLatestTemp',
     'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
     'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
     'dashTempChart', 'chartStatus',
-    // Overheat
     'overheatContainer', 'overheatMessage',
-    // Monitoring
     'monitorTemp', 'monitorLight', 'monitorLampStatus',
     'tempStatus', 'lightStatus', 'lampStatusText',
-    // Control
     'btnOn', 'btnOff', 'lampStateText',
     'growthMode', 'applyModeBtn',
     'currentModeDisplay', 'modeDurationDisplay',
     'resetPlantBtn', 'controlSection',
-    // Mode Control
     'modeAutoBtn', 'modeJadwalBtn', 'modeManualBtn',
     'currentModeDisplay2',
-    // Repeat Cycle (masih dipertahankan untuk kompatibilitas)
     'totalJam', 'saveTotalJamBtn',
-    // Lux Threshold
     'luxThreshold', 'saveThresholdBtn', 'luxThresholdDisplay',
-    // Force Day On
     'forceDayOn',
-    // Jadwal
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
-    // KEBUTUHAN CAHAYA
-    'totalLightNeeded', 'saveLightNeededBtn', 
+    'totalLightNeeded', 'saveLightNeededBtn',
     'sunlightHours', 'growlightHours', 'lightProgressDisplay',
-    // Admin
     'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
     'newUsername', 'newPassword', 'newNama', 'newRole',
-    // Export
     'exportStatus', 'exportBtn', 'exportPdfBtn', 'exportPeriod'
   ];
   ids.forEach(id => { DOM[id] = $(id); });
