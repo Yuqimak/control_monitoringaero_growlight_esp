@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FULLY FIXED + FULL MODE CONTROL)
+// MAIN ENTRY – app.js (FINAL FIX - FULL MODE SYNC)
 // ============================================
 
 import { db } from './firebase.js';
@@ -450,7 +450,7 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL (OTOMATIS, JADWAL, MANUAL)
+// MODE KONTROL (OTOMATIS, JADWAL, MANUAL) - FIXED
 // ============================================
 function initModeControls() {
   try {
@@ -592,25 +592,24 @@ function initModeControls() {
 }
 
 // ============================================
-// SET MODE KONTROL (KIRIM KE FIREBASE)
+// SET MODE KONTROL (KIRIM KE 3 PATH) - FIXED FINAL
 // ============================================
 function setModeControl(mode) {
   console.log('🔄 setModeControl:', mode);
   
-  // 🔥 KIRIM MODE KE 2 PATH (system + control)
+  // 🔥 KIRIM MODE KE 3 PATH SEKALIGUS
   const updates = {};
   updates['/system/control_mode'] = mode;
+  updates['/system/lamp_mode'] = mode;
   updates['/control/lamp/mode'] = mode;
   
   // 🔥 KALO MODE MANUAL, SET STATE LAMPU KE TRUE (DEFAULT ON)
   if (mode === 'manual') {
-    // Baca state terakhir dari control/lamp/state
     get(ref(db, 'control/lamp/state')).then(snap => {
       const currentState = snap.val();
       if (currentState === null || currentState === undefined) {
         updates['/control/lamp/state'] = true;
       }
-      // Kirim update
       update(ref(db), updates)
         .then(() => {
           state.controlMode = mode;
