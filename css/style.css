@@ -1695,3 +1695,77 @@ html, body {
     padding: 4px 8px !important;
   }
 }
+/* ============================================
+   GAUGE CHART STYLE
+============================================ */
+#gaugeChart {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 150px;
+  max-height: 150px;
+  margin: 0 auto;
+}
+
+/* ============================================
+   CHART MOBILE FIX
+============================================ */
+@media (max-width: 768px) {
+  .chart-wrapper {
+    padding: 4px !important;
+  }
+  
+  .chart-wrapper canvas {
+    max-height: 150px !important;
+    min-height: 100px !important;
+    width: 100% !important;
+  }
+  
+  .analytics-card canvas {
+    max-height: 180px !important;
+    min-height: 120px !important;
+  }
+  
+  #dashTempChart {
+    max-height: 90px !important;
+    min-height: 60px !important;
+  }
+  
+  .chart-wrapper .chartjs-legend {
+    font-size: 10px !important;
+  }
+  
+  .chartjs-tooltip {
+    font-size: 10px !important;
+    padding: 4px 8px !important;
+  }
+}
+
+/* ============================================
+   MONITORING CARD
+============================================ */
+.monitor-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.monitor-card {
+  background: linear-gradient(180deg, rgba(20,28,40,.92), rgba(10,15,25,.82));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: var(--glass);
+  box-shadow: var(--shadow);
+}
+
+.monitor-card .metric {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .monitor-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+}
