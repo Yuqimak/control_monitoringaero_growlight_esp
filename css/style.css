@@ -1657,3 +1657,41 @@ html, body {
     min-height: 200px !important;
   }
 }
+/* ============================================
+   CHART MOBILE FIX
+============================================ */
+@media (max-width: 768px) {
+  /* Chart wrapper biar gak terlalu penuh */
+  .chart-wrapper {
+    padding: 4px !important;
+  }
+  
+  .chart-wrapper canvas {
+    max-height: 150px !important;
+    min-height: 100px !important;
+    width: 100% !important;
+  }
+  
+  /* Analytics card chart */
+  .analytics-card canvas {
+    max-height: 180px !important;
+    min-height: 120px !important;
+  }
+  
+  /* Dashboard chart (Grafik Cepat) */
+  #dashTempChart {
+    max-height: 90px !important;
+    min-height: 60px !important;
+  }
+  
+  /* Chart legend biar lebih kecil */
+  .chart-wrapper .chartjs-legend {
+    font-size: 10px !important;
+  }
+  
+  /* Tooltip chart biar gak kegedean */
+  .chartjs-tooltip {
+    font-size: 10px !important;
+    padding: 4px 8px !important;
+  }
+}
