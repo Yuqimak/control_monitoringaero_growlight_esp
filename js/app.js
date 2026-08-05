@@ -1,13 +1,13 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - GAUGE + MONITORING + FILTER TANGGAL)
+// MAIN ENTRY – app.js (FINAL - LUX ANGKA BULAT)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory, loadChartHistoryByDate } from './modules/analytics.js';
-import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
+import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
-import { ref, onValue, set, update, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 console.log('🚀 app.js loaded!');
 
@@ -46,7 +46,7 @@ let unsubSensor = null;
 let unsubSystem = null;
 let isListenerActive = false;
 
-// ===== THROTTLE VARIABEL =====
+// ===== THROTTLE =====
 let lastSensorUpdate = 0;
 const SENSOR_THROTTLE = 1000;
 let lastSystemUpdate = 0;
@@ -62,24 +62,16 @@ function scheduleRender() {
   }, 200);
 }
 
-// ===== GAUGE CHART =====
+// ===== GAUGE =====
 let gaugeChart = null;
 
 function initGauge() {
   console.log('📊 initGauge dipanggil');
   const ctx = document.getElementById('gaugeChart');
-  if (!ctx) {
-    console.warn('⚠️ Element #gaugeChart tidak ditemukan');
-    return;
-  }
-
-  if (gaugeChart) {
-    gaugeChart.destroy();
-  }
+  if (!ctx) return;
+  if (gaugeChart) gaugeChart.destroy();
 
   const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-  console.log('📊 Gauge progress:', progress);
-
   gaugeChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -92,27 +84,22 @@ function initGauge() {
     options: {
       responsive: true,
       cutout: '75%',
-      plugins: {
-        legend: { display: false },
-        tooltip: { enabled: false }
-      }
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
     }
   });
 }
 
 function updateGauge() {
   const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-  const gaugeProgress = document.getElementById('gaugeProgress');
-  const gaugeSunlight = document.getElementById('gaugeSunlight');
-  const gaugeGrowlight = document.getElementById('gaugeGrowlight');
-
-  if (gaugeProgress) gaugeProgress.textContent = progress + '%';
-  if (gaugeSunlight) gaugeSunlight.textContent = (state.accumulatedLight || 0).toFixed(1);
-  if (gaugeGrowlight) {
-    const growlight = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
-    gaugeGrowlight.textContent = growlight.toFixed(1);
+  const el = document.getElementById('gaugeProgress');
+  if (el) el.textContent = progress + '%';
+  const sun = document.getElementById('gaugeSunlight');
+  if (sun) sun.textContent = (state.accumulatedLight || 0).toFixed(1);
+  const grow = document.getElementById('gaugeGrowlight');
+  if (grow) {
+    const val = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
+    grow.textContent = val.toFixed(1);
   }
-
   if (gaugeChart) {
     gaugeChart.data.datasets[0].data = [progress, 100 - progress];
     gaugeChart.update();
@@ -135,20 +122,16 @@ function cekKoneksi() {
         connStatus.style.color = '#ef4444';
       }
     }
-
     const lastUpdate = document.getElementById('dashLastUpdate');
     if (lastUpdate && lastUpdate.innerText !== '--:--:--') {
-      const timeStr = lastUpdate.innerText;
       const now = new Date();
-      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      const [h, m, s] = lastUpdate.innerText.split(':').map(Number);
       const lastDate = new Date();
-      lastDate.setHours(hours, minutes, seconds || 0);
-      const diffMinutes = (now - lastDate) / 60000;
-      esp32Online = diffMinutes < 5;
+      lastDate.setHours(h, m, s || 0);
+      esp32Online = (now - lastDate) / 60000 < 5;
     } else {
       esp32Online = false;
     }
-
     updateConnectionNotification();
   } catch (e) {
     console.error('❌ Error cek koneksi:', e);
@@ -167,7 +150,6 @@ function updateConnectionNotification() {
     `;
     document.body.appendChild(notif);
   }
-
   if (!firebaseConnected) {
     notif.textContent = '⚠️ Firebase Disconnected';
     notif.style.background = '#ef4444';
@@ -201,104 +183,57 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log('📄 DOMContentLoaded fired!');
   try {
     initDOM();
-    console.log('✅ initDOM selesai');
-    
     initAdminPanel();
-    console.log('✅ initAdminPanel selesai');
-    
     initCharts();
-    console.log('✅ initCharts selesai');
-    
     initFirebase();
-    console.log('✅ initFirebase selesai');
-    
     initControls();
-    console.log('✅ initControls selesai');
-    
     initExpandChart();
-    console.log('✅ initExpandChart selesai');
-    
     initModeControls();
-    console.log('✅ initModeControls selesai');
 
-    // Export buttons
     if (DOM.exportBtn && DOM.exportPeriod) {
       DOM.exportBtn.addEventListener('click', () => exportData(DOM.exportPeriod.value));
-      console.log('✅ exportBtn listener attached');
     }
     if (DOM.exportPdfBtn) {
       DOM.exportPdfBtn.addEventListener('click', exportPDF);
-      console.log('✅ exportPdfBtn listener attached');
     }
 
-    // ===== FILTER TANGGAL =====
-    console.log('📅 Setup filter tanggal...');
+    // FILTER TANGGAL
     const analyticsDate = document.getElementById('analyticsDate');
-    const loadHistoryDateBtn = document.getElementById('loadHistoryDateBtn');
-    const resetHistoryDateBtn = document.getElementById('resetHistoryDateBtn');
-
-    console.log('📅 analyticsDate:', analyticsDate);
-    console.log('📅 loadHistoryDateBtn:', loadHistoryDateBtn);
-    console.log('📅 resetHistoryDateBtn:', resetHistoryDateBtn);
-
+    const loadBtn = document.getElementById('loadHistoryDateBtn');
+    const resetBtn = document.getElementById('resetHistoryDateBtn');
     if (analyticsDate) {
-      const today = new Date().toISOString().slice(0, 10);
-      analyticsDate.value = today;
-      console.log('📅 Set default tanggal:', today);
+      analyticsDate.value = new Date().toISOString().slice(0, 10);
     }
-
-    if (loadHistoryDateBtn) {
-      console.log('📅 Attach listener ke loadHistoryDateBtn');
-      loadHistoryDateBtn.addEventListener('click', function() {
+    if (loadBtn) {
+      loadBtn.addEventListener('click', function() {
         const date = document.getElementById('analyticsDate').value;
         console.log('📅 Klik Tampilkan, tanggal:', date);
-        if (date) {
-          console.log('📅 Memanggil loadChartHistoryByDate dengan:', date);
-          loadChartHistoryByDate(date);
-        } else {
-          console.warn('⚠️ Tanggal kosong');
-          showToast('⚠️ Pilih tanggal dulu!', 'warning');
-        }
+        if (date) loadChartHistoryByDate(date);
+        else showToast('⚠️ Pilih tanggal dulu!', 'warning');
       });
-    } else {
-      console.warn('⚠️ loadHistoryDateBtn TIDAK DITEMUKAN!');
     }
-
-    if (resetHistoryDateBtn) {
-      console.log('📅 Attach listener ke resetHistoryDateBtn');
-      resetHistoryDateBtn.addEventListener('click', function() {
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function() {
         const today = new Date().toISOString().slice(0, 10);
         document.getElementById('analyticsDate').value = today;
-        console.log('📅 Reset ke tanggal hari ini:', today);
         loadChartHistory();
         showToast('✅ Kembali ke data hari ini', 'info');
       });
-    } else {
-      console.warn('⚠️ resetHistoryDateBtn TIDAK DITEMUKAN!');
     }
 
-    // Load history
     loadChartHistory();
     loadDashChartHistory();
 
-    // Gauge
-    setTimeout(() => {
-      initGauge();
-    }, 500);
+    setTimeout(() => initGauge(), 500);
 
-    // Clock
     updateClock();
     setInterval(updateClock, 1000);
 
-    // User name
     if (DOM.userName) {
       DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
     }
 
-    // Navigation
     setupNavigation();
-
-    // Connection check
     cekKoneksi();
     setInterval(cekKoneksi, 30000);
 
@@ -334,30 +269,39 @@ function initFirebase() {
 
           const rawSuhu = d.suhu || 0;
           state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
-          state.sensorLight = Math.min(100, Math.round((d.cahaya || 0) / 5000 * 100));
+
+          // 🔥 LUX LANGSUNG (BUKAN PERSEN)
+          state.sensorLight = d.cahaya || 0;
 
           if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
-            const time = new Date().toLocaleTimeString();
-            updateCharts(time);
+            updateCharts(new Date().toLocaleTimeString());
           }
 
+          // Akumulasi
           const luxThreshold = state.luxThreshold || 500;
-          const rawLight = d.cahaya || 0;
-          if (rawLight > luxThreshold) {
+          if (d.cahaya > luxThreshold) {
             state.accumulatedLight = (state.accumulatedLight || 0) + (1 / 3600);
           }
 
+          // Update UI
           const totalNeeded = state.totalLightNeeded || 12;
           const progress = Math.min(100, Math.round((state.accumulatedLight / totalNeeded) * 100));
+
+          if (DOM.statLight) DOM.statLight.textContent = state.sensorLight;
+          if (DOM.statTemp) DOM.statTemp.textContent = state.temperature.toFixed(1);
+          if (DOM.monitorTemp) DOM.monitorTemp.textContent = state.temperature.toFixed(1);
+          if (DOM.monitorLight) DOM.monitorLight.textContent = state.sensorLight;
+
           if (DOM.statLightProgress) DOM.statLightProgress.textContent = progress;
           if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = progress + '%';
           if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
           if (DOM.growlightHours) {
-            const growlight = Math.max(0, totalNeeded - (state.accumulatedLight || 0));
-            DOM.growlightHours.textContent = growlight.toFixed(1);
+            const grow = Math.max(0, totalNeeded - (state.accumulatedLight || 0));
+            DOM.growlightHours.textContent = grow.toFixed(1);
           }
 
           updateGauge();
+          updateStatusText();
         }
         scheduleRender();
       } catch (e) {
@@ -398,34 +342,22 @@ function initFirebase() {
             state.lastResetDate = today;
           }
 
+          // Update UI Mode
           if (DOM.currentModeDisplay2) {
             const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
 
-          const dashLampStatus = document.getElementById('dashLampStatus');
-          if (dashLampStatus) {
-            dashLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
-            dashLampStatus.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-
-          const lampStateText = document.getElementById('lampStateText');
-          if (lampStateText) {
-            lampStateText.textContent = state.lampState ? 'ON' : 'OFF';
-            lampStateText.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-
-          const statLamp = document.getElementById('statLamp');
-          if (statLamp) {
-            statLamp.textContent = state.lampState ? 'ON' : 'OFF';
-            statLamp.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-
-          const monitorLampStatus = document.getElementById('monitorLampStatus');
-          if (monitorLampStatus) {
-            monitorLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
-            monitorLampStatus.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
+          // Status Lampu
+          const statusText = state.lampState ? 'ON' : 'OFF';
+          const statusColor = state.lampState ? '#22c55e' : '#ef4444';
+          ['dashLampStatus', 'lampStateText', 'statLamp', 'monitorLampStatus'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.textContent = statusText;
+              el.style.color = statusColor;
+            }
+          });
 
           if (DOM.forceDayOn) DOM.forceDayOn.checked = state.forceDayOn;
           if (DOM.luxThresholdDisplay) DOM.luxThresholdDisplay.textContent = state.luxThreshold + ' lux';
@@ -434,15 +366,13 @@ function initFirebase() {
           if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
           if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
 
-          const dashLatestTemp = document.getElementById('dashLatestTemp');
-          if (dashLatestTemp) {
-            dashLatestTemp.textContent = state.temperature.toFixed(1) + '°C';
-          }
+          const latestTemp = document.getElementById('dashLatestTemp');
+          if (latestTemp) latestTemp.textContent = state.temperature.toFixed(1) + '°C';
 
           if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
           if (DOM.growlightHours) {
-            const growlight = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
-            DOM.growlightHours.textContent = growlight.toFixed(1);
+            const grow = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
+            DOM.growlightHours.textContent = grow.toFixed(1);
           }
           if (DOM.lightProgressDisplay || DOM.statLightProgress) {
             const progress = Math.min(100, Math.round(((state.accumulatedLight || 0) / (state.totalLightNeeded || 12)) * 100));
@@ -452,8 +382,8 @@ function initFirebase() {
           }
 
           updateGauge();
-          updateMonitoringStatus();
           updateModeButtonUI(state.controlMode);
+          updateStatusText();
         }
         scheduleRender();
       } catch (e) {
@@ -479,12 +409,10 @@ function initFirebase() {
   }
 }
 
-// ============================================
-// UPDATE MONITORING STATUS
-// ============================================
-function updateMonitoringStatus() {
+// ===== UPDATE STATUS TEXT (LUX BULAT) =====
+function updateStatusText() {
   const temp = state.temperature;
-  const light = state.sensorLight;
+  const lux = state.sensorLight;
 
   const tempEl = document.getElementById('tempStatus');
   if (tempEl) {
@@ -497,17 +425,37 @@ function updateMonitoringStatus() {
 
   const lightEl = document.getElementById('lightStatus');
   if (lightEl) {
-    if (light > 80) { lightEl.textContent = '☀️ Sangat Terang';
-      lightEl.style.color = '#facc15'; } else if (light > 50) { lightEl.textContent = '🌤️ Sedang';
-      lightEl.style.color = '#f59e0b'; } else if (light > 20) { lightEl.textContent = '🌥️ Redup';
-      lightEl.style.color = '#94a3b8'; } else { lightEl.textContent = '🌙 Gelap';
-      lightEl.style.color = '#64748b'; }
+    if (lux > 4000) { lightEl.textContent = '☀️ Sangat Terang';
+      lightEl.style.color = '#facc15'; } else if (lux > 2000) { lightEl.textContent = '🌤️ Terang';
+      lightEl.style.color = '#f59e0b'; } else if (lux > 500) { lightEl.textContent = '🌥️ Sedang';
+      lightEl.style.color = '#94a3b8'; } else if (lux > 100) { lightEl.textContent = '🌥️ Redup';
+      lightEl.style.color = '#64748b'; } else { lightEl.textContent = '🌙 Gelap';
+      lightEl.style.color = '#3b82f6'; }
   }
 
   const lampEl = document.getElementById('lampStatusText');
   if (lampEl) {
     lampEl.textContent = state.lampState ? '💡 Lampu Aktif' : '⛔ Lampu Mati';
     lampEl.style.color = state.lampState ? '#22c55e' : '#ef4444';
+  }
+
+  const statTempStatus = document.getElementById('statTempStatus');
+  if (statTempStatus) {
+    if (temp > 35) { statTempStatus.textContent = 'Sangat Panas';
+      statTempStatus.style.color = '#ef4444'; } else if (temp > 28) { statTempStatus.textContent = 'Panas';
+      statTempStatus.style.color = '#f59e0b'; } else if (temp > 20) { statTempStatus.textContent = 'Normal';
+      statTempStatus.style.color = '#22c55e'; } else { statTempStatus.textContent = 'Dingin';
+      statTempStatus.style.color = '#3b82f6'; }
+  }
+
+  const statLightStatus = document.getElementById('statLightStatus');
+  if (statLightStatus) {
+    if (lux > 4000) { statLightStatus.textContent = 'Sangat Terang';
+      statLightStatus.style.color = '#facc15'; } else if (lux > 2000) { statLightStatus.textContent = 'Terang';
+      statLightStatus.style.color = '#f59e0b'; } else if (lux > 500) { statLightStatus.textContent = 'Sedang';
+      statLightStatus.style.color = '#94a3b8'; } else if (lux > 100) { statLightStatus.textContent = 'Redup';
+      statLightStatus.style.color = '#64748b'; } else { statLightStatus.textContent = 'Gelap';
+      statLightStatus.style.color = '#3b82f6'; }
   }
 }
 
@@ -540,25 +488,15 @@ function setupNavigation() {
           const targetSection = document.getElementById(target);
           if (targetSection) targetSection.classList.remove('hidden');
           if (sectionsNeedingLive.includes(target)) {
-            if (!isListenerActive) {
-              initFirebase();
-              console.log('🔌 Listener real-time dipasang untuk', target);
-            }
+            if (!isListenerActive) initFirebase();
           } else {
-            if (isListenerActive) {
-              unsubscribeAll();
-              console.log('⏸️ Listener dihentikan (section', target, ')');
-            }
+            if (isListenerActive) unsubscribeAll();
           }
           if (window.innerWidth <= 768) closeMenu();
-        } catch (e) {
-          console.error('❌ Error klik menu:', e);
-        }
+        } catch (e) { console.error('❌ Error klik menu:', e); }
       });
     });
-  } catch (e) {
-    console.error('❌ Error setup navigasi:', e);
-  }
+  } catch (e) { console.error('❌ Error setup navigasi:', e); }
 }
 
 // ===== UPDATE UI TOMBOL MODE =====
@@ -573,27 +511,22 @@ function updateModeButtonUI(mode) {
     const map = { otomatis: 'modeAutoBtn', jadwal: 'modeJadwalBtn', manual: 'modeManualBtn' };
     const activeId = map[mode];
     if (activeId) {
-      const activeBtn = document.getElementById(activeId);
-      if (activeBtn) {
-        activeBtn.classList.add('active-mode');
-        activeBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-        activeBtn.style.border = '1px solid #22c55e';
-        activeBtn.style.color = 'white';
+      const btn = document.getElementById(activeId);
+      if (btn) {
+        btn.classList.add('active-mode');
+        btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+        btn.style.border = '1px solid #22c55e';
+        btn.style.color = 'white';
       }
     }
-  } catch (e) {
-    console.error('❌ Error update mode button:', e);
-  }
+  } catch (e) { console.error('❌ Error update mode button:', e); }
 }
 
-// ============================================
-// CONTROLS
-// ============================================
+// ===== CONTROLS =====
 function initControls() {
   try {
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
-        console.log('🔄 Klik ON');
         set(ref(db, 'system/state'), true)
           .then(() => { state.lampState = true;
             scheduleRender();
@@ -603,7 +536,6 @@ function initControls() {
     }
     if (DOM.btnOff) {
       DOM.btnOff.addEventListener('click', () => {
-        console.log('🔄 Klik OFF');
         set(ref(db, 'system/state'), false)
           .then(() => { state.lampState = false;
             scheduleRender();
@@ -613,93 +545,54 @@ function initControls() {
     }
     if (DOM.resetPlantBtn) {
       DOM.resetPlantBtn.addEventListener('click', async () => {
-        if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
+        if (!confirm('🔄 Reset semua data tanam?')) return;
         try {
           await set(ref(db, 'system/plant_start_date'), null);
           state.plantStartDate = null;
           scheduleRender();
           showToast('✅ Tanaman di-reset!', 'success');
-        } catch (e) {
-          showToast('❌ Gagal reset: ' + e.message, 'error');
-        }
+        } catch (e) { showToast('❌ Gagal reset: ' + e.message, 'error'); }
       });
     }
-  } catch (e) {
-    console.error('❌ Error init controls:', e);
-  }
+  } catch (e) { console.error('❌ Error init controls:', e); }
 }
 
-// ============================================
-// MODE KONTROL
-// ============================================
+// ===== MODE KONTROL =====
 function initModeControls() {
   try {
     console.log('🔄 Init Mode Controls...');
-
     const modeAutoBtn = document.getElementById('modeAutoBtn');
     if (modeAutoBtn) {
-      console.log('✅ modeAutoBtn ditemukan');
-      modeAutoBtn.addEventListener('click', function() {
-        console.log('🔄 Klik Otomatis');
-        setModeControl('otomatis');
-      });
-    } else {
-      console.warn('❌ modeAutoBtn TIDAK DITEMUKAN!');
+      modeAutoBtn.addEventListener('click', () => setModeControl('otomatis'));
     }
-
     const modeJadwalBtn = document.getElementById('modeJadwalBtn');
     if (modeJadwalBtn) {
-      console.log('✅ modeJadwalBtn ditemukan');
-      modeJadwalBtn.addEventListener('click', function() {
-        console.log('🔄 Klik Jadwal');
-        setModeControl('jadwal');
-      });
-    } else {
-      console.warn('❌ modeJadwalBtn TIDAK DITEMUKAN!');
+      modeJadwalBtn.addEventListener('click', () => setModeControl('jadwal'));
     }
-
     const modeManualBtn = document.getElementById('modeManualBtn');
     if (modeManualBtn) {
-      console.log('✅ modeManualBtn ditemukan');
-      modeManualBtn.addEventListener('click', function() {
-        console.log('🔄 Klik Manual');
-        setModeControl('manual');
-      });
-    } else {
-      console.warn('❌ modeManualBtn TIDAK DITEMUKAN!');
+      modeManualBtn.addEventListener('click', () => setModeControl('manual'));
     }
 
     const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
     const totalLightNeeded = document.getElementById('totalLightNeeded');
     if (saveLightNeededBtn && totalLightNeeded) {
-      console.log('✅ saveLightNeededBtn ditemukan');
       saveLightNeededBtn.addEventListener('click', function() {
         const val = parseInt(totalLightNeeded.value);
-        console.log('🔄 Simpan kebutuhan cahaya:', val);
-        if (val < 6 || val > 18) {
-          showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error');
-          return;
-        }
+        if (val < 6 || val > 18) { showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error'); return; }
         set(ref(db, 'system/total_light_needed'), val)
           .then(() => { state.totalLightNeeded = val;
             showToast('✅ Kebutuhan cahaya disimpan!', 'success'); })
           .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
       });
-    } else {
-      console.warn('❌ saveLightNeededBtn atau totalLightNeeded TIDAK DITEMUKAN!');
     }
 
     const saveThresholdBtn = document.getElementById('saveThresholdBtn');
     const luxThreshold = document.getElementById('luxThreshold');
     if (saveThresholdBtn && luxThreshold) {
-      console.log('✅ saveThresholdBtn ditemukan');
       saveThresholdBtn.addEventListener('click', function() {
         const val = parseInt(luxThreshold.value);
-        console.log('🔄 Simpan threshold:', val);
-        if (val < 0 || val > 5000) {
-          showToast('❌ Threshold harus 0-5000 lux', 'error');
-          return;
-        }
+        if (val < 0 || val > 5000) { showToast('❌ Threshold harus 0-5000 lux', 'error'); return; }
         set(ref(db, 'system/lux_threshold'), val)
           .then(() => { state.luxThreshold = val;
             showToast('✅ Threshold lux disimpan!', 'success'); })
@@ -709,19 +602,15 @@ function initModeControls() {
         const display = document.getElementById('luxThresholdDisplay');
         if (display) display.textContent = e.target.value + ' lux';
       });
-    } else {
-      console.warn('❌ saveThresholdBtn atau luxThreshold TIDAK DITEMUKAN!');
     }
 
     const saveJadwalBtn = document.getElementById('saveJadwalBtn');
     const jadwalStart = document.getElementById('jadwalStart');
     const jadwalEnd = document.getElementById('jadwalEnd');
     if (saveJadwalBtn && jadwalStart && jadwalEnd) {
-      console.log('✅ saveJadwalBtn ditemukan');
       saveJadwalBtn.addEventListener('click', function() {
         const start = parseInt(jadwalStart.value);
         const end = parseInt(jadwalEnd.value);
-        console.log('🔄 Simpan jadwal:', start, '-', end);
         if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
           showToast('❌ Jam harus 0-23', 'error');
           return;
@@ -731,33 +620,23 @@ function initModeControls() {
           .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
           .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
       });
-    } else {
-      console.warn('❌ saveJadwalBtn, jadwalStart, atau jadwalEnd TIDAK DITEMUKAN!');
     }
 
     const forceDayOn = document.getElementById('forceDayOn');
     if (forceDayOn) {
-      console.log('✅ forceDayOn ditemukan');
       forceDayOn.addEventListener('change', function() {
         const val = this.checked;
-        console.log('🔄 Force Day ON:', val);
         set(ref(db, 'system/force_day_on'), val)
           .then(() => { state.forceDayOn = val;
             showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info'); })
           .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
       });
-    } else {
-      console.warn('❌ forceDayOn TIDAK DITEMUKAN!');
     }
-
     console.log('✅ Init Mode Controls Selesai');
-  } catch (e) {
-    console.error('❌ Error init mode controls:', e);
-  }
+  } catch (e) { console.error('❌ Error init mode controls:', e); }
 }
 
 function setModeControl(mode) {
-  console.log('🔄 setModeControl:', mode);
   set(ref(db, 'system/mode'), mode)
     .then(() => {
       state.controlMode = mode;
@@ -768,17 +647,11 @@ function setModeControl(mode) {
       }
       updateModeButtonUI(mode);
       showToast(`✅ Mode ${mode} aktif`, 'success');
-      console.log('✅ Mode berubah ke:', mode);
     })
-    .catch(err => {
-      console.error('❌ Gagal ubah mode:', err);
-      showToast('❌ Gagal: ' + err.message, 'error');
-    });
+    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
 }
 
-// ============================================
-// EXPAND CHART
-// ============================================
+// ===== EXPAND CHART =====
 function initExpandChart() {
   window.toggleExpand = function(wrapperId) {
     const wrapper = document.getElementById(wrapperId);
@@ -791,9 +664,7 @@ function initExpandChart() {
       wrapper.classList.remove('expanded');
     } else {
       wrapper.classList.add('expanded');
-      setTimeout(() => {
-        wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
+      setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
     }
     const canvas = wrapper.querySelector('canvas');
     if (canvas) {
@@ -803,9 +674,7 @@ function initExpandChart() {
   };
 }
 
-// ============================================
-// CLOCK
-// ============================================
+// ===== CLOCK =====
 function updateClock() {
   try {
     const now = new Date();
@@ -822,14 +691,10 @@ function updateClock() {
     if (clockEl) {
       clockEl.innerText = now.toLocaleTimeString('id-ID');
     }
-  } catch (e) {
-    console.error('❌ Error update clock:', e);
-  }
+  } catch (e) { console.error('❌ Error update clock:', e); }
 }
 
-// ============================================
-// SIDEBAR
-// ============================================
+// ===== SIDEBAR =====
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.querySelector('.sidebar');
 const overlay = document.querySelector('.mobile-overlay') || (() => {
@@ -844,9 +709,7 @@ function closeMenu() {
     sidebar.classList.remove('active');
     overlay.classList.remove('active');
     document.body.style.overflow = '';
-  } catch (e) {
-    console.error('❌ Error close menu:', e);
-  }
+  } catch (e) { console.error('❌ Error close menu:', e); }
 }
 
 if (menuToggle) {
@@ -872,9 +735,7 @@ window.addEventListener('resize', () => {
   if (window.innerWidth > 768) closeMenu();
 });
 
-// ============================================
-// DEFAULT SECTION
-// ============================================
+// ===== DEFAULT SECTION =====
 const defaultSection = document.getElementById('dashboard');
 if (defaultSection) {
   document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
