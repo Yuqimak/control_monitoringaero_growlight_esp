@@ -1,757 +1,546 @@
-// ============================================
-// MAIN ENTRY – app.js (FINAL - PAKE system/mode & system/state + NOTIF)
-// ============================================
+<!DOCTYPE html>
+<html lang="en">
 
-import { db } from './firebase.js';
-import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory } from './modules/analytics.js';
-import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
-import { initAdminPanel } from './modules/admin.js';
-import { ref, onValue, set, update, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+<head>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SIGMA - Sistem Grow Light Monitoring & Automasi</title>
 
-// ===== SESSION CHECK =====
-const sessionData = localStorage.getItem('iot_user');
-if (!sessionData) {
-  window.location.href = 'login.html';
-} else {
-  try {
-    const user = JSON.parse(sessionData);
-    setUser(user);
-    console.log('👤 Login sebagai:', user.nama, '(', user.username, ')');
-    const loginTime = user.loginTime || 0;
-    if (Date.now() - loginTime > 8 * 60 * 60 * 1000) {
-      localStorage.removeItem('iot_user');
-      window.location.href = 'login.html';
-    }
-  } catch(e) {
-    localStorage.removeItem('iot_user');
-    window.location.href = 'login.html';
-  }
-}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=308" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
 
-// ===== EXPOSE GLOBAL =====
-window.exportData = exportData;
-window.exportPDF = exportPDF;
-window.logout = function() {
-  if (confirm('Yakin mau logout?')) {
-    localStorage.removeItem('iot_user');
-    window.location.href = 'login.html';
-  }
-};
+<body>
 
-// ===== STATE LISTENER =====
-let unsubSensor = null;
-let unsubSystem = null;
-let isListenerActive = false;
+  <div class="dashboard">
 
-// ===== THROTTLE VARIABEL =====
-let lastSensorUpdate = 0;
-const SENSOR_THROTTLE = 1000;
-let lastSystemUpdate = 0;
-const SYSTEM_THROTTLE = 2000;
+    <!-- ======================================
+         SIDEBAR
+    ======================================= -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">
+          <img src="assets/SIGMALOGO-removebg-preview.png" 
+               alt="Logo" 
+               style="width:45px; height:45px; border-radius:12px; object-fit:cover;" />
+        </div>
+        <div>
+          <h2>SIGMA</h2>
+          <p>Grow Light</p>
+        </div>
+      </div>
 
-// ===== RENDER DEBOUNCE =====
-let renderTimeout = null;
-function scheduleRender() {
-  if (renderTimeout) clearTimeout(renderTimeout);
-  renderTimeout = setTimeout(() => {
-    renderUI();
-    renderTimeout = null;
-  }, 200);
-}
+      <nav class="menu">
+        <button class="menu-item active" data-target="dashboard">🏠 Dashboard</button>
+        <button class="menu-item" data-target="monitoring">🌡 Monitoring</button>
+        <button class="menu-item" data-target="analytics">📈 Analytics</button>
+        <button class="menu-item" data-target="control">🎛 Control</button>
+        <button class="menu-item" data-target="admin" id="adminMenu" style="display:none;">👑 Admin</button>
+      </nav>
 
-// ============================================
-// CEK KONEKSI FIREBASE & ESP32
-// ============================================
-let connectionCheckInterval = null;
-let esp32Online = false;
-let firebaseConnected = false;
+      <div class="system-box">
+        <p class="system-title">● System Status</p>
+        <p class="system-online">● All Systems Operational</p>
+      </div>
+    </aside>
 
-function cekKoneksi() {
-  try {
-    const connStatus = document.getElementById('connStatus');
-    if (connStatus) {
-      if (connStatus.innerText === 'Realtime Connected' || connStatus.innerText === 'Online') {
-        firebaseConnected = true;
-        connStatus.style.color = '#22c55e';
-      } else {
-        firebaseConnected = false;
-        connStatus.style.color = '#ef4444';
-      }
-    }
+    <!-- ======================================
+         MAIN CONTENT
+    ======================================= -->
+    <main class="main-content">
 
-    const lastUpdate = document.getElementById('dashLastUpdate');
-    if (lastUpdate && lastUpdate.innerText !== '--:--:--') {
-      const timeStr = lastUpdate.innerText;
-      const now = new Date();
-      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
-      const lastDate = new Date();
-      lastDate.setHours(hours, minutes, seconds || 0);
-      
-      const diffMinutes = (now - lastDate) / 60000;
-      if (diffMinutes < 5) {
-        esp32Online = true;
-      } else {
-        esp32Online = false;
-      }
-    } else {
-      esp32Online = false;
-    }
+      <!-- ======================================
+           TOPBAR
+    ======================================= -->
+      <header class="topbar">
+        <div style="display:flex; align-items:center; gap:12px; flex:1;">
+          <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
+          <img src="assets/SIGMALOGO-removebg-preview.png" 
+               alt="Logo" 
+               style="height:36px; width:36px; border-radius:8px; object-fit:cover;" />
+          <div>
+            <h1>SIGMA</h1>
+            <p class="subtitle">Sistem Grow Light untuk Monitoring dan Automasi</p>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <div class="status-card">
+            <p class="online-text">● Online</p>
+            <p class="firebase-text">Firebase : <span id="connStatus">Connecting...</span></p>
+          </div>
+          <div class="user-card">
+            <span id="userName">👋 User</span>
+            <button onclick="logout()" class="logout-btn">🚪</button>
+          </div>
+          <div class="clock-card">
+            <p id="dateText">--</p>
+            <h3 id="clockText">--:--:--</h3>
+          </div>
+        </div>
+      </header>
 
-    updateConnectionNotification();
+      <!-- ======================================
+           DASHBOARD
+    ======================================= -->
+      <section class="section page-section" id="dashboard">
+        <h2 class="section-title green">🏠 DASHBOARD</h2>
 
-  } catch (e) {
-    console.error('❌ Error cek koneksi:', e);
-  }
-}
+        <!-- OVERHEAT ALERT -->
+        <div id="overheatContainer" style="display:none; margin-bottom:16px; background:linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.1)); border:2px solid #ef4444; border-radius:16px; padding:16px 20px; box-shadow:0 0 40px rgba(239,68,68,0.3);">
+          <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:32px; animation: pulse-alert 1s infinite;">🔥</span>
+              <div>
+                <div style="font-weight:800; font-size:18px; color:#ef4444;">⚠️ OVERHEAT DETECTED!</div>
+                <div id="overheatMessage" style="font-size:14px; color:#fca5a5;">Suhu melewati batas aman. Lampu dimatikan otomatis.</div>
+              </div>
+            </div>
+            <div style="margin-left:auto; display:flex; gap:12px; align-items:center;">
+              <span style="background:rgba(239,68,68,0.2); padding:4px 14px; border-radius:20px; font-size:13px; color:#fca5a5; border:1px solid rgba(239,68,68,0.3);">🔴 DARURAT</span>
+              <button onclick="document.getElementById('overheatContainer').style.display='none'" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.1); color:white; padding:4px 12px; border-radius:8px; cursor:pointer; font-size:13px;">✕ Sembunyikan</button>
+            </div>
+          </div>
+        </div>
 
-function updateConnectionNotification() {
-  let notif = document.getElementById('connectionNotif');
-  if (!notif) {
-    notif = document.createElement('div');
-    notif.id = 'connectionNotif';
-    notif.style.cssText = `
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      padding: 8px 16px;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 600;
-      z-index: 9999;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      pointer-events: none;
-      display: none;
-    `;
-    document.body.appendChild(notif);
-  }
+        <!-- QUICK STATS -->
+        <div class="quick-stats">
+          <div class="quick-stat">
+            <div class="quick-stat-icon" style="background:rgba(34,197,94,0.12); color:#22c55e;">🌡️</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value"><span id="statTemp">--</span>°C</div>
+              <div class="quick-stat-label">Suhu <span id="statTempStatus">Normal</span></div>
+            </div>
+          </div>
+          <div class="quick-stat">
+            <div class="quick-stat-icon" style="background:rgba(56,189,248,0.12); color:#38bdf8;">💡</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value"><span id="statLight">--</span>%</div>
+              <div class="quick-stat-label">Cahaya <span id="statLightStatus">Sedang</span></div>
+            </div>
+          </div>
+          <div class="quick-stat">
+            <div class="quick-stat-icon" id="statLampIcon" style="background:rgba(34,197,94,0.12); color:#22c55e;">⚡</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value" id="statLamp">OFF</div>
+              <div class="quick-stat-label">Status Lampu</div>
+            </div>
+          </div>
+          <div class="quick-stat">
+            <div class="quick-stat-icon" style="background:rgba(245,158,11,0.12); color:#f59e0b;">☀️</div>
+            <div class="quick-stat-info">
+              <div class="quick-stat-value"><span id="statLightProgress">0</span>%</div>
+              <div class="quick-stat-label">Pemenuhan Cahaya</div>
+            </div>
+          </div>
+        </div>
 
-  if (!firebaseConnected) {
-    notif.textContent = '⚠️ Firebase Disconnected';
-    notif.style.background = '#ef4444';
-    notif.style.color = '#fff';
-    notif.style.display = 'block';
-    notif.style.border = '1px solid #dc2626';
-  } else if (!esp32Online) {
-    notif.textContent = '⚠️ ESP32 Offline';
-    notif.style.background = '#f59e0b';
-    notif.style.color = '#fff';
-    notif.style.display = 'block';
-    notif.style.border = '1px solid #d97706';
-  } else {
-    notif.textContent = '✅ Sistem Online';
-    notif.style.background = '#22c55e';
-    notif.style.color = '#fff';
-    notif.style.display = 'block';
-    notif.style.border = '1px solid #16a34a';
-    setTimeout(() => {
-      notif.style.opacity = '0';
-      setTimeout(() => {
-        notif.style.display = 'none';
-        notif.style.opacity = '1';
-      }, 500);
-    }, 5000);
-  }
-}
+        <!-- GRAFIK CEPAT + STATUS LAMPU -->
+        <div class="dashboard-main-grid">
+          <div class="dashboard-card dashboard-chart-card">
+            <div class="card-head">
+              <div class="card-icon blue-box">📊</div>
+              <div>
+                <h3>Grafik Cepat</h3>
+                <p class="card-sub">15 Data Suhu Terakhir</p>
+              </div>
+            </div>
+            <canvas id="dashTempChart"></canvas>
+            <div class="chart-status" id="chartStatus">🟢 Stabil</div>
+          </div>
+          <div class="dashboard-card">
+            <div class="card-head">
+              <div class="card-icon purple-box">💡</div>
+              <div>
+                <h3>Status Lampu</h3>
+                <p class="card-sub">ON / OFF</p>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+              <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:13px; color:var(--muted);">Status:</span>
+                <span id="dashLampStatus" style="font-weight:700; font-size:18px; color:#ef4444;">OFF</span>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted);">
+                <span>Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-// ===== APP START =====
-document.addEventListener("DOMContentLoaded", () => {
-  try {
-    initDOM();
-    initAdminPanel();
-    initCharts();
-    initFirebase();
-    initControls();
-    initExpandChart();
-    initModeControls();
-    
-    if (DOM.exportBtn && DOM.exportPeriod) {
-      DOM.exportBtn.addEventListener('click', () => exportData(DOM.exportPeriod.value));
-    }
-    if (DOM.exportPdfBtn) {
-      DOM.exportPdfBtn.addEventListener('click', exportPDF);
-    }
-    
-    loadChartHistory();
-    loadDashChartHistory();
-    
-    updateClock();
-    setInterval(updateClock, 1000);
-    
-    if (DOM.userName) {
-      DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
-    }
-    
-    setupNavigation();
-    
-    cekKoneksi();
-    setInterval(cekKoneksi, 30000);
-    
-    console.log("🚀 App siap!");
-  } catch (e) {
-    console.error('❌ Error saat start app:', e);
-  }
-});
+        <!-- STATUS SISTEM -->
+        <div class="dashboard-card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-icon purple-box">🔄</div>
+            <div>
+              <h3>Status Sistem</h3>
+              <p class="card-sub">Koneksi & Performa</p>
+            </div>
+          </div>
+          <div class="system-status-grid">
+            <div class="status-item">
+              <span class="status-label">Firebase</span>
+              <span class="status-badge online" id="dashConnStatus">● Online</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Data Point</span>
+              <span class="status-badge" id="dashDataCount">0</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Last Update</span>
+              <span class="status-badge" id="dashLastUpdate">--:--:--</span>
+            </div>
+            <div class="status-item">
+              <span class="status-label">Suhu Terbaru</span>
+              <span class="status-badge" id="dashLatestTemp">--°C</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-// ============================================
-// FIREBASE LISTENERS
-// ============================================
-function initFirebase() {
-  try {
-    if (isListenerActive) {
-      console.log('⚠️ Listener sudah aktif, skip.');
-      return;
-    }
-    isListenerActive = true;
-    console.log('🔌 Memasang Firebase listeners...');
+      <!-- ======================================
+           MONITORING
+    ======================================= -->
+      <section class="section page-section hidden" id="monitoring">
+        <h2 class="section-title green">🌱 MONITORING</h2>
+        <div class="monitor-grid">
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon green-box">🌡</div>
+              <div>
+                <h3>Suhu</h3>
+                <p class="card-sub">Temperature</p>
+              </div>
+            </div>
+            <div class="metric"><span id="monitorTemp">--</span>°C</div>
+            <p class="metric-status" id="tempStatus">🔥 Panas</p>
+            <canvas id="tempMiniChart"></canvas>
+          </div>
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon yellow-box">💡</div>
+              <div>
+                <h3>Intensitas Cahaya</h3>
+                <p class="card-sub">Light Intensity</p>
+              </div>
+            </div>
+            <div class="metric"><span id="monitorLight">--</span>%</div>
+            <p class="metric-status" id="lightStatus">Intensitas Sedang</p>
+          </div>
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon purple-box">💡</div>
+              <div>
+                <h3>Status Lampu</h3>
+                <p class="card-sub">Lamp Status</p>
+              </div>
+            </div>
+            <div class="metric green-text" id="monitorLampStatus">OFF</div>
+            <p class="metric-status" id="lampStatusText">Lampu Aktif</p>
+          </div>
+        </div>
+      </section>
 
-    // --- Sensor ---
-    unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
-      try {
-        const now = Date.now();
-        if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
-        lastSensorUpdate = now;
+      <!-- ======================================
+           ANALYTICS
+    ======================================= -->
+      <section class="section page-section hidden" id="analytics">
+        <h2 class="section-title blue">📊 ANALYTICS</h2>
 
-        const d = snap.val();
-        if (d) {
-          const oldTemp = state.temperature;
-          const oldLight = state.sensorLight;
-          
-          const rawSuhu = d.suhu || 0;
-          state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
-          
-          state.sensorLight = Math.min(100, Math.round((d.cahaya || 0) / 5000 * 100));
+        <div class="analytics-card" style="margin-bottom:20px;">
+          <div class="analytics-head">
+            <h3>🌡️ Suhu Realtime</h3>
+            <button class="time-btn" onclick="toggleExpand('wrapper-tempChart')">⛶ Expand</button>
+          </div>
+          <div class="chart-wrapper" id="wrapper-tempChart">
+            <canvas id="tempChart"></canvas>
+          </div>
+        </div>
 
-          if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
-            const time = new Date().toLocaleTimeString();
-            updateCharts(time);
-          }
-          
-          const luxThreshold = state.luxThreshold || 500;
-          const rawLight = d.cahaya || 0;
-          
-          if (rawLight > luxThreshold) {
-            const increment = 1 / 3600;
-            state.accumulatedLight = (state.accumulatedLight || 0) + increment;
-          }
-          
-          const totalNeeded = state.totalLightNeeded || 12;
-          const progress = Math.min(100, Math.round((state.accumulatedLight / totalNeeded) * 100));
-          if (DOM.statLightProgress) DOM.statLightProgress.textContent = progress;
-          if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = progress + '%';
-          if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-          if (DOM.growlightHours) {
-            const growlight = Math.max(0, totalNeeded - (state.accumulatedLight || 0));
-            DOM.growlightHours.textContent = growlight.toFixed(1);
-          }
-        }
-        scheduleRender();
-      } catch (e) {
-        console.error('❌ Error di listener sensor:', e);
-      }
-    }, (err) => {
-      console.error("❌ Sensor error:", err);
-      if (DOM.connStatus) {
-        DOM.connStatus.innerText = "Disconnected";
-        DOM.connStatus.style.color = "#ef4444";
-      }
-      isListenerActive = false;
-    });
+        <div class="analytics-card" style="margin-bottom:20px;">
+          <div class="analytics-head">
+            <h3>💡 Intensitas Cahaya</h3>
+            <button class="time-btn" onclick="toggleExpand('wrapper-lightChart')">⛶ Expand</button>
+          </div>
+          <div class="chart-wrapper" id="wrapper-lightChart">
+            <canvas id="lightChart"></canvas>
+          </div>
+        </div>
 
-    // --- System ---
-    unsubSystem = onValue(ref(db, 'system'), (snap) => {
-      try {
-        const now = Date.now();
-        if (now - lastSystemUpdate < SYSTEM_THROTTLE) return;
-        lastSystemUpdate = now;
+        <div class="analytics-card" style="margin-bottom:20px;">
+          <div class="analytics-head">
+            <h3>💡 Status Lampu</h3>
+            <button class="time-btn" onclick="toggleExpand('wrapper-lampStatusChart')">⛶ Expand</button>
+          </div>
+          <div class="chart-wrapper" id="wrapper-lampStatusChart">
+            <canvas id="lampStatusChart"></canvas>
+          </div>
+        </div>
 
-        const d = snap.val();
-        if (d) {
-          state.controlMode = d.mode || 'otomatis';
-          state.lampState = d.state || false;
-          state.forceDayOn = d.force_day_on || false;
-          state.jadwalStart = d.jadwal_start || 6;
-          state.jadwalEnd = d.jadwal_end || 18;
-          state.luxThreshold = d.lux_threshold || 500;
-          state.totalLightNeeded = d.total_light_needed || 12;
-          state.accumulatedLight = d.accumulated_light || 0;
-          state.lastResetDate = d.last_reset_date || '';
-          state.alert = d.alert || '';
-          
-          const today = new Date().toISOString().slice(0,10);
-          if (state.lastResetDate !== today) {
-            state.accumulatedLight = 0;
-            state.lastResetDate = today;
-          }
-          
-          if (DOM.currentModeDisplay2) {
-            const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-            DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
-          }
-          
-          const dashLampStatus = document.getElementById('dashLampStatus');
-          if (dashLampStatus) {
-            dashLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
-            dashLampStatus.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-          
-          const lampStateText = document.getElementById('lampStateText');
-          if (lampStateText) {
-            lampStateText.textContent = state.lampState ? 'ON' : 'OFF';
-            lampStateText.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-          
-          const statLamp = document.getElementById('statLamp');
-          if (statLamp) {
-            statLamp.textContent = state.lampState ? 'ON' : 'OFF';
-            statLamp.style.color = state.lampState ? '#22c55e' : '#ef4444';
-          }
-          
-          if (DOM.forceDayOn) DOM.forceDayOn.checked = state.forceDayOn;
-          if (DOM.luxThresholdDisplay) DOM.luxThresholdDisplay.textContent = state.luxThreshold + ' lux';
-          if (DOM.luxThreshold) DOM.luxThreshold.value = state.luxThreshold;
-          if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
-          if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
-          if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
-          
-          const dashLatestTemp = document.getElementById('dashLatestTemp');
-          if (dashLatestTemp) {
-            dashLatestTemp.textContent = state.temperature.toFixed(1) + '°C';
-          }
-          
-          if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-          if (DOM.growlightHours) {
-            const growlight = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
-            DOM.growlightHours.textContent = growlight.toFixed(1);
-          }
-          if (DOM.lightProgressDisplay || DOM.statLightProgress) {
-            const progress = Math.min(100, Math.round(((state.accumulatedLight || 0) / (state.totalLightNeeded || 12)) * 100));
-            const display = progress > 100 ? 100 : progress;
-            if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display + '%';
-            if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
-          }
-          
-          updateModeButtonUI(state.controlMode);
-        }
-        scheduleRender();
-      } catch (e) {
-        console.error('❌ Error di listener system:', e);
-      }
-    }, (err) => {
-      console.error("❌ System error:", err);
-      isListenerActive = false;
-    });
-    
-    if (DOM.connStatus) {
-      DOM.connStatus.innerText = "Realtime Connected";
-      DOM.connStatus.style.color = "#22c55e";
-    }
-    
-  } catch (e) {
-    console.error('❌ Error init Firebase:', e);
-    if (DOM.connStatus) {
-      DOM.connStatus.innerText = "Error";
-      DOM.connStatus.style.color = "#ef4444";
-    }
-    isListenerActive = false;
-  }
-}
+        <!-- STATISTIK -->
+        <div class="analytics-card" style="margin-top:20px;">
+          <h3 style="margin-bottom:16px;">📊 Statistik Hari Ini</h3>
+          <div id="statsContainer" style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px;">
+            <div class="stat-item" style="background:rgba(255,255,255,.04); padding:12px; border-radius:12px; text-align:center;">
+              <div style="font-size:12px; color:var(--muted);">🌡️ Rata Suhu</div>
+              <div id="avgTemp" style="font-size:24px; font-weight:700;">--°C</div>
+            </div>
+            <div class="stat-item" style="background:rgba(255,255,255,.04); padding:12px; border-radius:12px; text-align:center;">
+              <div style="font-size:12px; color:var(--muted);">📈 Suhu Max</div>
+              <div id="maxTemp" style="font-size:24px; font-weight:700;">--°C</div>
+            </div>
+            <div class="stat-item" style="background:rgba(255,255,255,.04); padding:12px; border-radius:12px; text-align:center;">
+              <div style="font-size:12px; color:var(--muted);">📉 Suhu Min</div>
+              <div id="minTemp" style="font-size:24px; font-weight:700;">--°C</div>
+            </div>
+            <div class="stat-item" style="background:rgba(255,255,255,.04); padding:12px; border-radius:12px; text-align:center;">
+              <div style="font-size:12px; color:var(--muted);">💡 Rata Cahaya</div>
+              <div id="avgLight" style="font-size:24px; font-weight:700;">--%</div>
+            </div>
+          </div>
+        </div>
 
-// ===== UNSUBSCRIBE =====
-function unsubscribeAll() {
-  try {
-    if (unsubSensor) { unsubSensor(); unsubSensor = null; }
-    if (unsubSystem) { unsubSystem(); unsubSystem = null; }
-    isListenerActive = false;
-    console.log('⏸️ Listener dihentikan');
-  } catch (e) {
-    console.error('❌ Error unsubscribe:', e);
-  }
-}
+        <!-- KATEGORI + WAKTU LAMPU -->
+        <div class="analytics-card">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            <div>
+              <h4>🌡️ Kategori Suhu Hari Ini</h4>
+              <div id="categoryContainer" style="margin-top:12px;">
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                  <span style="color:#3b82f6;">❄️ Dingin</span>
+                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                    <div id="coldBar" style="height:100%; width:0%; background:#3b82f6; border-radius:999px;"></div>
+                  </div>
+                  <span id="coldPercent" style="font-size:13px; color:var(--muted);">0%</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                  <span style="color:#22c55e;">🌤️ Normal</span>
+                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                    <div id="normalBar" style="height:100%; width:0%; background:#22c55e; border-radius:999px;"></div>
+                  </div>
+                  <span id="normalPercent" style="font-size:13px; color:var(--muted);">0%</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
+                  <span style="color:#f59e0b;">🔥 Hangat</span>
+                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                    <div id="warmBar" style="height:100%; width:0%; background:#f59e0b; border-radius:999px;"></div>
+                  </div>
+                  <span id="warmPercent" style="font-size:13px; color:var(--muted);">0%</span>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <span style="color:#ef4444;">🔥 Panas</span>
+                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                    <div id="hotBar" style="height:100%; width:0%; background:#ef4444; border-radius:999px;"></div>
+                  </div>
+                  <span id="hotPercent" style="font-size:13px; color:var(--muted);">0%</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4>💡 Waktu Operasional Lampu</h4>
+              <div style="margin-top:12px;">
+                <div style="display:flex; justify-content:space-between; font-size:14px;">
+                  <span style="color:var(--muted);">Total ON</span>
+                  <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:14px; margin-top:4px;">
+                  <span style="color:var(--muted);">Total OFF</span>
+                  <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam</span>
+                </div>
+                <div style="margin-top:12px;">
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <div style="flex:1; height:12px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; display:flex;">
+                      <div id="lampOnBar" style="height:100%; width:50%; background:#22c55e; border-radius:999px 0 0 999px;"></div>
+                      <div id="lampOffBar" style="height:100%; width:50%; background:#ef4444; border-radius:0 999px 999px 0;"></div>
+                    </div>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:4px;">
+                    <span id="onPercent">ON: 0%</span>
+                    <span id="offPercent">OFF: 0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-// ===== NAVIGASI =====
-function setupNavigation() {
-  try {
-    const sectionsNeedingLive = ['dashboard', 'monitoring'];
-    
-    document.querySelectorAll('.menu-item').forEach(item => {
-      item.addEventListener('click', function(e) {
-        try {
-          e.preventDefault();
-          document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-          this.classList.add('active');
-          
-          const target = this.dataset.target;
-          document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-          const targetSection = document.getElementById(target);
-          if (targetSection) targetSection.classList.remove('hidden');
-          
-          if (sectionsNeedingLive.includes(target)) {
-            if (!isListenerActive) {
-              initFirebase();
-              console.log('🔌 Listener real-time dipasang untuk', target);
-            }
-          } else {
-            if (isListenerActive) {
-              unsubscribeAll();
-              console.log('⏸️ Listener dihentikan (section', target, ')');
-            }
-          }
-          
-          if (window.innerWidth <= 768) closeMenu();
-        } catch (e) {
-          console.error('❌ Error klik menu:', e);
-        }
-      });
-    });
-  } catch (e) {
-    console.error('❌ Error setup navigasi:', e);
-  }
-}
+        <!-- TREN SUHU -->
+        <div class="analytics-card">
+          <h3>📈 Tren Suhu 7 Hari Terakhir</h3>
+          <div id="trendContainer" style="margin-top:12px; display:grid; grid-template-columns: repeat(7,1fr); gap:8px;"></div>
+        </div>
 
-// ===== UPDATE UI TOMBOL MODE =====
-function updateModeButtonUI(mode) {
-  try {
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-      btn.classList.remove('active-mode');
-      btn.style.background = 'rgba(255,255,255,0.05)';
-      btn.style.border = '1px solid rgba(255,255,255,0.1)';
-      btn.style.color = 'white';
-    });
-    
-    const map = {
-      otomatis: 'modeAutoBtn',
-      jadwal: 'modeJadwalBtn',
-      manual: 'modeManualBtn'
-    };
-    
-    const activeId = map[mode];
-    if (activeId) {
-      const activeBtn = document.getElementById(activeId);
-      if (activeBtn) {
-        activeBtn.classList.add('active-mode');
-        activeBtn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-        activeBtn.style.border = '1px solid #22c55e';
-        activeBtn.style.color = 'white';
-      }
-    }
-  } catch (e) {
-    console.error('❌ Error update mode button:', e);
-  }
-}
+        <!-- HEATMAP -->
+        <div class="analytics-card">
+          <h3>🌡️ Heatmap Suhu (7 Hari x 6 Jam)</h3>
+          <div id="heatmapContainer" style="margin-top:12px; overflow-x:auto;">
+            <table id="heatmapTable" style="width:100%; border-collapse:collapse; font-size:12px;"></table>
+          </div>
+        </div>
 
-// ============================================
-// CONTROLS
-// ============================================
-function initControls() {
-  try {
-    if (DOM.btnOn) {
-      DOM.btnOn.addEventListener('click', () => {
-        console.log('🔄 Klik ON');
-        set(ref(db, 'system/state'), true)
-          .then(() => {
-            state.lampState = true;
-            scheduleRender();
-            showToast('✅ Lampu ON', 'success');
-          })
-          .catch(err => showToast('❌ Gagal ON: ' + err.message, 'error'));
-      });
-    }
-    
-    if (DOM.btnOff) {
-      DOM.btnOff.addEventListener('click', () => {
-        console.log('🔄 Klik OFF');
-        set(ref(db, 'system/state'), false)
-          .then(() => {
-            state.lampState = false;
-            scheduleRender();
-            showToast('✅ Lampu OFF', 'success');
-          })
-          .catch(err => showToast('❌ Gagal OFF: ' + err.message, 'error'));
-      });
-    }
-    
-    if (DOM.resetPlantBtn) {
-      DOM.resetPlantBtn.addEventListener('click', async () => {
-        if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
-        try {
-          await set(ref(db, 'system/plant_start_date'), null);
-          state.plantStartDate = null;
-          scheduleRender();
-          showToast('✅ Tanaman di-reset!', 'success');
-        } catch(e) {
-          showToast('❌ Gagal reset: ' + e.message, 'error');
-        }
-      });
-    }
-  } catch (e) {
-    console.error('❌ Error init controls:', e);
-  }
-}
+        <!-- HISTOGRAM -->
+        <div class="analytics-card">
+          <h3>📊 Distribusi Suhu (Histogram)</h3>
+          <canvas id="histogramChart" style="max-height:200px;"></canvas>
+        </div>
 
-// ============================================
-// MODE KONTROL
-// ============================================
-function initModeControls() {
-  try {
-    console.log('🔄 Init Mode Controls...');
-    
-    const modeAutoBtn = document.getElementById('modeAutoBtn');
-    if (modeAutoBtn) {
-      console.log('✅ modeAutoBtn ditemukan');
-      modeAutoBtn.addEventListener('click', function() {
-        console.log('🔄 Klik Otomatis');
-        setModeControl('otomatis');
-      });
-    } else {
-      console.warn('❌ modeAutoBtn TIDAK DITEMUKAN!');
-    }
-    
-    const modeJadwalBtn = document.getElementById('modeJadwalBtn');
-    if (modeJadwalBtn) {
-      console.log('✅ modeJadwalBtn ditemukan');
-      modeJadwalBtn.addEventListener('click', function() {
-        console.log('🔄 Klik Jadwal');
-        setModeControl('jadwal');
-      });
-    } else {
-      console.warn('❌ modeJadwalBtn TIDAK DITEMUKAN!');
-    }
-    
-    const modeManualBtn = document.getElementById('modeManualBtn');
-    if (modeManualBtn) {
-      console.log('✅ modeManualBtn ditemukan');
-      modeManualBtn.addEventListener('click', function() {
-        console.log('🔄 Klik Manual');
-        setModeControl('manual');
-      });
-    } else {
-      console.warn('❌ modeManualBtn TIDAK DITEMUKAN!');
-    }
-    
-    const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
-    const totalLightNeeded = document.getElementById('totalLightNeeded');
-    
-    if (saveLightNeededBtn && totalLightNeeded) {
-      console.log('✅ saveLightNeededBtn ditemukan');
-      saveLightNeededBtn.addEventListener('click', function() {
-        const val = parseInt(totalLightNeeded.value);
-        console.log('🔄 Simpan kebutuhan cahaya:', val);
-        if (val < 6 || val > 18) { 
-          showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error'); 
-          return; 
-        }
-        set(ref(db, 'system/total_light_needed'), val)
-          .then(() => {
-            state.totalLightNeeded = val;
-            showToast('✅ Kebutuhan cahaya disimpan!', 'success');
-          })
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-    } else {
-      console.warn('❌ saveLightNeededBtn atau totalLightNeeded TIDAK DITEMUKAN!');
-    }
-    
-    const saveThresholdBtn = document.getElementById('saveThresholdBtn');
-    const luxThreshold = document.getElementById('luxThreshold');
-    
-    if (saveThresholdBtn && luxThreshold) {
-      console.log('✅ saveThresholdBtn ditemukan');
-      saveThresholdBtn.addEventListener('click', function() {
-        const val = parseInt(luxThreshold.value);
-        console.log('🔄 Simpan threshold:', val);
-        if (val < 0 || val > 5000) { 
-          showToast('❌ Threshold harus 0-5000 lux', 'error'); 
-          return; 
-        }
-        set(ref(db, 'system/lux_threshold'), val)
-          .then(() => {
-            state.luxThreshold = val;
-            showToast('✅ Threshold lux disimpan!', 'success');
-          })
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-      
-      luxThreshold.addEventListener('input', function(e) {
-        const display = document.getElementById('luxThresholdDisplay');
-        if (display) display.textContent = e.target.value + ' lux';
-      });
-    } else {
-      console.warn('❌ saveThresholdBtn atau luxThreshold TIDAK DITEMUKAN!');
-    }
-    
-    const saveJadwalBtn = document.getElementById('saveJadwalBtn');
-    const jadwalStart = document.getElementById('jadwalStart');
-    const jadwalEnd = document.getElementById('jadwalEnd');
-    
-    if (saveJadwalBtn && jadwalStart && jadwalEnd) {
-      console.log('✅ saveJadwalBtn ditemukan');
-      saveJadwalBtn.addEventListener('click', function() {
-        const start = parseInt(jadwalStart.value);
-        const end = parseInt(jadwalEnd.value);
-        console.log('🔄 Simpan jadwal:', start, '-', end);
-        if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
-          showToast('❌ Jam harus 0-23', 'error');
-          return;
-        }
-        set(ref(db, 'system/jadwal_start'), start);
-        set(ref(db, 'system/jadwal_end'), end)
-          .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-    } else {
-      console.warn('❌ saveJadwalBtn, jadwalStart, atau jadwalEnd TIDAK DITEMUKAN!');
-    }
-    
-    const forceDayOn = document.getElementById('forceDayOn');
-    if (forceDayOn) {
-      forceDayOn.addEventListener('change', function() {
-        const val = this.checked;
-        console.log('🔄 Force Day ON:', val);
-        set(ref(db, 'system/force_day_on'), val)
-          .then(() => {
-            state.forceDayOn = val;
-            showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info');
-          })
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-    }
-    
-    console.log('✅ Init Mode Controls Selesai');
-    
-  } catch (e) {
-    console.error('❌ Error init mode controls:', e);
-  }
-}
+        <!-- EXPORT -->
+        <div class="analytics-card">
+          <div class="analytics-head">
+            <h3>📥 Export Data</h3>
+            <span style="color:var(--muted); font-size:13px;">Unduh data sensor</span>
+          </div>
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+            <select id="exportPeriod" style="flex:1; padding:12px; border-radius:12px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:14px; min-width:150px;">
+              <option value="week">📅 1 Minggu Terakhir</option>
+              <option value="month">📅 1 Bulan Terakhir</option>
+            </select>
+            <button id="exportBtn" class="big-btn on" style="flex:0 0 auto; padding:12px 28px;">⬇️ CSV</button>
+            <button id="exportPdfBtn" class="big-btn" style="flex:0 0 auto; padding:12px 28px; background:linear-gradient(135deg,#8b5cf6,#6d28d9);">📄 PDF</button>
+          </div>
+          <p id="exportStatus" style="margin-top:10px; font-size:13px; color:var(--muted);">Klik tombol untuk mengunduh data.</p>
+        </div>
+      </section>
 
-function setModeControl(mode) {
-  console.log('🔄 setModeControl:', mode);
-  
-  set(ref(db, 'system/mode'), mode)
-    .then(() => {
-      state.controlMode = mode;
-      
-      const display = document.getElementById('currentModeDisplay2');
-      if (display) {
-        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-        display.textContent = labels[mode] || mode;
-      }
-      updateModeButtonUI(mode);
-      
-      showToast(`✅ Mode ${mode} aktif`, 'success');
-      console.log('✅ Mode berubah ke:', mode);
-    })
-    .catch(err => {
-      console.error('❌ Gagal ubah mode:', err);
-      showToast('❌ Gagal: ' + err.message, 'error');
-    });
-}
+      <!-- ======================================
+           CONTROL
+    ======================================= -->
+      <section class="section page-section hidden" id="control">
+        <h2 class="section-title orange">🎛 CONTROL</h2>
+        <div class="control-grid" id="controlSection">
 
-// ============================================
-// EXPAND CHART
-// ============================================
-function initExpandChart() {
-  window.toggleExpand = function(wrapperId) {
-    const wrapper = document.getElementById(wrapperId);
-    if (!wrapper) return;
-    
-    const isExpanded = wrapper.classList.contains('expanded');
-    
-    document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
-      if (el.id !== wrapperId) el.classList.remove('expanded');
-    });
-    
-    if (isExpanded) {
-      wrapper.classList.remove('expanded');
-    } else {
-      wrapper.classList.add('expanded');
-      setTimeout(() => {
-        wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-    }
-    
-    const canvas = wrapper.querySelector('canvas');
-    if (canvas) {
-      const chart = Chart.getChart(canvas);
-      if (chart) chart.resize();
-    }
-  };
-}
+          <div class="control-card">
+            <h3>🚨 Emergency Control</h3>
+            <div class="button-row">
+              <button id="btnOn" class="big-btn on">ON</button>
+              <button id="btnOff" class="big-btn off">OFF</button>
+            </div>
+            <p class="info-text">Status Lampu : <span id="lampStateText">OFF</span></p>
+          </div>
 
-// ============================================
-// CLOCK
-// ============================================
-function updateClock() {
-  try {
-    const now = new Date();
-    const dateEl = document.getElementById('dateText');
-    const clockEl = document.getElementById('clockText');
-    if (dateEl) {
-      dateEl.innerText = now.toLocaleDateString('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    }
-    if (clockEl) {
-      clockEl.innerText = now.toLocaleTimeString('id-ID');
-    }
-  } catch (e) {
-    console.error('❌ Error update clock:', e);
-  }
-}
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>🎛️ Mode Kontrol Lampu</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+              Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis (Lux)</button>
+              <button id="modeJadwalBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">⏰ Jadwal</button>
+              <button id="modeManualBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">👋 Manual</button>
+            </div>
+          </div>
 
-// ============================================
-// SIDEBAR
-// ============================================
-const menuToggle = document.getElementById('menuToggle');
-const sidebar = document.querySelector('.sidebar');
-const overlay = document.querySelector('.mobile-overlay') || (() => {
-  const el = document.createElement('div');
-  el.className = 'mobile-overlay';
-  document.body.appendChild(el);
-  return el;
-})();
+          <div class="control-card" style="grid-column: span 2;">
+            <h3>☀️ Kebutuhan Cahaya Harian</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Total cahaya yang dibutuhkan tanaman per hari (6-18 jam)
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <input type="number" id="totalLightNeeded" value="12" min="6" max="18" 
+                style="flex:1; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px; min-width:80px;">
+              <span style="color:var(--muted);">jam</span>
+              <button id="saveLightNeededBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--muted);">
+              <span>☀️ Cahaya Matahari: <span id="sunlightHours" style="color:var(--orange); font-weight:600;">0</span> jam</span>
+              <span>💡 Growlight: <span id="growlightHours" style="color:var(--green); font-weight:600;">0</span> jam</span>
+              <span>📊 Progress: <span id="lightProgressDisplay" style="color:var(--blue); font-weight:600;">0%</span></span>
+            </div>
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              💡 Growlight akan nyala otomatis untuk memenuhi sisa kebutuhan cahaya
+            </p>
+          </div>
 
-function closeMenu() {
-  try {
-    sidebar.classList.remove('active');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-  } catch (e) {
-    console.error('❌ Error close menu:', e);
-  }
-}
+          <div class="control-card">
+            <h3>🌡️ Batas Lux</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Lampu mati jika lux melewati batas ini
+            </p>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <input type="range" id="luxThreshold" min="0" max="5000" value="500" step="50"
+                style="flex:1; min-width:120px;">
+              <span id="luxThresholdDisplay" style="font-weight:600; min-width:70px;">500 lux</span>
+            </div>
+            <button id="saveThresholdBtn" class="big-btn on" style="width:100%; margin-top:8px; padding:10px;">Simpan Threshold</button>
+          </div>
 
-if (menuToggle) {
-  menuToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-  });
-  menuToggle.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-  }, { passive: false });
-}
+          <div class="control-card">
+            <h3>⏰ Jadwal Nyala</h3>
+            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
+              Atur jam lampu menyala setiap hari
+            </p>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <div style="flex:1; min-width:80px;">
+                <label style="font-size:12px; color:var(--muted);">Mulai</label>
+                <input type="number" id="jadwalStart" value="6" min="0" max="23" 
+                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+              </div>
+              <span style="color:var(--muted);">-</span>
+              <div style="flex:1; min-width:80px;">
+                <label style="font-size:12px; color:var(--muted);">Selesai</label>
+                <input type="number" id="jadwalEnd" value="18" min="0" max="23" 
+                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+              </div>
+              <button id="saveJadwalBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px; margin-top:6px;">Simpan</button>
+            </div>
+          </div>
 
-if (overlay) {
-  overlay.addEventListener('click', closeMenu);
-  overlay.addEventListener('touchstart', (e) => { e.preventDefault(); closeMenu(); }, { passive: false });
-}
+          <div class="control-card">
+            <h3>☀️ Opsi Pengujian</h3>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
+              <label style="color:var(--muted); font-size:14px;">Siang Tetap ON:</label>
+              <input type="checkbox" id="forceDayOn" style="width:22px; height:22px; accent-color:var(--green); cursor:pointer;">
+              <span style="font-size:13px; color:var(--muted);">(abaikan lux untuk pengujian)</span>
+            </div>
+            <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
+              ⚠️ Hanya untuk pengujian! Jangan lupa matikan.
+            </p>
+          </div>
 
-window.addEventListener('resize', () => {
-  if (window.innerWidth > 768) closeMenu();
-});
+          <div class="control-card">
+            <button id="resetPlantBtn" class="unlock-btn" style="background:rgba(239,68,68,.2); color:#ef4444; width:100%;">🔄 Reset Tanam (Mulai Baru)</button>
+          </div>
 
-// ============================================
-// DEFAULT SECTION
-// ============================================
-const defaultSection = document.getElementById('dashboard');
-if (defaultSection) {
-  document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-  defaultSection.classList.remove('hidden');
-}
+        </div>
+      </section>
+
+      <!-- ======================================
+           ADMIN PANEL
+    ======================================= -->
+      <section class="section page-section hidden" id="admin">
+        <h2 class="section-title purple">👑 ADMIN PANEL</h2>
+        <div class="admin-grid">
+          <div class="admin-card">
+            <h3>📋 Daftar User</h3>
+            <div id="userList" style="max-height:400px; overflow-y:auto;">
+              <p style="color:var(--muted); text-align:center; padding:20px;">Memuat data user...</p>
+            </div>
+          </div>
+          <div class="admin-card">
+            <h3>➕ Tambah User</h3>
+            <form id="addUserForm" style="display:flex; flex-direction:column; gap:12px;">
+              <input type="text" id="newUsername" placeholder="Username" required>
+              <input type="password" id="newPassword" placeholder="Password" required>
+              <input type="text" id="newNama" placeholder="Nama Lengkap">
+              <select id="newRole">
+                <option value="petani">Petani</option>
+                <option value="admin">Admin</option>
+              </select>
+              <button type="submit" class="unlock-btn">➕ Tambah User</button>
+            </form>
+            <p id="addUserMsg" style="margin-top:10px; font-size:14px;"></p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="js/app.js?v=309"></script>
+</body>
+</html>
