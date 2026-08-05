@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FINAL FIX)
+// ANALYTICS: Charts, Export, Statistik (FINAL FIX + RESPONSIVE)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -44,27 +44,71 @@ window.toggleExpand = function(wrapperId) {
   }
 };
 
-// ---- INIT CHARTS ----
-export function initCharts() {
-  const opts = {
+// ---- CEK MOBILE ----
+const isMobile = window.innerWidth < 768;
+
+// ---- GET CHART OPTIONS ----
+function getChartOptions() {
+  const isMobile = window.innerWidth < 768;
+  
+  return {
     responsive: true,
+    maintainAspectRatio: true,
     plugins: {
-      legend: { labels: { color: '#cbd5e1' } },
+      legend: {
+        labels: {
+          color: '#cbd5e1',
+          font: {
+            size: isMobile ? 10 : 12
+          },
+          boxWidth: isMobile ? 10 : 15,
+          padding: isMobile ? 5 : 10
+        }
+      },
       tooltip: {
-        callbacks: {
-          label: function(context) {
-            return context.parsed.y + '°C';
-          }
+        bodyFont: {
+          size: isMobile ? 10 : 12
+        },
+        titleFont: {
+          size: isMobile ? 10 : 12
         }
       }
     },
     scales: {
-      x: { ticks: { color: '#94a3b8' } },
-      y: { ticks: { color: '#94a3b8' } }
+      x: {
+        ticks: {
+          color: '#94a3b8',
+          maxTicksLimit: isMobile ? 6 : 12,
+          font: {
+            size: isMobile ? 8 : 10
+          }
+        },
+        grid: {
+          color: 'rgba(255,255,255,0.05)'
+        }
+      },
+      y: {
+        ticks: {
+          color: '#94a3b8',
+          font: {
+            size: isMobile ? 8 : 10
+          }
+        },
+        grid: {
+          color: 'rgba(255,255,255,0.05)'
+        }
+      }
     }
   };
+}
+
+// ---- INIT CHARTS ----
+export function initCharts() {
+  const isMobile = window.innerWidth < 768;
   
-  // 🔥 SUHU CHART (dengan point besar)
+  const opts = getChartOptions();
+  
+  // 🔥 SUHU CHART
   const tEl = document.getElementById('tempChart');
   if (tEl) {
     tempChart = new Chart(tEl, {
@@ -79,8 +123,8 @@ export function initCharts() {
           borderWidth: 2, 
           fill: true, 
           tension: 0.4,
-          pointRadius: 5,
-          pointHoverRadius: 8,
+          pointRadius: isMobile ? 3 : 5,
+          pointHoverRadius: isMobile ? 5 : 8,
           pointBackgroundColor: '#22c55e',
           pointBorderColor: '#fff',
           pointBorderWidth: 2
@@ -90,7 +134,7 @@ export function initCharts() {
     });
   }
   
-  // 🔥 CAHAYA CHART (dengan point besar)
+  // 🔥 CAHAYA CHART
   const lEl = document.getElementById('lightChart');
   if (lEl) {
     lightChart = new Chart(lEl, {
@@ -105,8 +149,8 @@ export function initCharts() {
           borderWidth: 2, 
           fill: true, 
           tension: 0.4,
-          pointRadius: 5,
-          pointHoverRadius: 8,
+          pointRadius: isMobile ? 3 : 5,
+          pointHoverRadius: isMobile ? 5 : 8,
           pointBackgroundColor: '#38bdf8',
           pointBorderColor: '#fff',
           pointBorderWidth: 2
@@ -116,7 +160,7 @@ export function initCharts() {
     });
   }
   
-  // 🔥 LAMPU CHART (bar chart dengan fix data)
+  // 🔥 LAMPU CHART
   const lsEl = document.getElementById('lampStatusChart');
   if (lsEl) {
     lampStatusChart = new Chart(lsEl, {
@@ -133,29 +177,42 @@ export function initCharts() {
           borderColor: 'rgba(255,255,255,0.2)', 
           borderWidth: 1, 
           borderRadius: 4,
-          barPercentage: 0.8
+          barPercentage: isMobile ? 0.6 : 0.8
         }] 
       },
       options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: { 
           legend: { display: false }, 
           tooltip: { 
             callbacks: { 
               label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' 
-            } 
+            },
+            bodyFont: {
+              size: isMobile ? 10 : 12
+            }
           } 
         },
         scales: {
           x: { 
-            ticks: { color: '#94a3b8', maxTicksLimit: 10 }, 
+            ticks: { 
+              color: '#94a3b8', 
+              maxTicksLimit: isMobile ? 6 : 10,
+              font: {
+                size: isMobile ? 8 : 10
+              }
+            }, 
             grid: { color: 'rgba(255,255,255,0.05)' } 
           },
           y: { 
             ticks: { 
               color: '#94a3b8', 
               stepSize: 1, 
-              callback: (v) => v === 1 ? 'ON' : 'OFF' 
+              callback: (v) => v === 1 ? 'ON' : 'OFF',
+              font: {
+                size: isMobile ? 8 : 10
+              }
             }, 
             min: -0.5, 
             max: 1.5, 
@@ -171,8 +228,13 @@ export function initCharts() {
   if (dEl) {
     dashTempChart = new Chart(dEl, {
       type: 'line',
-      data: { labels: dashTempLabels, datasets: [{ label: 'Suhu (°C)', data: dashTempData, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+      data: { labels: dashTempLabels, datasets: [{ label: 'Suhu (°C)', data: dashTempData, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false } }, 
+        scales: { x: { display: false }, y: { display: false } } 
+      }
     });
   }
 }
