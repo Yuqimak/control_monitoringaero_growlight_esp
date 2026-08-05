@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - PAKE system/mode & system/state)
+// MAIN ENTRY – app.js (FINAL - PAKE system/mode & system/state + NOTIF)
 // ============================================
 
 import { db } from './firebase.js';
@@ -60,6 +60,101 @@ function scheduleRender() {
   }, 200);
 }
 
+// ============================================
+// CEK KONEKSI FIREBASE & ESP32
+// ============================================
+let connectionCheckInterval = null;
+let esp32Online = false;
+let firebaseConnected = false;
+
+function cekKoneksi() {
+  try {
+    const connStatus = document.getElementById('connStatus');
+    if (connStatus) {
+      if (connStatus.innerText === 'Realtime Connected' || connStatus.innerText === 'Online') {
+        firebaseConnected = true;
+        connStatus.style.color = '#22c55e';
+      } else {
+        firebaseConnected = false;
+        connStatus.style.color = '#ef4444';
+      }
+    }
+
+    const lastUpdate = document.getElementById('dashLastUpdate');
+    if (lastUpdate && lastUpdate.innerText !== '--:--:--') {
+      const timeStr = lastUpdate.innerText;
+      const now = new Date();
+      const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+      const lastDate = new Date();
+      lastDate.setHours(hours, minutes, seconds || 0);
+      
+      const diffMinutes = (now - lastDate) / 60000;
+      if (diffMinutes < 5) {
+        esp32Online = true;
+      } else {
+        esp32Online = false;
+      }
+    } else {
+      esp32Online = false;
+    }
+
+    updateConnectionNotification();
+
+  } catch (e) {
+    console.error('❌ Error cek koneksi:', e);
+  }
+}
+
+function updateConnectionNotification() {
+  let notif = document.getElementById('connectionNotif');
+  if (!notif) {
+    notif = document.createElement('div');
+    notif.id = 'connectionNotif';
+    notif.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      pointer-events: none;
+      display: none;
+    `;
+    document.body.appendChild(notif);
+  }
+
+  if (!firebaseConnected) {
+    notif.textContent = '⚠️ Firebase Disconnected';
+    notif.style.background = '#ef4444';
+    notif.style.color = '#fff';
+    notif.style.display = 'block';
+    notif.style.border = '1px solid #dc2626';
+  } else if (!esp32Online) {
+    notif.textContent = '⚠️ ESP32 Offline';
+    notif.style.background = '#f59e0b';
+    notif.style.color = '#fff';
+    notif.style.display = 'block';
+    notif.style.border = '1px solid #d97706';
+  } else {
+    notif.textContent = '✅ Sistem Online';
+    notif.style.background = '#22c55e';
+    notif.style.color = '#fff';
+    notif.style.display = 'block';
+    notif.style.border = '1px solid #16a34a';
+    setTimeout(() => {
+      notif.style.opacity = '0';
+      setTimeout(() => {
+        notif.style.display = 'none';
+        notif.style.opacity = '1';
+      }, 500);
+    }, 5000);
+  }
+}
+
 // ===== APP START =====
 document.addEventListener("DOMContentLoaded", () => {
   try {
@@ -89,6 +184,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     setupNavigation();
+    
+    // 🔥 CEK KONEKSI
+    cekKoneksi();
+    setInterval(cekKoneksi, 30000);
     
     console.log("🚀 App siap!");
   } catch (e) {
@@ -130,7 +229,6 @@ function initFirebase() {
             updateCharts(time);
           }
           
-          // Hitung akumulasi cahaya (tampilan web aja, ESP32 yang hitung utama)
           const luxThreshold = state.luxThreshold || 500;
           const rawLight = d.cahaya || 0;
           
@@ -139,7 +237,6 @@ function initFirebase() {
             state.accumulatedLight = (state.accumulatedLight || 0) + increment;
           }
           
-          // Update UI Progress
           const totalNeeded = state.totalLightNeeded || 12;
           const progress = Math.min(100, Math.round((state.accumulatedLight / totalNeeded) * 100));
           if (DOM.statLightProgress) DOM.statLightProgress.textContent = progress;
@@ -163,7 +260,7 @@ function initFirebase() {
       isListenerActive = false;
     });
 
-    // --- System (BACA DARI system/mode & system/state) ---
+    // --- System ---
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
       try {
         const now = Date.now();
@@ -172,13 +269,8 @@ function initFirebase() {
 
         const d = snap.val();
         if (d) {
-          // 🔥 BACA MODE DARI system/mode
           state.controlMode = d.mode || 'otomatis';
-          
-          // 🔥 BACA STATE LAMPU DARI system/state
           state.lampState = d.state || false;
-          
-          // 🔥 BACA KONFIGURASI LAIN
           state.forceDayOn = d.force_day_on || false;
           state.jadwalStart = d.jadwal_start || 6;
           state.jadwalEnd = d.jadwal_end || 18;
@@ -188,20 +280,17 @@ function initFirebase() {
           state.lastResetDate = d.last_reset_date || '';
           state.alert = d.alert || '';
           
-          // Reset akumulasi setiap hari
           const today = new Date().toISOString().slice(0,10);
           if (state.lastResetDate !== today) {
             state.accumulatedLight = 0;
             state.lastResetDate = today;
           }
           
-          // 🔥 UPDATE UI MODE
           if (DOM.currentModeDisplay2) {
             const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
           
-          // 🔥 UPDATE UI STATE LAMPU
           const dashLampStatus = document.getElementById('dashLampStatus');
           if (dashLampStatus) {
             dashLampStatus.textContent = state.lampState ? 'ON' : 'OFF';
@@ -220,7 +309,6 @@ function initFirebase() {
             statLamp.style.color = state.lampState ? '#22c55e' : '#ef4444';
           }
           
-          // 🔥 UPDATE UI KONFIGURASI
           if (DOM.forceDayOn) DOM.forceDayOn.checked = state.forceDayOn;
           if (DOM.luxThresholdDisplay) DOM.luxThresholdDisplay.textContent = state.luxThreshold + ' lux';
           if (DOM.luxThreshold) DOM.luxThreshold.value = state.luxThreshold;
@@ -228,7 +316,6 @@ function initFirebase() {
           if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
           if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
           
-          // 🔥 UPDATE UI SUHU & PROGRESS
           const dashLatestTemp = document.getElementById('dashLatestTemp');
           if (dashLatestTemp) {
             dashLatestTemp.textContent = state.temperature.toFixed(1) + '°C';
@@ -356,11 +443,10 @@ function updateModeButtonUI(mode) {
 }
 
 // ============================================
-// CONTROLS (EMERGENCY ON/OFF)
+// CONTROLS
 // ============================================
 function initControls() {
   try {
-    // ON button → kirim ke system/state
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
         console.log('🔄 Klik ON');
@@ -374,7 +460,6 @@ function initControls() {
       });
     }
     
-    // OFF button → kirim ke system/state
     if (DOM.btnOff) {
       DOM.btnOff.addEventListener('click', () => {
         console.log('🔄 Klik OFF');
@@ -388,7 +473,6 @@ function initControls() {
       });
     }
     
-    // Reset Plant
     if (DOM.resetPlantBtn) {
       DOM.resetPlantBtn.addEventListener('click', async () => {
         if (!confirm('🔄 Reset semua data tanam? Aksi ini akan mengatur ulang hari ke-0.')) return;
@@ -408,13 +492,12 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL (OTOMATIS, JADWAL, MANUAL)
+// MODE KONTROL
 // ============================================
 function initModeControls() {
   try {
     console.log('🔄 Init Mode Controls...');
     
-    // 🔥 MODE OTOMATIS → kirim ke system/mode
     const modeAutoBtn = document.getElementById('modeAutoBtn');
     if (modeAutoBtn) {
       console.log('✅ modeAutoBtn ditemukan');
@@ -426,7 +509,6 @@ function initModeControls() {
       console.warn('❌ modeAutoBtn TIDAK DITEMUKAN!');
     }
     
-    // 🔥 MODE JADWAL → kirim ke system/mode
     const modeJadwalBtn = document.getElementById('modeJadwalBtn');
     if (modeJadwalBtn) {
       console.log('✅ modeJadwalBtn ditemukan');
@@ -438,7 +520,6 @@ function initModeControls() {
       console.warn('❌ modeJadwalBtn TIDAK DITEMUKAN!');
     }
     
-    // 🔥 MODE MANUAL → kirim ke system/mode
     const modeManualBtn = document.getElementById('modeManualBtn');
     if (modeManualBtn) {
       console.log('✅ modeManualBtn ditemukan');
@@ -450,7 +531,6 @@ function initModeControls() {
       console.warn('❌ modeManualBtn TIDAK DITEMUKAN!');
     }
     
-    // 🔥 SIMPAN KEBUTUHAN CAHAYA → kirim ke system/total_light_needed
     const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
     const totalLightNeeded = document.getElementById('totalLightNeeded');
     
@@ -474,7 +554,6 @@ function initModeControls() {
       console.warn('❌ saveLightNeededBtn atau totalLightNeeded TIDAK DITEMUKAN!');
     }
     
-    // 🔥 SIMPAN THRESHOLD → kirim ke system/lux_threshold
     const saveThresholdBtn = document.getElementById('saveThresholdBtn');
     const luxThreshold = document.getElementById('luxThreshold');
     
@@ -503,184 +582,8 @@ function initModeControls() {
       console.warn('❌ saveThresholdBtn atau luxThreshold TIDAK DITEMUKAN!');
     }
     
-    // 🔥 SIMPAN JADWAL → kirim ke system/jadwal_start & system/jadwal_end
     const saveJadwalBtn = document.getElementById('saveJadwalBtn');
     const jadwalStart = document.getElementById('jadwalStart');
     const jadwalEnd = document.getElementById('jadwalEnd');
     
-    if (saveJadwalBtn && jadwalStart && jadwalEnd) {
-      console.log('✅ saveJadwalBtn ditemukan');
-      saveJadwalBtn.addEventListener('click', function() {
-        const start = parseInt(jadwalStart.value);
-        const end = parseInt(jadwalEnd.value);
-        console.log('🔄 Simpan jadwal:', start, '-', end);
-        if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
-          showToast('❌ Jam harus 0-23', 'error');
-          return;
-        }
-        set(ref(db, 'system/jadwal_start'), start);
-        set(ref(db, 'system/jadwal_end'), end)
-          .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-    } else {
-      console.warn('❌ saveJadwalBtn, jadwalStart, atau jadwalEnd TIDAK DITEMUKAN!');
-    }
-    
-    // 🔥 FORCE DAY ON → kirim ke system/force_day_on
-    const forceDayOn = document.getElementById('forceDayOn');
-    if (forceDayOn) {
-      forceDayOn.addEventListener('change', function() {
-        const val = this.checked;
-        console.log('🔄 Force Day ON:', val);
-        set(ref(db, 'system/force_day_on'), val)
-          .then(() => {
-            state.forceDayOn = val;
-            showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info');
-          })
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-    }
-    
-    console.log('✅ Init Mode Controls Selesai');
-    
-  } catch (e) {
-    console.error('❌ Error init mode controls:', e);
-  }
-}
-
-// ============================================
-// SET MODE KONTROL (KIRIM KE 1 PATH: system/mode)
-// ============================================
-function setModeControl(mode) {
-  console.log('🔄 setModeControl:', mode);
-  
-  // 🔥 KIRIM KE 1 PATH (system/mode) - GAK ADA DUPLIKAT LAGI!
-  set(ref(db, 'system/mode'), mode)
-    .then(() => {
-      state.controlMode = mode;
-      
-      // Update UI
-      const display = document.getElementById('currentModeDisplay2');
-      if (display) {
-        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-        display.textContent = labels[mode] || mode;
-      }
-      updateModeButtonUI(mode);
-      
-      showToast(`✅ Mode ${mode} aktif`, 'success');
-      console.log('✅ Mode berubah ke:', mode);
-    })
-    .catch(err => {
-      console.error('❌ Gagal ubah mode:', err);
-      showToast('❌ Gagal: ' + err.message, 'error');
-    });
-}
-
-// ============================================
-// EXPAND CHART MOBILE
-// ============================================
-function initExpandChart() {
-  window.toggleExpand = function(wrapperId) {
-    const wrapper = document.getElementById(wrapperId);
-    if (!wrapper) return;
-    
-    const isExpanded = wrapper.classList.contains('expanded');
-    
-    document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
-      if (el.id !== wrapperId) el.classList.remove('expanded');
-    });
-    
-    if (isExpanded) {
-      wrapper.classList.remove('expanded');
-    } else {
-      wrapper.classList.add('expanded');
-      setTimeout(() => {
-        wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-    }
-    
-    const canvas = wrapper.querySelector('canvas');
-    if (canvas) {
-      const chart = Chart.getChart(canvas);
-      if (chart) chart.resize();
-    }
-  };
-}
-
-// ============================================
-// CLOCK
-// ============================================
-function updateClock() {
-  try {
-    const now = new Date();
-    const dateEl = document.getElementById('dateText');
-    const clockEl = document.getElementById('clockText');
-    if (dateEl) {
-      dateEl.innerText = now.toLocaleDateString('id-ID', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
-    }
-    if (clockEl) {
-      clockEl.innerText = now.toLocaleTimeString('id-ID');
-    }
-  } catch (e) {
-    console.error('❌ Error update clock:', e);
-  }
-}
-
-// ============================================
-// SIDEBAR
-// ============================================
-const menuToggle = document.getElementById('menuToggle');
-const sidebar = document.querySelector('.sidebar');
-const overlay = document.querySelector('.mobile-overlay') || (() => {
-  const el = document.createElement('div');
-  el.className = 'mobile-overlay';
-  document.body.appendChild(el);
-  return el;
-})();
-
-function closeMenu() {
-  try {
-    sidebar.classList.remove('active');
-    overlay.classList.remove('active');
-    document.body.style.overflow = '';
-  } catch (e) {
-    console.error('❌ Error close menu:', e);
-  }
-}
-
-if (menuToggle) {
-  menuToggle.addEventListener('click', () => {
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
-  });
-  menuToggle.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    sidebar.classList.toggle('active');
-    overlay.classList.toggle('active');
-  }, { passive: false });
-}
-
-if (overlay) {
-  overlay.addEventListener('click', closeMenu);
-  overlay.addEventListener('touchstart', (e) => { e.preventDefault(); closeMenu(); }, { passive: false });
-}
-
-window.addEventListener('resize', () => {
-  if (window.innerWidth > 768) closeMenu();
-});
-
-// ============================================
-// DEFAULT SECTION
-// ============================================
-const defaultSection = document.getElementById('dashboard');
-if (defaultSection) {
-  document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-  defaultSection.classList.remove('hidden');
-}
+   
