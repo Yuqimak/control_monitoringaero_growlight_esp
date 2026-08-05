@@ -45,8 +45,8 @@ export function initDOM() {
     'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
     'statLightProgress',
     // Dashboard
-    'dashLampStatus',   // 🔥 BARU: status lampu di dashboard
-    'dashLatestTemp',   // 🔥 BARU: suhu terbaru di dashboard
+    'dashLampStatus',
+    'dashLatestTemp',
     'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
     'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
     'dashTempChart', 'chartStatus',
