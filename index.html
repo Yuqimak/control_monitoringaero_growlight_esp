@@ -26,9 +26,7 @@
     <aside class="sidebar">
       <div class="logo">
         <div class="logo-icon">
-          <img src="assets/SIGMALOGO-removebg-preview.png" 
-               alt="Logo" 
-               style="width:45px; height:45px; border-radius:12px; object-fit:cover;" />
+          <img src="assets/SIGMALOGO-removebg-preview.png" alt="Logo" style="width:45px; height:45px; border-radius:12px; object-fit:cover;" />
         </div>
         <div>
           <h2>SIGMA</h2>
@@ -61,9 +59,7 @@
       <header class="topbar">
         <div style="display:flex; align-items:center; gap:12px; flex:1;">
           <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
-          <img src="assets/SIGMALOGO-removebg-preview.png" 
-               alt="Logo" 
-               style="height:36px; width:36px; border-radius:8px; object-fit:cover;" />
+          <img src="assets/SIGMALOGO-removebg-preview.png" alt="Logo" style="height:36px; width:36px; border-radius:8px; object-fit:cover;" />
           <div>
             <h1>SIGMA</h1>
             <p class="subtitle">Sistem Grow Light untuk Monitoring dan Automasi</p>
@@ -204,11 +200,14 @@
       </section>
 
       <!-- ======================================
-           MONITORING
+           MONITORING (6 KARTU LENGKAP)
     ======================================= -->
       <section class="section page-section hidden" id="monitoring">
         <h2 class="section-title green">🌱 MONITORING</h2>
+
+        <!-- BARIS 1: 3 KARTU UTAMA -->
         <div class="monitor-grid">
+          <!-- KARTU 1: SUHU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡</div>
@@ -221,6 +220,8 @@
             <p class="metric-status" id="tempStatus">🔥 Panas</p>
             <canvas id="tempMiniChart"></canvas>
           </div>
+
+          <!-- KARTU 2: INTENSITAS CAHAYA -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon yellow-box">💡</div>
@@ -232,6 +233,8 @@
             <div class="metric"><span id="monitorLight">--</span>%</div>
             <p class="metric-status" id="lightStatus">Intensitas Sedang</p>
           </div>
+
+          <!-- KARTU 3: STATUS LAMPU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">💡</div>
@@ -244,14 +247,126 @@
             <p class="metric-status" id="lampStatusText">Lampu Aktif</p>
           </div>
         </div>
+
+        <!-- BARIS 2: 3 KARTU TAMBAHAN -->
+        <div class="monitor-grid" style="margin-top:20px;">
+
+          <!-- KARTU 4: PEMENUHAN CAHAYA (GAUGE) -->
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon orange-box">☀️</div>
+              <div>
+                <h3>Pemenuhan Cahaya</h3>
+                <p class="card-sub">Progress hari ini</p>
+              </div>
+            </div>
+            <div style="position:relative; width:150px; height:150px; margin:0 auto;">
+              <canvas id="gaugeChart"></canvas>
+              <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
+                <div id="gaugeProgress" style="font-size:28px; font-weight:700; color:#22c55e;">0%</div>
+                <div style="font-size:11px; color:var(--muted);">dari 12 jam</div>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--muted);">
+              <span>☀️ <span id="gaugeSunlight">0</span> jam</span>
+              <span>💡 <span id="gaugeGrowlight">12</span> jam</span>
+            </div>
+          </div>
+
+          <!-- KARTU 5: KATEGORI SUHU HARI INI -->
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon green-box">🌡️</div>
+              <div>
+                <h3>Kategori Suhu Hari Ini</h3>
+                <p class="card-sub">Distribusi suhu</p>
+              </div>
+            </div>
+            <div id="categoryContainer" style="margin-top:8px;">
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
+                <span style="color:#3b82f6; font-size:12px;">❄️ Dingin</span>
+                <div style="flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                  <div id="coldBar" style="height:100%; width:0%; background:#3b82f6; border-radius:999px;"></div>
+                </div>
+                <span id="coldPercent" style="font-size:11px; color:var(--muted);">0%</span>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
+                <span style="color:#22c55e; font-size:12px;">🌤️ Normal</span>
+                <div style="flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                  <div id="normalBar" style="height:100%; width:0%; background:#22c55e; border-radius:999px;"></div>
+                </div>
+                <span id="normalPercent" style="font-size:11px; color:var(--muted);">0%</span>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
+                <span style="color:#f59e0b; font-size:12px;">🔥 Hangat</span>
+                <div style="flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                  <div id="warmBar" style="height:100%; width:0%; background:#f59e0b; border-radius:999px;"></div>
+                </div>
+                <span id="warmPercent" style="font-size:11px; color:var(--muted);">0%</span>
+              </div>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <span style="color:#ef4444; font-size:12px;">🔥 Panas</span>
+                <div style="flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                  <div id="hotBar" style="height:100%; width:0%; background:#ef4444; border-radius:999px;"></div>
+                </div>
+                <span id="hotPercent" style="font-size:11px; color:var(--muted);">0%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- KARTU 6: WAKTU OPERASIONAL LAMPU -->
+          <div class="monitor-card">
+            <div class="card-head">
+              <div class="card-icon purple-box">💡</div>
+              <div>
+                <h3>Waktu Operasional Lampu</h3>
+                <p class="card-sub">ON / OFF hari ini</p>
+              </div>
+            </div>
+            <div style="margin-top:8px;">
+              <div style="display:flex; justify-content:space-between; font-size:13px;">
+                <span style="color:var(--muted);">Total ON</span>
+                <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:13px; margin-top:2px;">
+                <span style="color:var(--muted);">Total OFF</span>
+                <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam</span>
+              </div>
+              <div style="margin-top:8px;">
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <div style="flex:1; height:10px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; display:flex;">
+                    <div id="lampOnBar" style="height:100%; width:50%; background:#22c55e; border-radius:999px 0 0 999px;"></div>
+                    <div id="lampOffBar" style="height:100%; width:50%; background:#ef4444; border-radius:0 999px 999px 0;"></div>
+                  </div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:2px;">
+                  <span id="onPercent">ON: 0%</span>
+                  <span id="offPercent">OFF: 0%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </section>
 
       <!-- ======================================
-           ANALYTICS
+           ANALYTICS (HISTORY & TREND)
     ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
 
+        <!-- FILTER TANGGAL -->
+        <div class="analytics-card" style="grid-column: span 1;">
+          <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <label style="color:var(--muted); font-size:13px;">📅 Pilih Tanggal:</label>
+            <input type="date" id="analyticsDate" style="flex:1; padding:8px 12px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:14px; min-width:150px;">
+            <button id="loadHistoryDateBtn" class="time-btn">Tampilkan</button>
+            <button id="resetHistoryDateBtn" class="time-btn" style="background:rgba(239,68,68,.15); color:#ef4444;">↺ Reset</button>
+          </div>
+        </div>
+
+        <!-- CHART 1: SUHU -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>🌡️ Suhu Realtime</h3>
@@ -262,6 +377,7 @@
           </div>
         </div>
 
+        <!-- CHART 2: CAHAYA -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>💡 Intensitas Cahaya</h3>
@@ -272,6 +388,7 @@
           </div>
         </div>
 
+        <!-- CHART 3: STATUS LAMPU -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>💡 Status Lampu</h3>
@@ -301,70 +418,6 @@
             <div class="stat-item" style="background:rgba(255,255,255,.04); padding:12px; border-radius:12px; text-align:center;">
               <div style="font-size:12px; color:var(--muted);">💡 Rata Cahaya</div>
               <div id="avgLight" style="font-size:24px; font-weight:700;">--%</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- KATEGORI + WAKTU LAMPU -->
-        <div class="analytics-card">
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-            <div>
-              <h4>🌡️ Kategori Suhu Hari Ini</h4>
-              <div id="categoryContainer" style="margin-top:12px;">
-                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                  <span style="color:#3b82f6;">❄️ Dingin</span>
-                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                    <div id="coldBar" style="height:100%; width:0%; background:#3b82f6; border-radius:999px;"></div>
-                  </div>
-                  <span id="coldPercent" style="font-size:13px; color:var(--muted);">0%</span>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                  <span style="color:#22c55e;">🌤️ Normal</span>
-                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                    <div id="normalBar" style="height:100%; width:0%; background:#22c55e; border-radius:999px;"></div>
-                  </div>
-                  <span id="normalPercent" style="font-size:13px; color:var(--muted);">0%</span>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                  <span style="color:#f59e0b;">🔥 Hangat</span>
-                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                    <div id="warmBar" style="height:100%; width:0%; background:#f59e0b; border-radius:999px;"></div>
-                  </div>
-                  <span id="warmPercent" style="font-size:13px; color:var(--muted);">0%</span>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <span style="color:#ef4444;">🔥 Panas</span>
-                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                    <div id="hotBar" style="height:100%; width:0%; background:#ef4444; border-radius:999px;"></div>
-                  </div>
-                  <span id="hotPercent" style="font-size:13px; color:var(--muted);">0%</span>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h4>💡 Waktu Operasional Lampu</h4>
-              <div style="margin-top:12px;">
-                <div style="display:flex; justify-content:space-between; font-size:14px;">
-                  <span style="color:var(--muted);">Total ON</span>
-                  <span id="lampOnTime" style="font-weight:600; color:#22c55e;">-- jam</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:14px; margin-top:4px;">
-                  <span style="color:var(--muted);">Total OFF</span>
-                  <span id="lampOffTime" style="font-weight:600; color:#ef4444;">-- jam</span>
-                </div>
-                <div style="margin-top:12px;">
-                  <div style="display:flex; gap:8px; align-items:center;">
-                    <div style="flex:1; height:12px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; display:flex;">
-                      <div id="lampOnBar" style="height:100%; width:50%; background:#22c55e; border-radius:999px 0 0 999px;"></div>
-                      <div id="lampOffBar" style="height:100%; width:50%; background:#ef4444; border-radius:0 999px 999px 0;"></div>
-                    </div>
-                  </div>
-                  <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:4px;">
-                    <span id="onPercent">ON: 0%</span>
-                    <span id="offPercent">OFF: 0%</span>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -441,8 +494,7 @@
               Total cahaya yang dibutuhkan tanaman per hari (6-18 jam)
             </p>
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-              <input type="number" id="totalLightNeeded" value="12" min="6" max="18" 
-                style="flex:1; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px; min-width:80px;">
+              <input type="number" id="totalLightNeeded" value="12" min="6" max="18" style="flex:1; padding:10px; border-radius:10px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:16px; min-width:80px;">
               <span style="color:var(--muted);">jam</span>
               <button id="saveLightNeededBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
             </div>
@@ -462,8 +514,7 @@
               Lampu mati jika lux melewati batas ini
             </p>
             <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-              <input type="range" id="luxThreshold" min="0" max="5000" value="500" step="50"
-                style="flex:1; min-width:120px;">
+              <input type="range" id="luxThreshold" min="0" max="5000" value="500" step="50" style="flex:1; min-width:120px;">
               <span id="luxThresholdDisplay" style="font-weight:600; min-width:70px;">500 lux</span>
             </div>
             <button id="saveThresholdBtn" class="big-btn on" style="width:100%; margin-top:8px; padding:10px;">Simpan Threshold</button>
@@ -477,14 +528,12 @@
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
               <div style="flex:1; min-width:80px;">
                 <label style="font-size:12px; color:var(--muted);">Mulai</label>
-                <input type="number" id="jadwalStart" value="6" min="0" max="23" 
-                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+                <input type="number" id="jadwalStart" value="6" min="0" max="23" style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
               </div>
               <span style="color:var(--muted);">-</span>
               <div style="flex:1; min-width:80px;">
                 <label style="font-size:12px; color:var(--muted);">Selesai</label>
-                <input type="number" id="jadwalEnd" value="18" min="0" max="23" 
-                  style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
+                <input type="number" id="jadwalEnd" value="18" min="0" max="23" style="width:100%; padding:8px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white;">
               </div>
               <button id="saveJadwalBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px; margin-top:6px;">Simpan</button>
             </div>
