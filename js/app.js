@@ -1,13 +1,15 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - GAUGE + MONITORING)
+// MAIN ENTRY – app.js (FINAL - GAUGE + MONITORING + FILTER TANGGAL)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory } from './modules/analytics.js';
+import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory, loadChartHistoryByDate } from './modules/analytics.js';
 import { renderUI, getDays, getReminder, getModeConfig, updateModeUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+console.log('🚀 app.js loaded!');
 
 // ===== SESSION CHECK =====
 const sessionData = localStorage.getItem('iot_user');
@@ -64,14 +66,19 @@ function scheduleRender() {
 let gaugeChart = null;
 
 function initGauge() {
+  console.log('📊 initGauge dipanggil');
   const ctx = document.getElementById('gaugeChart');
-  if (!ctx) return;
+  if (!ctx) {
+    console.warn('⚠️ Element #gaugeChart tidak ditemukan');
+    return;
+  }
 
   if (gaugeChart) {
     gaugeChart.destroy();
   }
 
   const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+  console.log('📊 Gauge progress:', progress);
 
   gaugeChart = new Chart(ctx, {
     type: 'doughnut',
@@ -191,37 +198,107 @@ function updateConnectionNotification() {
 
 // ===== APP START =====
 document.addEventListener("DOMContentLoaded", () => {
+  console.log('📄 DOMContentLoaded fired!');
   try {
     initDOM();
+    console.log('✅ initDOM selesai');
+    
     initAdminPanel();
+    console.log('✅ initAdminPanel selesai');
+    
     initCharts();
+    console.log('✅ initCharts selesai');
+    
     initFirebase();
+    console.log('✅ initFirebase selesai');
+    
     initControls();
+    console.log('✅ initControls selesai');
+    
     initExpandChart();
+    console.log('✅ initExpandChart selesai');
+    
     initModeControls();
+    console.log('✅ initModeControls selesai');
 
+    // Export buttons
     if (DOM.exportBtn && DOM.exportPeriod) {
       DOM.exportBtn.addEventListener('click', () => exportData(DOM.exportPeriod.value));
+      console.log('✅ exportBtn listener attached');
     }
     if (DOM.exportPdfBtn) {
       DOM.exportPdfBtn.addEventListener('click', exportPDF);
+      console.log('✅ exportPdfBtn listener attached');
     }
 
+    // ===== FILTER TANGGAL =====
+    console.log('📅 Setup filter tanggal...');
+    const analyticsDate = document.getElementById('analyticsDate');
+    const loadHistoryDateBtn = document.getElementById('loadHistoryDateBtn');
+    const resetHistoryDateBtn = document.getElementById('resetHistoryDateBtn');
+
+    console.log('📅 analyticsDate:', analyticsDate);
+    console.log('📅 loadHistoryDateBtn:', loadHistoryDateBtn);
+    console.log('📅 resetHistoryDateBtn:', resetHistoryDateBtn);
+
+    if (analyticsDate) {
+      const today = new Date().toISOString().slice(0, 10);
+      analyticsDate.value = today;
+      console.log('📅 Set default tanggal:', today);
+    }
+
+    if (loadHistoryDateBtn) {
+      console.log('📅 Attach listener ke loadHistoryDateBtn');
+      loadHistoryDateBtn.addEventListener('click', function() {
+        const date = document.getElementById('analyticsDate').value;
+        console.log('📅 Klik Tampilkan, tanggal:', date);
+        if (date) {
+          console.log('📅 Memanggil loadChartHistoryByDate dengan:', date);
+          loadChartHistoryByDate(date);
+        } else {
+          console.warn('⚠️ Tanggal kosong');
+          showToast('⚠️ Pilih tanggal dulu!', 'warning');
+        }
+      });
+    } else {
+      console.warn('⚠️ loadHistoryDateBtn TIDAK DITEMUKAN!');
+    }
+
+    if (resetHistoryDateBtn) {
+      console.log('📅 Attach listener ke resetHistoryDateBtn');
+      resetHistoryDateBtn.addEventListener('click', function() {
+        const today = new Date().toISOString().slice(0, 10);
+        document.getElementById('analyticsDate').value = today;
+        console.log('📅 Reset ke tanggal hari ini:', today);
+        loadChartHistory();
+        showToast('✅ Kembali ke data hari ini', 'info');
+      });
+    } else {
+      console.warn('⚠️ resetHistoryDateBtn TIDAK DITEMUKAN!');
+    }
+
+    // Load history
     loadChartHistory();
     loadDashChartHistory();
 
+    // Gauge
     setTimeout(() => {
       initGauge();
     }, 500);
 
+    // Clock
     updateClock();
     setInterval(updateClock, 1000);
 
+    // User name
     if (DOM.userName) {
       DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
     }
 
+    // Navigation
     setupNavigation();
+
+    // Connection check
     cekKoneksi();
     setInterval(cekKoneksi, 30000);
 
@@ -375,10 +452,7 @@ function initFirebase() {
           }
 
           updateGauge();
-
-          // Update monitoring status
           updateMonitoringStatus();
-
           updateModeButtonUI(state.controlMode);
         }
         scheduleRender();
@@ -564,31 +638,44 @@ function initModeControls() {
 
     const modeAutoBtn = document.getElementById('modeAutoBtn');
     if (modeAutoBtn) {
+      console.log('✅ modeAutoBtn ditemukan');
       modeAutoBtn.addEventListener('click', function() {
         console.log('🔄 Klik Otomatis');
         setModeControl('otomatis');
       });
+    } else {
+      console.warn('❌ modeAutoBtn TIDAK DITEMUKAN!');
     }
+
     const modeJadwalBtn = document.getElementById('modeJadwalBtn');
     if (modeJadwalBtn) {
+      console.log('✅ modeJadwalBtn ditemukan');
       modeJadwalBtn.addEventListener('click', function() {
         console.log('🔄 Klik Jadwal');
         setModeControl('jadwal');
       });
+    } else {
+      console.warn('❌ modeJadwalBtn TIDAK DITEMUKAN!');
     }
+
     const modeManualBtn = document.getElementById('modeManualBtn');
     if (modeManualBtn) {
+      console.log('✅ modeManualBtn ditemukan');
       modeManualBtn.addEventListener('click', function() {
         console.log('🔄 Klik Manual');
         setModeControl('manual');
       });
+    } else {
+      console.warn('❌ modeManualBtn TIDAK DITEMUKAN!');
     }
 
     const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
     const totalLightNeeded = document.getElementById('totalLightNeeded');
     if (saveLightNeededBtn && totalLightNeeded) {
+      console.log('✅ saveLightNeededBtn ditemukan');
       saveLightNeededBtn.addEventListener('click', function() {
         const val = parseInt(totalLightNeeded.value);
+        console.log('🔄 Simpan kebutuhan cahaya:', val);
         if (val < 6 || val > 18) {
           showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error');
           return;
@@ -598,13 +685,17 @@ function initModeControls() {
             showToast('✅ Kebutuhan cahaya disimpan!', 'success'); })
           .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
       });
+    } else {
+      console.warn('❌ saveLightNeededBtn atau totalLightNeeded TIDAK DITEMUKAN!');
     }
 
     const saveThresholdBtn = document.getElementById('saveThresholdBtn');
     const luxThreshold = document.getElementById('luxThreshold');
     if (saveThresholdBtn && luxThreshold) {
+      console.log('✅ saveThresholdBtn ditemukan');
       saveThresholdBtn.addEventListener('click', function() {
         const val = parseInt(luxThreshold.value);
+        console.log('🔄 Simpan threshold:', val);
         if (val < 0 || val > 5000) {
           showToast('❌ Threshold harus 0-5000 lux', 'error');
           return;
@@ -618,15 +709,19 @@ function initModeControls() {
         const display = document.getElementById('luxThresholdDisplay');
         if (display) display.textContent = e.target.value + ' lux';
       });
+    } else {
+      console.warn('❌ saveThresholdBtn atau luxThreshold TIDAK DITEMUKAN!');
     }
 
     const saveJadwalBtn = document.getElementById('saveJadwalBtn');
     const jadwalStart = document.getElementById('jadwalStart');
     const jadwalEnd = document.getElementById('jadwalEnd');
     if (saveJadwalBtn && jadwalStart && jadwalEnd) {
+      console.log('✅ saveJadwalBtn ditemukan');
       saveJadwalBtn.addEventListener('click', function() {
         const start = parseInt(jadwalStart.value);
         const end = parseInt(jadwalEnd.value);
+        console.log('🔄 Simpan jadwal:', start, '-', end);
         if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
           showToast('❌ Jam harus 0-23', 'error');
           return;
@@ -636,17 +731,23 @@ function initModeControls() {
           .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
           .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
       });
+    } else {
+      console.warn('❌ saveJadwalBtn, jadwalStart, atau jadwalEnd TIDAK DITEMUKAN!');
     }
 
     const forceDayOn = document.getElementById('forceDayOn');
     if (forceDayOn) {
+      console.log('✅ forceDayOn ditemukan');
       forceDayOn.addEventListener('change', function() {
         const val = this.checked;
+        console.log('🔄 Force Day ON:', val);
         set(ref(db, 'system/force_day_on'), val)
           .then(() => { state.forceDayOn = val;
             showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info'); })
           .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
       });
+    } else {
+      console.warn('❌ forceDayOn TIDAK DITEMUKAN!');
     }
 
     console.log('✅ Init Mode Controls Selesai');
