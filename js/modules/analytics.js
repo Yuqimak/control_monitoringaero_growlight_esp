@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FINAL FIX + LAMPU)
+// ANALYTICS: Charts, Export, Statistik (FINAL FIX + FULLSCREEN)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -17,48 +17,143 @@ export let dashTempChart = null;
 const CACHE_KEY = 'analytics_24h_cache';
 const CACHE_DURATION = 30 * 60 * 1000;
 
+// ---- FULL SCREEN TOGGLE ----
+window.toggleFullscreen = function(wrapperId) {
+  const wrapper = document.getElementById(wrapperId);
+  if (!wrapper) return;
+  
+  if (!document.fullscreenElement) {
+    wrapper.requestFullscreen().catch(err => {
+      console.warn('Fullscreen error:', err);
+    });
+  } else {
+    document.exitFullscreen();
+  }
+};
+
 // ---- INIT CHARTS ----
 export function initCharts() {
   const opts = {
     responsive: true,
-    plugins: { legend: { labels: { color: '#cbd5e1' } } },
-    scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } }
+    plugins: {
+      legend: { labels: { color: '#cbd5e1' } },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return context.parsed.y + '°C';
+          }
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#94a3b8' } },
+      y: { ticks: { color: '#94a3b8' } }
+    }
   };
   
+  // 🔥 SUHU CHART (dengan point besar)
   const tEl = document.getElementById('tempChart');
   if (tEl) {
     tempChart = new Chart(tEl, {
       type: 'line',
-      data: { labels: tempLabels, datasets: [{ label: 'Temperature (°C)', data: tempData, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
+      data: { 
+        labels: tempLabels, 
+        datasets: [{ 
+          label: 'Temperature (°C)', 
+          data: tempData, 
+          borderColor: '#22c55e', 
+          backgroundColor: 'rgba(34,197,94,0.2)', 
+          borderWidth: 2, 
+          fill: true, 
+          tension: 0.4,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#22c55e',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }] 
+      },
       options: opts
     });
   }
   
+  // 🔥 CAHAYA CHART (dengan point besar)
   const lEl = document.getElementById('lightChart');
   if (lEl) {
     lightChart = new Chart(lEl, {
       type: 'line',
-      data: { labels: lightLabels, datasets: [{ label: 'Sensor Light (%)', data: sensorData, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
+      data: { 
+        labels: lightLabels, 
+        datasets: [{ 
+          label: 'Sensor Light (%)', 
+          data: sensorData, 
+          borderColor: '#38bdf8', 
+          backgroundColor: 'rgba(56,189,248,0.2)', 
+          borderWidth: 2, 
+          fill: true, 
+          tension: 0.4,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#38bdf8',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }] 
+      },
       options: opts
     });
   }
   
+  // 🔥 LAMPU CHART (bar chart dengan fix data)
   const lsEl = document.getElementById('lampStatusChart');
   if (lsEl) {
     lampStatusChart = new Chart(lsEl, {
       type: 'bar',
-      data: { labels: [], datasets: [{ label: 'Status Lampu', data: [], backgroundColor: (ctx) => ctx.dataset.data[ctx.dataIndex] === 1 ? '#22c55e' : '#ef4444', borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderRadius: 4 }] },
+      data: { 
+        labels: [], 
+        datasets: [{ 
+          label: 'Status Lampu', 
+          data: [], 
+          backgroundColor: (ctx) => {
+            const value = ctx.dataset.data[ctx.dataIndex];
+            return value === 1 ? '#22c55e' : '#ef4444';
+          },
+          borderColor: 'rgba(255,255,255,0.2)', 
+          borderWidth: 1, 
+          borderRadius: 4,
+          barPercentage: 0.8
+        }] 
+      },
       options: {
         responsive: true,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' } } },
+        plugins: { 
+          legend: { display: false }, 
+          tooltip: { 
+            callbacks: { 
+              label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' 
+            } 
+          } 
+        },
         scales: {
-          x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          y: { ticks: { color: '#94a3b8', stepSize: 1, callback: (v) => v === 1 ? 'ON' : 'OFF' }, min: -0.5, max: 1.5, grid: { color: 'rgba(255,255,255,0.05)' } }
+          x: { 
+            ticks: { color: '#94a3b8', maxTicksLimit: 10 }, 
+            grid: { color: 'rgba(255,255,255,0.05)' } 
+          },
+          y: { 
+            ticks: { 
+              color: '#94a3b8', 
+              stepSize: 1, 
+              callback: (v) => v === 1 ? 'ON' : 'OFF' 
+            }, 
+            min: -0.5, 
+            max: 1.5, 
+            grid: { color: 'rgba(255,255,255,0.05)' } 
+          }
         }
       }
     });
   }
   
+  // 🔥 DASHBOARD CHART
   const dEl = document.getElementById('dashTempChart');
   if (dEl) {
     dashTempChart = new Chart(dEl, {
@@ -197,23 +292,16 @@ export async function loadChartHistory() {
       let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
       let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
       
-      // 🔥 PARSING LAMPU YANG LEBIH HANDAL (FIXED!)
       let lampu = 0;
       if (lampuEntry !== undefined && lampuEntry !== null) {
-        if (typeof lampuEntry === 'boolean') {
-          lampu = lampuEntry ? 1 : 0;
-        } else if (typeof lampuEntry === 'object') {
+        if (typeof lampuEntry === 'object') {
           if (lampuEntry.state !== undefined) {
-            lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON' || lampuEntry.state === 'on') ? 1 : 0;
+            lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
           } else if (lampuEntry.value !== undefined) {
-            lampu = (lampuEntry.value === true || lampuEntry.value === 1 || lampuEntry.value === 'ON' || lampuEntry.value === 'on') ? 1 : 0;
-          } else if (lampuEntry.lampu !== undefined) {
-            lampu = (lampuEntry.lampu === true || lampuEntry.lampu === 1 || lampuEntry.lampu === 'ON' || lampuEntry.lampu === 'on') ? 1 : 0;
+            lampu = (lampuEntry.value === true || lampuEntry.value === 1 || lampuEntry.value === 'ON') ? 1 : 0;
           }
-        } else if (typeof lampuEntry === 'string') {
-          lampu = (lampuEntry === 'true' || lampuEntry === '1' || lampuEntry === 'ON' || lampuEntry === 'on') ? 1 : 0;
-        } else if (typeof lampuEntry === 'number') {
-          lampu = (lampuEntry === 1) ? 1 : 0;
+        } else {
+          lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
         }
       }
       
@@ -222,7 +310,6 @@ export async function loadChartHistory() {
       return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
     });
 
-    // Filter data valid
     const validData = rawData.filter(d => d.timestamp > 0);
     
     if (validData.length === 0) {
@@ -308,9 +395,11 @@ function applyChartData(hourlyData) {
     tempData.push(d.suhu);
     lightLabels.push(labels[i]);
     sensorData.push(Math.min(100, Math.round(d.cahaya / 5000 * 100)));
+    
     if (lampStatusChart) {
       lampStatusChart.data.labels.push(labels[i]);
-      lampStatusChart.data.datasets[0].data.push(d.lampu || 0);
+      const lampValue = (d.lampu === true || d.lampu === 1) ? 1 : 0;
+      lampStatusChart.data.datasets[0].data.push(lampValue);
     }
   });
   
@@ -367,15 +456,8 @@ function updateCategoryStats(data) {
   document.getElementById('hotBar').style.width = calc(hot)+'%';
 }
 
-// ============================================
-// UPDATE STATS LAMPU & TABEL (FIXED)
-// ============================================
 function updateLampStats(data) {
-  console.log('📊 updateLampStats - Total data:', data.length);
-  
-  // Filter data yang punya properti lampu
   const lampData = data.filter(d => d.lampu !== undefined && d.lampu !== null);
-  console.log('📊 Data lampu valid:', lampData.length);
   
   if (lampData.length < 2) {
     document.getElementById('lampOnTime').textContent = '0.0 jam';
@@ -404,8 +486,6 @@ function updateLampStats(data) {
   document.getElementById('offPercent').textContent = `OFF: ${offP}%`;
   document.getElementById('lampOnBar').style.width = onP + '%';
   document.getElementById('lampOffBar').style.width = offP + '%';
-  
-  console.log('✅ Durasi ON:', totalOn.toFixed(2), 'jam, OFF:', totalOff.toFixed(2), 'jam');
 }
 
 function updateTrend(data) {
