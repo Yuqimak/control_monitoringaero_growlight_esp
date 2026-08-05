@@ -1,159 +1,61 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FINAL FIX + FULLSCREEN)
+// ANALYTICS: Charts, Export, Statistik (FIXED)
 // ============================================
 
 import { db } from '../firebase.js';
 import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { state, DOM, showToast, formatTime } from './core.js';
+import { getDays } from './ui.js';
 
 // ---- CHART VARIABLES ----
 const MAX_POINTS = 288;
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
 export let tempChart = null, lightChart = null, lampStatusChart = null;
 const dashTempLabels = [], dashTempData = [];
-export let dashTempChart = null;
-
-// ---- CACHE ----
-const CACHE_KEY = 'analytics_24h_cache';
-const CACHE_DURATION = 30 * 60 * 1000;
-
-// ---- FULL SCREEN TOGGLE ----
-window.toggleFullscreen = function(wrapperId) {
-  const wrapper = document.getElementById(wrapperId);
-  if (!wrapper) return;
-  
-  if (!document.fullscreenElement) {
-    wrapper.requestFullscreen().catch(err => {
-      console.warn('Fullscreen error:', err);
-    });
-  } else {
-    document.exitFullscreen();
-  }
-};
+let dashTempChart = null;
 
 // ---- INIT CHARTS ----
 export function initCharts() {
   const opts = {
     responsive: true,
-    plugins: {
-      legend: { labels: { color: '#cbd5e1' } },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            return context.parsed.y + '°C';
-          }
-        }
-      }
-    },
-    scales: {
-      x: { ticks: { color: '#94a3b8' } },
-      y: { ticks: { color: '#94a3b8' } }
-    }
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } }
   };
   
-  // 🔥 SUHU CHART (dengan point besar)
   const tEl = document.getElementById('tempChart');
   if (tEl) {
     tempChart = new Chart(tEl, {
       type: 'line',
-      data: { 
-        labels: tempLabels, 
-        datasets: [{ 
-          label: 'Temperature (°C)', 
-          data: tempData, 
-          borderColor: '#22c55e', 
-          backgroundColor: 'rgba(34,197,94,0.2)', 
-          borderWidth: 2, 
-          fill: true, 
-          tension: 0.4,
-          pointRadius: 5,
-          pointHoverRadius: 8,
-          pointBackgroundColor: '#22c55e',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }] 
-      },
+      data: { labels: tempLabels, datasets: [{ label: 'Temperature (°C)', data: tempData, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
       options: opts
     });
   }
   
-  // 🔥 CAHAYA CHART (dengan point besar)
   const lEl = document.getElementById('lightChart');
   if (lEl) {
     lightChart = new Chart(lEl, {
       type: 'line',
-      data: { 
-        labels: lightLabels, 
-        datasets: [{ 
-          label: 'Sensor Light (%)', 
-          data: sensorData, 
-          borderColor: '#38bdf8', 
-          backgroundColor: 'rgba(56,189,248,0.2)', 
-          borderWidth: 2, 
-          fill: true, 
-          tension: 0.4,
-          pointRadius: 5,
-          pointHoverRadius: 8,
-          pointBackgroundColor: '#38bdf8',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }] 
-      },
+      data: { labels: lightLabels, datasets: [{ label: 'Sensor Light (%)', data: sensorData, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
       options: opts
     });
   }
   
-  // 🔥 LAMPU CHART (bar chart dengan fix data)
   const lsEl = document.getElementById('lampStatusChart');
   if (lsEl) {
     lampStatusChart = new Chart(lsEl, {
       type: 'bar',
-      data: { 
-        labels: [], 
-        datasets: [{ 
-          label: 'Status Lampu', 
-          data: [], 
-          backgroundColor: (ctx) => {
-            const value = ctx.dataset.data[ctx.dataIndex];
-            return value === 1 ? '#22c55e' : '#ef4444';
-          },
-          borderColor: 'rgba(255,255,255,0.2)', 
-          borderWidth: 1, 
-          borderRadius: 4,
-          barPercentage: 0.8
-        }] 
-      },
+      data: { labels: [], datasets: [{ label: 'Status Lampu', data: [], backgroundColor: (ctx) => ctx.dataset.data[ctx.dataIndex] === 1 ? '#22c55e' : '#ef4444', borderColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderRadius: 4 }] },
       options: {
         responsive: true,
-        plugins: { 
-          legend: { display: false }, 
-          tooltip: { 
-            callbacks: { 
-              label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' 
-            } 
-          } 
-        },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' } } },
         scales: {
-          x: { 
-            ticks: { color: '#94a3b8', maxTicksLimit: 10 }, 
-            grid: { color: 'rgba(255,255,255,0.05)' } 
-          },
-          y: { 
-            ticks: { 
-              color: '#94a3b8', 
-              stepSize: 1, 
-              callback: (v) => v === 1 ? 'ON' : 'OFF' 
-            }, 
-            min: -0.5, 
-            max: 1.5, 
-            grid: { color: 'rgba(255,255,255,0.05)' } 
-          }
+          x: { ticks: { color: '#94a3b8', maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94a3b8', stepSize: 1, callback: (v) => v === 1 ? 'ON' : 'OFF' }, min: -0.5, max: 1.5, grid: { color: 'rgba(255,255,255,0.05)' } }
         }
       }
     });
   }
   
-  // 🔥 DASHBOARD CHART
   const dEl = document.getElementById('dashTempChart');
   if (dEl) {
     dashTempChart = new Chart(dEl, {
@@ -164,7 +66,7 @@ export function initCharts() {
   }
 }
 
-// ---- UPDATE CHARTS REAL-TIME ----
+// ---- UPDATE CHARTS ----
 export function updateCharts(time) {
   if (tempChart) {
     tempLabels.push(time);
@@ -193,388 +95,233 @@ export function updateCharts(time) {
   if (dashTempChart) {
     dashTempLabels.push(time);
     dashTempData.push(state.temperature);
-    if (dashTempLabels.length > 15) {
-      dashTempLabels.shift();
-      dashTempData.shift();
-    }
+    if (dashTempLabels.length > 15) { dashTempLabels.shift(); dashTempData.shift(); }
     dashTempChart.update();
   }
 }
 
-// ============================================
-// LOAD HISTORY UNTUK DASHBOARD CHART (15 Data)
-// ============================================
-export async function loadDashChartHistory() {
-  try {
-    const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
-    const data = snapshot.val();
-    
-    if (!data) {
-      console.warn('⚠️ Tidak ada data history untuk dashboard chart.');
-      return;
-    }
-
-    const keys = Object.keys(data).sort();
-    const labels = [];
-    const values = [];
-
-    keys.forEach(key => {
-      const entry = data[key];
-      const suhu = entry?.value ?? entry ?? 0;
-      if (suhu > 0) {
-        const date = new Date(parseKeyToTimestamp(key));
-        const label = String(date.getHours()).padStart(2,'0') + ':' + String(date.getMinutes()).padStart(2,'0');
-        labels.push(label);
-        values.push(suhu);
-      }
-    });
-
-    setTimeout(() => {
-      if (dashTempChart) {
-        dashTempChart.data.labels = labels;
-        dashTempChart.data.datasets[0].data = values;
-        dashTempChart.update();
-        console.log('✅ Dashboard chart diisi dengan 15 data terakhir.');
-      } else {
-        const chart = Chart.getChart('dashTempChart');
-        if (chart) {
-          chart.data.labels = labels;
-          chart.data.datasets[0].data = values;
-          chart.update();
-          console.log('✅ Dashboard chart diisi via fallback.');
-        }
-      }
-    }, 500);
-
-  } catch (e) {
-    console.error('❌ Gagal load dashboard chart:', e);
-  }
-}
-
-// ============================================
-// LOAD HISTORY (24 JAM UNTUK ANALYTICS)
-// ============================================
+// ---- LOAD HISTORY ----
 export async function loadChartHistory() {
-  const cached = localStorage.getItem(CACHE_KEY);
-  if (cached) {
-    const parsed = JSON.parse(cached);
-    if (Date.now() - parsed.timestamp < CACHE_DURATION) {
-      console.log('📦 Gunakan cache history (30 menit)');
-      if (parsed.data && parsed.data.length > 0) {
-        applyChartData(parsed.data);
-        return;
-      }
-    }
-  }
-
   try {
-    const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
-      get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_POINTS))),
-      get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(MAX_POINTS))),
-      get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(MAX_POINTS)))
-    ]);
-
+    const suhuSnap = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_POINTS)));
+    const cahayaSnap = await get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(MAX_POINTS)));
+    const lampuSnap = await get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(MAX_POINTS)));
+    
     const suhuData = suhuSnap.val() || {};
     const cahayaData = cahayaSnap.val() || {};
     const lampuData = lampuSnap.val() || {};
-
-    const allKeys = Object.keys(suhuData).sort();
-    if (allKeys.length === 0) {
-      console.warn('⚠️ Tidak ada data history.');
-      return;
-    }
-
-    const rawData = allKeys.map(key => {
-      const suhuEntry = suhuData[key];
-      const cahayaEntry = cahayaData[key];
-      const lampuEntry = lampuData[key];
+    const keys = Object.keys(suhuData).sort();
+    
+    tempLabels.length = 0; tempData.length = 0;
+    sensorData.length = 0;
+    if (lampStatusChart) { lampStatusChart.data.labels = []; lampStatusChart.data.datasets[0].data = []; }
+    
+    keys.forEach(key => {
+      const parts = key.replace('T', ' ').split(' ');
+      const date = parts[0].split('-').slice(2).join('-');
+      const time = parts[1].split('-').slice(0, 2).join(':');
+      const label = date + ' ' + time;
       
-      let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
-      let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
+      const rawCahaya = cahayaData[key]?.value || 0;
+      const normalizedCahaya = Math.min(100, Math.round(rawCahaya / 5000 * 100));
       
-      let lampu = 0;
-      if (lampuEntry !== undefined && lampuEntry !== null) {
-        if (typeof lampuEntry === 'object') {
-          if (lampuEntry.state !== undefined) {
-            lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
-          } else if (lampuEntry.value !== undefined) {
-            lampu = (lampuEntry.value === true || lampuEntry.value === 1 || lampuEntry.value === 'ON') ? 1 : 0;
-          }
-        } else {
-          lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
-        }
+      tempLabels.push(label);
+      tempData.push(suhuData[key]?.value || 0);
+      sensorData.push(normalizedCahaya);
+      
+      if (lampStatusChart) {
+        lampStatusChart.data.labels.push(label);
+        lampStatusChart.data.datasets[0].data.push(lampuData[key]?.state ? 1 : 0);
       }
-      
-      const timestamp = parseKeyToTimestamp(key);
-      
-      return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
     });
-
-    const validData = rawData.filter(d => d.timestamp > 0);
     
-    if (validData.length === 0) {
-      console.warn('⚠️ Tidak ada data valid.');
-      return;
-    }
-
-    const now = Date.now();
-    const oneDayAgo = now - 86400000;
-    const recentData = validData.filter(d => d.timestamp >= oneDayAgo);
-
-    let chartData;
-    if (recentData.length <= 24) {
-      chartData = recentData;
-    } else {
-      chartData = reduceToHourly(recentData, 24);
-    }
-
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      timestamp: Date.now(),
-      data: chartData
-    }));
-
-    applyChartData(chartData);
-    console.log('✅ History loaded, titik:', chartData.length);
-
-  } catch (e) {
-    console.error('❌ Gagal load history:', e);
-  }
-}
-
-// ---- PARSING KEY ----
-function parseKeyToTimestamp(key) {
-  try {
-    const clean = key.replace(/-000Z$/, '');
-    const [datePart, timePart] = clean.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute, second] = timePart.split('-').map(Number);
-    return new Date(year, month - 1, day, hour, minute, second).getTime();
+    if (tempChart) tempChart.update();
+    if (lightChart) lightChart.update();
+    if (lampStatusChart) lampStatusChart.update();
+    
+    updateStats(suhuData, cahayaData);
+    updateLampStats(lampuData);
+    updateCategoryStats(suhuData);
+    updateTrend(suhuData);
+    updateHeatmap(suhuData);
+    updateHistogram(suhuData);
+    
+    console.log("✅ Analytics: Data history berhasil dimuat!");
   } catch(e) {
-    console.warn('⚠️ Gagal parse key:', key, e);
-    return 0;
+    console.warn('❌ Gagal load chart history:', e);
   }
 }
 
-// ---- REDUKSI 1 TITIK PER JAM ----
-function reduceToHourly(data, totalPoints) {
-  if (data.length === 0) return [];
-  data.sort((a, b) => a.timestamp - b.timestamp);
-  const start = data[0].timestamp;
-  const end = data[data.length - 1].timestamp;
-  const interval = (end - start) / (totalPoints - 1 || 1);
-  const result = [];
-  for (let i = 0; i < totalPoints; i++) {
-    const target = start + i * interval;
-    let closest = data[0];
-    let minDiff = Math.abs(data[0].timestamp - target);
-    for (const point of data) {
-      const diff = Math.abs(point.timestamp - target);
-      if (diff < minDiff) { minDiff = diff; closest = point; }
-    }
-    result.push(closest);
-  }
-  return result;
-}
-
-// ---- APPLY DATA KE CHART ----
-function applyChartData(hourlyData) {
-  tempLabels.length = 0; tempData.length = 0;
-  lightLabels.length = 0; sensorData.length = 0;
-  if (lampStatusChart) {
-    lampStatusChart.data.labels = [];
-    lampStatusChart.data.datasets[0].data = [];
-  }
-  
-  const labels = hourlyData.map(d => {
-    const date = new Date(d.timestamp);
-    return String(date.getHours()).padStart(2,'0') + ':00';
-  });
-  
-  hourlyData.forEach((d, i) => {
-    tempLabels.push(labels[i]);
-    tempData.push(d.suhu);
-    lightLabels.push(labels[i]);
-    sensorData.push(Math.min(100, Math.round(d.cahaya / 5000 * 100)));
-    
-    if (lampStatusChart) {
-      lampStatusChart.data.labels.push(labels[i]);
-      const lampValue = (d.lampu === true || d.lampu === 1) ? 1 : 0;
-      lampStatusChart.data.datasets[0].data.push(lampValue);
-    }
-  });
-  
-  if (tempChart) tempChart.update();
-  if (lightChart) lightChart.update();
-  if (lampStatusChart) lampStatusChart.update();
-  
-  updateStats(hourlyData);
-  updateCategoryStats(hourlyData);
-  updateLampStats(hourlyData);
-  updateTrend(hourlyData);
-  updateHeatmap(hourlyData);
-  updateHistogram(hourlyData);
-}
-
-// ---- STATISTIK ----
-function updateStats(data) {
-  const temps = data.map(d => d.suhu).filter(v => v > 0);
-  if (temps.length) {
-    const avg = temps.reduce((a,b)=>a+b,0)/temps.length;
+// ---- UPDATE STATISTIK ----
+function updateStats(suhuData, cahayaData) {
+  const suhuValues = Object.values(suhuData).map(d => d.value || 0).filter(v => v > 0);
+  if (suhuValues.length > 0) {
+    const avg = suhuValues.reduce((a, b) => a + b, 0) / suhuValues.length;
+    const max = Math.max(...suhuValues);
+    const min = Math.min(...suhuValues);
     document.getElementById('avgTemp').textContent = avg.toFixed(1) + '°C';
-    document.getElementById('maxTemp').textContent = Math.max(...temps).toFixed(1) + '°C';
-    document.getElementById('minTemp').textContent = Math.min(...temps).toFixed(1) + '°C';
+    document.getElementById('maxTemp').textContent = max.toFixed(1) + '°C';
+    document.getElementById('minTemp').textContent = min.toFixed(1) + '°C';
   }
-  const lights = data.map(d => d.cahaya).filter(v => v > 0);
-  if (lights.length) {
-    const avgL = lights.reduce((a,b)=>a+b,0)/lights.length;
-    document.getElementById('avgLight').textContent = Math.min(100, Math.round(avgL/5000*100)) + '%';
+  
+  const cahayaValues = Object.values(cahayaData).map(d => d.value || 0).filter(v => v > 0);
+  if (cahayaValues.length > 0) {
+    const avgCahaya = cahayaValues.reduce((a, b) => a + b, 0) / cahayaValues.length;
+    document.getElementById('avgLight').textContent = Math.min(100, Math.round(avgCahaya / 5000 * 100)) + '%';
   }
 }
 
+// ---- UPDATE KATEGORI SUHU ----
 function updateCategoryStats(data) {
-  const values = data.map(d => d.suhu).filter(v => v > 0);
-  if (!values.length) {
-    ['cold','normal','warm','hot'].forEach(id => {
-      document.getElementById(id+'Percent').textContent = '0%';
-      document.getElementById(id+'Bar').style.width = '0%';
+  const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
+  if (values.length === 0) {
+    ['cold', 'normal', 'warm', 'hot'].forEach(id => {
+      document.getElementById(id + 'Percent').textContent = '0%';
+      document.getElementById(id + 'Bar').style.width = '0%';
     });
     return;
   }
   const total = values.length;
-  const calc = n => Math.round((n/total)*100);
   const cold = values.filter(v => v < 25).length;
   const normal = values.filter(v => v >= 25 && v < 30).length;
   const warm = values.filter(v => v >= 30 && v < 34).length;
   const hot = values.filter(v => v >= 34).length;
-  document.getElementById('coldPercent').textContent = calc(cold)+'%';
-  document.getElementById('normalPercent').textContent = calc(normal)+'%';
-  document.getElementById('warmPercent').textContent = calc(warm)+'%';
-  document.getElementById('hotPercent').textContent = calc(hot)+'%';
-  document.getElementById('coldBar').style.width = calc(cold)+'%';
-  document.getElementById('normalBar').style.width = calc(normal)+'%';
-  document.getElementById('warmBar').style.width = calc(warm)+'%';
-  document.getElementById('hotBar').style.width = calc(hot)+'%';
+  const calc = (count) => Math.round((count / total) * 100);
+  document.getElementById('coldPercent').textContent = calc(cold) + '%';
+  document.getElementById('normalPercent').textContent = calc(normal) + '%';
+  document.getElementById('warmPercent').textContent = calc(warm) + '%';
+  document.getElementById('hotPercent').textContent = calc(hot) + '%';
+  document.getElementById('coldBar').style.width = calc(cold) + '%';
+  document.getElementById('normalBar').style.width = calc(normal) + '%';
+  document.getElementById('warmBar').style.width = calc(warm) + '%';
+  document.getElementById('hotBar').style.width = calc(hot) + '%';
 }
 
+// ---- UPDATE LAMP STATS ----
 function updateLampStats(data) {
-  const lampData = data.filter(d => d.lampu !== undefined && d.lampu !== null);
-  
-  if (lampData.length < 2) {
-    document.getElementById('lampOnTime').textContent = '0.0 jam';
-    document.getElementById('lampOffTime').textContent = '0.0 jam';
-    document.getElementById('onPercent').textContent = 'ON: 0%';
-    document.getElementById('offPercent').textContent = 'OFF: 0%';
-    document.getElementById('lampOnBar').style.width = '0%';
-    document.getElementById('lampOffBar').style.width = '0%';
-    return;
-  }
-  
-  let totalOn = 0;
-  for (let i = 1; i < lampData.length; i++) {
-    const duration = (lampData[i].timestamp - lampData[i-1].timestamp) / 3600000;
-    if (lampData[i-1].lampu === 1) totalOn += duration;
-  }
-  const totalDurasi = (lampData[lampData.length-1].timestamp - lampData[0].timestamp) / 3600000;
-  const totalOff = totalDurasi - totalOn;
-  
-  const onP = totalDurasi > 0 ? Math.round((totalOn / totalDurasi) * 100) : 0;
-  const offP = 100 - onP;
-  
-  document.getElementById('lampOnTime').textContent = totalOn.toFixed(1) + ' jam';
-  document.getElementById('lampOffTime').textContent = totalOff.toFixed(1) + ' jam';
-  document.getElementById('onPercent').textContent = `ON: ${onP}%`;
-  document.getElementById('offPercent').textContent = `OFF: ${offP}%`;
-  document.getElementById('lampOnBar').style.width = onP + '%';
-  document.getElementById('lampOffBar').style.width = offP + '%';
+  const values = Object.values(data);
+  const total = values.length;
+  if (total === 0) return;
+  const onCount = values.filter(d => d.state === true).length;
+  const offCount = total - onCount;
+  const onPercent = Math.round((onCount / total) * 100);
+  const offPercent = Math.round((offCount / total) * 100);
+  const avgInterval = 5;
+  const onMinutes = onCount * avgInterval;
+  const offMinutes = offCount * avgInterval;
+  document.getElementById('lampOnTime').textContent = `${Math.floor(onMinutes/60)} jam ${Math.round(onMinutes%60)} menit`;
+  document.getElementById('lampOffTime').textContent = `${Math.floor(offMinutes/60)} jam ${Math.round(offMinutes%60)} menit`;
+  document.getElementById('onPercent').textContent = `ON: ${onPercent}%`;
+  document.getElementById('offPercent').textContent = `OFF: ${offPercent}%`;
+  document.getElementById('lampOnBar').style.width = onPercent + '%';
+  document.getElementById('lampOffBar').style.width = offPercent + '%';
 }
 
+// ---- UPDATE TREN ----
 function updateTrend(data) {
   const container = document.getElementById('trendContainer');
   if (!container) return;
-  const days = {};
-  data.forEach(d => {
-    const day = new Date(d.timestamp).toISOString().slice(0,10);
-    if (!days[day]) days[day] = [];
-    days[day].push(d.suhu);
-  });
   const now = new Date();
-  let html = '';
-  for (let i=6; i>=0; i--) {
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
-    d.setDate(d.getDate()-i);
-    const key = d.toISOString().slice(0,10);
-    const vals = days[key] || [];
-    const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '--';
-    const color = avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : avg > 20 ? '#22c55e' : '#3b82f6';
-    html += `<div style="text-align:center;background:rgba(255,255,255,.04);padding:8px;border-radius:8px;">
-      <div style="font-size:11px;color:var(--muted);">${key.slice(5)}</div>
-      <div style="font-size:16px;font-weight:600;color:${color};">${avg}°</div>
-    </div>`;
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push(key);
   }
-  container.innerHTML = html;
+  container.innerHTML = '';
+  days.forEach(day => {
+    const dayData = Object.keys(data).filter(key => key.startsWith(day));
+    const values = dayData.map(key => data[key].value || 0).filter(v => v > 0);
+    const avg = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+    const el = document.createElement('div');
+    el.style.cssText = 'text-align:center; background:rgba(255,255,255,.04); padding:8px 4px; border-radius:8px;';
+    const dayLabel = day.slice(5);
+    const tempColor = avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : avg > 20 ? '#22c55e' : '#3b82f6';
+    el.innerHTML = `<div style="font-size:11px; color:var(--muted);">${dayLabel}</div><div style="font-size:16px; font-weight:600; color:${tempColor};">${avg ? avg.toFixed(1) + '°' : '--'}</div>`;
+    container.appendChild(el);
+  });
 }
 
+// ---- UPDATE HEATMAP ----
 function updateHeatmap(data) {
   const table = document.getElementById('heatmapTable');
   if (!table) return;
   const now = new Date();
   const days = [];
-  for (let i=6; i>=0; i--) {
+  for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
-    d.setDate(d.getDate()-i);
-    days.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate() - i);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    days.push(key);
   }
-  const ranges = [0,6,12,18,24];
-  let html = '<thead><tr><th></th>';
-  for (let i=0; i<4; i++) html += `<th style="font-size:10px;color:var(--muted);">${ranges[i]}-${ranges[i+1]}</th>`;
+  const hours = ['00-06', '06-12', '12-18', '18-24'];
+  let html = '<thead><tr><th>Hari</th>';
+  hours.forEach(h => { html += `<th style="font-size:10px; color:var(--muted);">${h}</th>`; });
   html += '</tr></thead><tbody>';
   days.forEach(day => {
-    html += `<tr><td style="font-size:11px;color:var(--muted);">${day.slice(5)}</td>`;
-    for (let i=0; i<4; i++) {
-      const vals = data.filter(d => {
-        const dt = new Date(d.timestamp);
-        return dt.toISOString().slice(0,10) === day && dt.getHours() >= ranges[i] && dt.getHours() < ranges[i+1];
-      }).map(d => d.suhu).filter(v=>v>0);
-      const avg = vals.length ? (vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : '-';
-      let bg = 'rgba(100,116,139,0.2)', tc = '#94a3b8';
-      if (avg !== '-') {
-        if (avg > 30) { bg = 'rgba(239,68,68,0.4)'; tc = '#ef4444'; }
-        else if (avg > 25) { bg = 'rgba(245,158,11,0.4)'; tc = '#f59e0b'; }
-        else if (avg > 20) { bg = 'rgba(34,197,94,0.4)'; tc = '#22c55e'; }
-        else { bg = 'rgba(59,130,246,0.4)'; tc = '#3b82f6'; }
+    html += `<tr><td style="font-size:11px; color:var(--muted);">${day.slice(5)}</td>`;
+    hours.forEach(range => {
+      const [start, end] = range.split('-').map(Number);
+      const dayData = Object.keys(data).filter(key => key.startsWith(day));
+      const values = dayData.map(key => ({ key, val: data[key].value || 0 })).filter(d => {
+        const hour = parseInt(d.key.split('T')[1].split('-')[0]);
+        return hour >= start && hour < end;
+      });
+      const avg = values.length > 0 ? values.reduce((a, b) => a + b.val, 0) / values.length : 0;
+      let bgColor = 'rgba(100,116,139,0.2)';
+      let textColor = '#94a3b8';
+      if (avg > 0) {
+        if (avg > 30) { bgColor = 'rgba(239,68,68,0.4)'; textColor = '#ef4444'; }
+        else if (avg > 25) { bgColor = 'rgba(245,158,11,0.4)'; textColor = '#f59e0b'; }
+        else if (avg > 20) { bgColor = 'rgba(34,197,94,0.4)'; textColor = '#22c55e'; }
+        else { bgColor = 'rgba(59,130,246,0.4)'; textColor = '#3b82f6'; }
       }
-      html += `<td style="background:${bg};text-align:center;padding:6px;border-radius:4px;font-size:12px;color:${tc};">${avg}</td>`;
-    }
+      html += `<td style="background:${bgColor}; text-align:center; padding:6px 4px; border-radius:4px; font-size:12px; color:${textColor};">${avg ? avg.toFixed(1) : '-'}</td>`;
+    });
     html += '</tr>';
   });
   html += '</tbody>';
   table.innerHTML = html;
 }
 
+// ---- UPDATE HISTOGRAM ----
 function updateHistogram(data) {
   const canvas = document.getElementById('histogramChart');
   if (!canvas) return;
-  const values = data.map(d => d.suhu).filter(v => v > 0);
+  const values = Object.values(data).map(d => d.value || 0).filter(v => v > 0);
   let chart = Chart.getChart(canvas);
   if (chart) chart.destroy();
-  if (!values.length) {
+  if (values.length === 0) {
     new Chart(canvas, {
       type: 'bar',
-      data: { labels: ['0-10','10-20','20-30','30-40','40+'], datasets: [{ data: [0,0,0,0,0], backgroundColor: '#64748b' }] },
-      options: { responsive: true, plugins: { legend: { display: false } } }
+      data: { labels: ['0-10', '10-20', '20-30', '30-40', '40+'], datasets: [{ data: [0,0,0,0,0], backgroundColor: '#64748b' }] },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8', stepSize: 1 } } } }
     });
     return;
   }
-  const bins = [0,10,20,25,30,35,40];
-  const labels = ['0-10°C','10-20°C','20-25°C','25-30°C','30-35°C','35-40°C','40+°C'];
-  const counts = bins.map((b,i) => {
+  const bins = [0, 10, 20, 25, 30, 35, 40];
+  const labels = ['0-10°C', '10-20°C', '20-25°C', '25-30°C', '30-35°C', '35-40°C', '40+°C'];
+  const counts = bins.map((bin, i) => {
     const next = bins[i+1] || Infinity;
-    return values.filter(v => v >= b && v < next).length;
+    return values.filter(v => v >= bin && v < next).length;
   });
   new Chart(canvas, {
     type: 'bar',
-    data: { labels, datasets: [{ data: counts, backgroundColor: ['#3b82f6','#22c55e','#f59e0b','#f59e0b','#ef4444','#ef4444','#7c3aed'] }] },
-    options: { responsive: true, plugins: { legend: { display: false } } }
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Frekuensi',
+        data: counts,
+        backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#f59e0b', '#ef4444', '#ef4444', '#7c3aed'],
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { color: '#94a3b8', maxTicksLimit: 7 } }, y: { ticks: { color: '#94a3b8', stepSize: 1 } } }
+    }
   });
 }
 
