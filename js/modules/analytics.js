@@ -17,17 +17,30 @@ export let dashTempChart = null;
 const CACHE_KEY = 'analytics_24h_cache';
 const CACHE_DURATION = 30 * 60 * 1000;
 
-// ---- FULL SCREEN TOGGLE ----
-window.toggleFullscreen = function(wrapperId) {
+// ---- EXPAND CHART MOBILE ----
+window.toggleExpand = function(wrapperId) {
   const wrapper = document.getElementById(wrapperId);
   if (!wrapper) return;
   
-  if (!document.fullscreenElement) {
-    wrapper.requestFullscreen().catch(err => {
-      console.warn('Fullscreen error:', err);
-    });
+  const isExpanded = wrapper.classList.contains('expanded');
+  
+  document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
+    if (el.id !== wrapperId) el.classList.remove('expanded');
+  });
+  
+  if (isExpanded) {
+    wrapper.classList.remove('expanded');
   } else {
-    document.exitFullscreen();
+    wrapper.classList.add('expanded');
+    setTimeout(() => {
+      wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
+  
+  const canvas = wrapper.querySelector('canvas');
+  if (canvas) {
+    const chart = Chart.getChart(canvas);
+    if (chart) chart.resize();
   }
 };
 
