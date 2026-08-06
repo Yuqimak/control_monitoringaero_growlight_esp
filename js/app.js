@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - LUX ANGKA BULAT)
+// MAIN ENTRY – app.js (FINAL - PATH FIXED)
 // ============================================
 
 import { db } from './firebase.js';
@@ -269,21 +269,17 @@ function initFirebase() {
 
           const rawSuhu = d.suhu || 0;
           state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
-
-          // 🔥 LUX LANGSUNG (BUKAN PERSEN)
           state.sensorLight = d.cahaya || 0;
 
           if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
             updateCharts(new Date().toLocaleTimeString());
           }
 
-          // Akumulasi
           const luxThreshold = state.luxThreshold || 500;
           if (d.cahaya > luxThreshold) {
             state.accumulatedLight = (state.accumulatedLight || 0) + (1 / 3600);
           }
 
-          // Update UI
           const totalNeeded = state.totalLightNeeded || 12;
           const progress = Math.min(100, Math.round((state.accumulatedLight / totalNeeded) * 100));
 
@@ -325,6 +321,7 @@ function initFirebase() {
 
         const d = snap.val();
         if (d) {
+          // 🔥 BACA DARI system/mode & system/state (PATH BARU)
           state.controlMode = d.mode || 'otomatis';
           state.lampState = d.state || false;
           state.forceDayOn = d.force_day_on || false;
@@ -348,7 +345,7 @@ function initFirebase() {
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
 
-          // Status Lampu
+          // 🔥 UPDATE STATUS LAMPU DARI system/state
           const statusText = state.lampState ? 'ON' : 'OFF';
           const statusColor = state.lampState ? '#22c55e' : '#ef4444';
           ['dashLampStatus', 'lampStateText', 'statLamp', 'monitorLampStatus'].forEach(id => {
@@ -409,7 +406,7 @@ function initFirebase() {
   }
 }
 
-// ===== UPDATE STATUS TEXT (LUX BULAT) =====
+// ===== UPDATE STATUS TEXT =====
 function updateStatusText() {
   const temp = state.temperature;
   const lux = state.sensorLight;
@@ -522,11 +519,14 @@ function updateModeButtonUI(mode) {
   } catch (e) { console.error('❌ Error update mode button:', e); }
 }
 
-// ===== CONTROLS =====
+// ============================================
+// CONTROLS (FIX - PAKAI system/state)
+// ============================================
 function initControls() {
   try {
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
+        // 🔥 KIRIM KE system/state (BUKAN control/lamp/state)
         set(ref(db, 'system/state'), true)
           .then(() => { state.lampState = true;
             scheduleRender();
@@ -536,6 +536,7 @@ function initControls() {
     }
     if (DOM.btnOff) {
       DOM.btnOff.addEventListener('click', () => {
+        // 🔥 KIRIM KE system/state (BUKAN control/lamp/state)
         set(ref(db, 'system/state'), false)
           .then(() => { state.lampState = false;
             scheduleRender();
@@ -557,21 +558,30 @@ function initControls() {
   } catch (e) { console.error('❌ Error init controls:', e); }
 }
 
-// ===== MODE KONTROL =====
+// ============================================
+// MODE KONTROL (FIX - PAKAI system/mode)
+// ============================================
 function initModeControls() {
   try {
     console.log('🔄 Init Mode Controls...');
     const modeAutoBtn = document.getElementById('modeAutoBtn');
     if (modeAutoBtn) {
-      modeAutoBtn.addEventListener('click', () => setModeControl('otomatis'));
+      modeAutoBtn.addEventListener('click', () => {
+        // 🔥 KIRIM KE system/mode (BUKAN control/lamp/mode)
+        setModeControl('otomatis');
+      });
     }
     const modeJadwalBtn = document.getElementById('modeJadwalBtn');
     if (modeJadwalBtn) {
-      modeJadwalBtn.addEventListener('click', () => setModeControl('jadwal'));
+      modeJadwalBtn.addEventListener('click', () => {
+        setModeControl('jadwal');
+      });
     }
     const modeManualBtn = document.getElementById('modeManualBtn');
     if (modeManualBtn) {
-      modeManualBtn.addEventListener('click', () => setModeControl('manual'));
+      modeManualBtn.addEventListener('click', () => {
+        setModeControl('manual');
+      });
     }
 
     const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
@@ -636,7 +646,11 @@ function initModeControls() {
   } catch (e) { console.error('❌ Error init mode controls:', e); }
 }
 
+// ============================================
+// SET MODE KONTROL (FIX - PAKAI system/mode)
+// ============================================
 function setModeControl(mode) {
+  // 🔥 KIRIM KE system/mode (BUKAN control/lamp/mode)
   set(ref(db, 'system/mode'), mode)
     .then(() => {
       state.controlMode = mode;
@@ -651,7 +665,9 @@ function setModeControl(mode) {
     .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
 }
 
-// ===== EXPAND CHART =====
+// ============================================
+// EXPAND CHART
+// ============================================
 function initExpandChart() {
   window.toggleExpand = function(wrapperId) {
     const wrapper = document.getElementById(wrapperId);
@@ -674,7 +690,9 @@ function initExpandChart() {
   };
 }
 
-// ===== CLOCK =====
+// ============================================
+// CLOCK
+// ============================================
 function updateClock() {
   try {
     const now = new Date();
@@ -694,7 +712,9 @@ function updateClock() {
   } catch (e) { console.error('❌ Error update clock:', e); }
 }
 
-// ===== SIDEBAR =====
+// ============================================
+// SIDEBAR
+// ============================================
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.querySelector('.sidebar');
 const overlay = document.querySelector('.mobile-overlay') || (() => {
@@ -735,7 +755,9 @@ window.addEventListener('resize', () => {
   if (window.innerWidth > 768) closeMenu();
 });
 
-// ===== DEFAULT SECTION =====
+// ============================================
+// DEFAULT SECTION
+// ============================================
 const defaultSection = document.getElementById('dashboard');
 if (defaultSection) {
   document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
