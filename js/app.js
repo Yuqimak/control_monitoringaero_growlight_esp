@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - PATH FIXED)
+// MAIN ENTRY – app.js (FINAL - OFFLINE THRESHOLD 10 MENIT)
 // ============================================
 
 import { db } from './firebase.js';
@@ -106,7 +106,7 @@ function updateGauge() {
   }
 }
 
-// ===== CEK KONEKSI =====
+// ===== CEK KONEKSI (OFFLINE THRESHOLD 10 MENIT) =====
 let esp32Online = false;
 let firebaseConnected = false;
 
@@ -128,7 +128,8 @@ function cekKoneksi() {
       const [h, m, s] = lastUpdate.innerText.split(':').map(Number);
       const lastDate = new Date();
       lastDate.setHours(h, m, s || 0);
-      esp32Online = (now - lastDate) / 60000 < 5;
+      // 🔥 OFFLINE THRESHOLD: 10 MENIT (BUKAN 5)
+      esp32Online = (now - lastDate) / 60000 < 10;
     } else {
       esp32Online = false;
     }
@@ -321,7 +322,6 @@ function initFirebase() {
 
         const d = snap.val();
         if (d) {
-          // 🔥 BACA DARI system/mode & system/state (PATH BARU)
           state.controlMode = d.mode || 'otomatis';
           state.lampState = d.state || false;
           state.forceDayOn = d.force_day_on || false;
@@ -339,13 +339,18 @@ function initFirebase() {
             state.lastResetDate = today;
           }
 
+          // 🔥 UPDATE LAST UPDATE (BIAR NOTIF OFFLINE HILANG)
+          if (DOM.dashLastUpdate) {
+            const now = new Date().toLocaleTimeString('id-ID');
+            DOM.dashLastUpdate.textContent = now;
+          }
+
           // Update UI Mode
           if (DOM.currentModeDisplay2) {
             const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
 
-          // 🔥 UPDATE STATUS LAMPU DARI system/state
           const statusText = state.lampState ? 'ON' : 'OFF';
           const statusColor = state.lampState ? '#22c55e' : '#ef4444';
           ['dashLampStatus', 'lampStateText', 'statLamp', 'monitorLampStatus'].forEach(id => {
@@ -526,7 +531,6 @@ function initControls() {
   try {
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
-        // 🔥 KIRIM KE system/state (BUKAN control/lamp/state)
         set(ref(db, 'system/state'), true)
           .then(() => { state.lampState = true;
             scheduleRender();
@@ -536,7 +540,6 @@ function initControls() {
     }
     if (DOM.btnOff) {
       DOM.btnOff.addEventListener('click', () => {
-        // 🔥 KIRIM KE system/state (BUKAN control/lamp/state)
         set(ref(db, 'system/state'), false)
           .then(() => { state.lampState = false;
             scheduleRender();
@@ -567,7 +570,6 @@ function initModeControls() {
     const modeAutoBtn = document.getElementById('modeAutoBtn');
     if (modeAutoBtn) {
       modeAutoBtn.addEventListener('click', () => {
-        // 🔥 KIRIM KE system/mode (BUKAN control/lamp/mode)
         setModeControl('otomatis');
       });
     }
@@ -646,11 +648,7 @@ function initModeControls() {
   } catch (e) { console.error('❌ Error init mode controls:', e); }
 }
 
-// ============================================
-// SET MODE KONTROL (FIX - PAKAI system/mode)
-// ============================================
 function setModeControl(mode) {
-  // 🔥 KIRIM KE system/mode (BUKAN control/lamp/mode)
   set(ref(db, 'system/mode'), mode)
     .then(() => {
       state.controlMode = mode;
