@@ -106,7 +106,7 @@ function updateGauge() {
   }
 }
 
-// ===== CEK KONEKSI (OFFLINE THRESHOLD 10 MENIT) =====
+// ===== CEK KONEKSI (OFFLINE THRESHOLD 15 MENIT) =====
 let esp32Online = false;
 let firebaseConnected = false;
 
@@ -128,7 +128,8 @@ function cekKoneksi() {
       const [h, m, s] = lastUpdate.innerText.split(':').map(Number);
       const lastDate = new Date();
       lastDate.setHours(h, m, s || 0);
-      esp32Online = (now - lastDate) / 60000 < 10;
+      // 🔥 FIX: 15 MENIT (BUKAN 10)
+      esp32Online = (now - lastDate) / 60000 < 15;
     } else {
       esp32Online = false;
     }
@@ -410,28 +411,49 @@ function initFirebase() {
   }
 }
 
-// ===== UPDATE STATUS TEXT =====
+// ============================================
+// UPDATE STATUS TEXT (FIX: THRESHOLD YANG BENER)
+// ============================================
 function updateStatusText() {
   const temp = state.temperature;
   const lux = state.sensorLight;
 
+  // 🔥 FIX: THRESHOLD SUHU YANG BENER (30°C BUKAN 28°C)
   const tempEl = document.getElementById('tempStatus');
   if (tempEl) {
-    if (temp > 35) { tempEl.textContent = '🔥 Sangat Panas';
-      tempEl.style.color = '#ef4444'; } else if (temp > 28) { tempEl.textContent = '🔥 Panas';
-      tempEl.style.color = '#f59e0b'; } else if (temp > 20) { tempEl.textContent = '🌤️ Normal';
-      tempEl.style.color = '#22c55e'; } else { tempEl.textContent = '❄️ Dingin';
-      tempEl.style.color = '#3b82f6'; }
+    if (temp > 35) {
+      tempEl.textContent = '🔥 Sangat Panas';
+      tempEl.style.color = '#ef4444';
+    } else if (temp > 30) {
+      tempEl.textContent = '🔥 Panas';
+      tempEl.style.color = '#f59e0b';
+    } else if (temp > 20) {
+      tempEl.textContent = '🌤️ Normal';
+      tempEl.style.color = '#22c55e';
+    } else {
+      tempEl.textContent = '❄️ Dingin';
+      tempEl.style.color = '#3b82f6';
+    }
   }
 
   const lightEl = document.getElementById('lightStatus');
   if (lightEl) {
-    if (lux > 4000) { lightEl.textContent = '☀️ Sangat Terang';
-      lightEl.style.color = '#facc15'; } else if (lux > 2000) { lightEl.textContent = '🌤️ Terang';
-      lightEl.style.color = '#f59e0b'; } else if (lux > 500) { lightEl.textContent = '🌥️ Sedang';
-      lightEl.style.color = '#94a3b8'; } else if (lux > 100) { lightEl.textContent = '🌥️ Redup';
-      lightEl.style.color = '#64748b'; } else { lightEl.textContent = '🌙 Gelap';
-      lightEl.style.color = '#3b82f6'; }
+    if (lux > 4000) {
+      lightEl.textContent = '☀️ Sangat Terang';
+      lightEl.style.color = '#facc15';
+    } else if (lux > 2000) {
+      lightEl.textContent = '🌤️ Terang';
+      lightEl.style.color = '#f59e0b';
+    } else if (lux > 500) {
+      lightEl.textContent = '🌥️ Sedang';
+      lightEl.style.color = '#94a3b8';
+    } else if (lux > 100) {
+      lightEl.textContent = '🌥️ Redup';
+      lightEl.style.color = '#64748b';
+    } else {
+      lightEl.textContent = '🌙 Gelap';
+      lightEl.style.color = '#3b82f6';
+    }
   }
 
   const lampEl = document.getElementById('lampStatusText');
@@ -442,21 +464,39 @@ function updateStatusText() {
 
   const statTempStatus = document.getElementById('statTempStatus');
   if (statTempStatus) {
-    if (temp > 35) { statTempStatus.textContent = 'Sangat Panas';
-      statTempStatus.style.color = '#ef4444'; } else if (temp > 28) { statTempStatus.textContent = 'Panas';
-      statTempStatus.style.color = '#f59e0b'; } else if (temp > 20) { statTempStatus.textContent = 'Normal';
-      statTempStatus.style.color = '#22c55e'; } else { statTempStatus.textContent = 'Dingin';
-      statTempStatus.style.color = '#3b82f6'; }
+    if (temp > 35) {
+      statTempStatus.textContent = 'Sangat Panas';
+      statTempStatus.style.color = '#ef4444';
+    } else if (temp > 30) {
+      statTempStatus.textContent = 'Panas';
+      statTempStatus.style.color = '#f59e0b';
+    } else if (temp > 20) {
+      statTempStatus.textContent = 'Normal';
+      statTempStatus.style.color = '#22c55e';
+    } else {
+      statTempStatus.textContent = 'Dingin';
+      statTempStatus.style.color = '#3b82f6';
+    }
   }
 
   const statLightStatus = document.getElementById('statLightStatus');
   if (statLightStatus) {
-    if (lux > 4000) { statLightStatus.textContent = 'Sangat Terang';
-      statLightStatus.style.color = '#facc15'; } else if (lux > 2000) { statLightStatus.textContent = 'Terang';
-      statLightStatus.style.color = '#f59e0b'; } else if (lux > 500) { statLightStatus.textContent = 'Sedang';
-      statLightStatus.style.color = '#94a3b8'; } else if (lux > 100) { statLightStatus.textContent = 'Redup';
-      statLightStatus.style.color = '#64748b'; } else { statLightStatus.textContent = 'Gelap';
-      statLightStatus.style.color = '#3b82f6'; }
+    if (lux > 4000) {
+      statLightStatus.textContent = 'Sangat Terang';
+      statLightStatus.style.color = '#facc15';
+    } else if (lux > 2000) {
+      statLightStatus.textContent = 'Terang';
+      statLightStatus.style.color = '#f59e0b';
+    } else if (lux > 500) {
+      statLightStatus.textContent = 'Sedang';
+      statLightStatus.style.color = '#94a3b8';
+    } else if (lux > 100) {
+      statLightStatus.textContent = 'Redup';
+      statLightStatus.style.color = '#64748b';
+    } else {
+      statLightStatus.textContent = 'Gelap';
+      statLightStatus.style.color = '#3b82f6';
+    }
   }
 }
 
