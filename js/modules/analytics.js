@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FINAL + LUX BULAT)
+// ANALYTICS: Charts, Export, Statistik + Daily History (Indoor)
 // ============================================
 
 import { db } from '../firebase.js';
@@ -360,6 +360,49 @@ export async function loadChartHistoryByDate(dateStr) {
   }
 }
 
+// ============================================
+// LOAD DAILY HISTORY (INDOOR - HANYA GROWLIGHT)
+// ============================================
+export async function loadDailyHistory() {
+  console.log('📊 loadDailyHistory dipanggil');
+  try {
+    const snapshot = await get(ref(db, 'daily_history'));
+    const data = snapshot.val();
+    if (!data) {
+      console.warn('⚠️ Tidak ada daily history.');
+      return;
+    }
+
+    const tbody = document.getElementById('dailyHistoryBody');
+    if (!tbody) return;
+
+    const dates = Object.keys(data).sort().reverse();
+    let html = '';
+
+    dates.forEach(date => {
+      const d = data[date];
+      // 🔥 HANYA GROWLIGHT (tanpa matahari)
+      const growlight = d.growlight || 0;
+      const total = d.total || growlight; // total = growlight
+      const status = total >= 12 ? '✅ Cukup' : '⚠️ Kurang';
+      const color = total >= 12 ? '#22c55e' : '#f59e0b';
+
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:6px 8px; color:var(--muted);">${date}</td>
+        <td style="padding:6px 8px; color:#22c55e;">${growlight.toFixed(1)} jam</td>
+        <td style="padding:6px 8px; font-weight:600;">${total.toFixed(1)} jam</td>
+        <td style="padding:6px 8px; color:${color}; font-weight:600;">${status}</td>
+      </tr>`;
+    });
+
+    tbody.innerHTML = html;
+    console.log('✅ Daily history loaded,', dates.length, 'hari');
+
+  } catch (e) {
+    console.error('❌ Gagal load daily history:', e);
+  }
+}
+
 function parseKeyToTimestamp(key) {
   try {
     const clean = key.replace(/-000Z$/, '');
@@ -410,7 +453,6 @@ function applyChartData(hourlyData) {
     tempLabels.push(labels[i]);
     tempData.push(d.suhu);
     lightLabels.push(labels[i]);
-    // 🔥 LUX LANGSUNG (BUKAN PERSEN)
     sensorData.push(Math.round(d.cahaya));
 
     if (lampStatusChart) {
@@ -442,7 +484,6 @@ function updateStats(data) {
   const lights = data.map(d => d.cahaya).filter(v => v > 0);
   if (lights.length) {
     const avgL = lights.reduce((a, b) => a + b, 0) / lights.length;
-    // 🔥 LUX LANGSUNG
     document.getElementById('avgLight').textContent = Math.round(avgL) + ' lux';
   }
 }
