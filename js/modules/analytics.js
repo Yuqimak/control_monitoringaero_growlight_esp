@@ -1,5 +1,5 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik + Daily History (Indoor)
+// ANALYTICS: Charts, Export, Statistik (INDOOR)
 // ============================================
 
 import { db } from '../firebase.js';
