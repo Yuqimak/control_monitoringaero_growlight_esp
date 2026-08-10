@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - FULL INTEGRATION)
+// MAIN ENTRY – app.js (INDOOR VERSION - FIX PERINTAH)
 // ============================================
 
 import { db } from './firebase.js';
@@ -277,32 +277,19 @@ function initFirebase() {
           }
 
           const luxThreshold = state.luxThreshold || 500;
-          if (d.cahaya > luxThreshold) {
-            state.accumulatedLight = (state.accumulatedLight || 0) + (1 / 3600);
-          }
-
-          const totalNeeded = state.totalLightNeeded || 12;
-          const progress = Math.min(100, Math.round((state.accumulatedLight / totalNeeded) * 100));
+          // Dalam indoor, accumulated = growlight ON, lux tidak berpengaruh
+          // tapi kita tetap simpan untuk monitoring
 
           if (DOM.statLight) DOM.statLight.textContent = state.sensorLight;
           if (DOM.statTemp) DOM.statTemp.textContent = state.temperature.toFixed(1);
           if (DOM.monitorTemp) DOM.monitorTemp.textContent = state.temperature.toFixed(1);
           if (DOM.monitorLight) DOM.monitorLight.textContent = state.sensorLight;
 
-          if (DOM.statLightProgress) DOM.statLightProgress.textContent = progress;
-          if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = progress + '%';
-          if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-          if (DOM.growlightHours) {
-            const grow = Math.max(0, totalNeeded - (state.accumulatedLight || 0));
-            DOM.growlightHours.textContent = grow.toFixed(1);
-          }
-
           if (DOM.dashLastUpdate) {
             const time = new Date().toLocaleTimeString('id-ID');
             DOM.dashLastUpdate.textContent = time;
           }
 
-          updateGauge();
           updateStatusText();
         }
         scheduleRender();
@@ -344,11 +331,13 @@ function initFirebase() {
             state.lastResetDate = today;
           }
 
+          // Update UI Mode
           if (DOM.currentModeDisplay2) {
-            const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+            const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
 
+          // Update Status Lampu
           const statusText = state.lampState ? 'ON' : 'OFF';
           const statusColor = state.lampState ? '#22c55e' : '#ef4444';
           ['dashLampStatus', 'lampStateText', 'statLamp', 'monitorLampStatus'].forEach(id => {
@@ -369,17 +358,12 @@ function initFirebase() {
           const latestTemp = document.getElementById('dashLatestTemp');
           if (latestTemp) latestTemp.textContent = state.temperature.toFixed(1) + '°C';
 
+          // Progress
+          const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+          const display = progress > 100 ? 100 : progress;
+          if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
+          if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display + '%';
           if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-          if (DOM.growlightHours) {
-            const grow = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
-            DOM.growlightHours.textContent = grow.toFixed(1);
-          }
-          if (DOM.lightProgressDisplay || DOM.statLightProgress) {
-            const progress = Math.min(100, Math.round(((state.accumulatedLight || 0) / (state.totalLightNeeded || 12)) * 100));
-            const display = progress > 100 ? 100 : progress;
-            if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display + '%';
-            if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
-          }
 
           updateGauge();
           updateModeButtonUI(state.controlMode);
@@ -497,7 +481,9 @@ function updateStatusText() {
   }
 }
 
-// ===== UNSUBSCRIBE =====
+// ============================================
+// UNSUBSCRIBE
+// ============================================
 function unsubscribeAll() {
   try {
     if (unsubSensor) { unsubSensor();
@@ -511,7 +497,9 @@ function unsubscribeAll() {
   }
 }
 
-// ===== NAVIGASI =====
+// ============================================
+// NAVIGASI
+// ============================================
 function setupNavigation() {
   try {
     const sectionsNeedingLive = ['dashboard', 'monitoring'];
@@ -537,7 +525,9 @@ function setupNavigation() {
   } catch (e) { console.error('❌ Error setup navigasi:', e); }
 }
 
-// ===== UPDATE UI TOMBOL MODE =====
+// ============================================
+// UPDATE UI TOMBOL MODE
+// ============================================
 function updateModeButtonUI(mode) {
   try {
     document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -561,26 +551,54 @@ function updateModeButtonUI(mode) {
 }
 
 // ============================================
-// CONTROLS
+// FUNGSI SET LAMPU STATE (KIRIM KE system/state)
+// ============================================
+function setLampState(state) {
+  console.log('🔄 setLampState:', state);
+  set(ref(db, 'system/state'), state)
+    .then(() => {
+      state.lampState = state;
+      scheduleRender();
+      showToast(`✅ Lampu ${state ? 'ON' : 'OFF'}`, 'success');
+    })
+    .catch(err => {
+      console.error('❌ Gagal:', err);
+      showToast('❌ Gagal: ' + err.message, 'error');
+    });
+}
+
+// ============================================
+// FUNGSI SET MODE (KIRIM KE system/mode)
+// ============================================
+function setModeControl(mode) {
+  console.log('🔄 setModeControl:', mode);
+  set(ref(db, 'system/mode'), mode)
+    .then(() => {
+      state.controlMode = mode;
+      const display = document.getElementById('currentModeDisplay2');
+      if (display) {
+        const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+        display.textContent = labels[mode] || mode;
+      }
+      updateModeButtonUI(mode);
+      showToast(`✅ Mode ${mode} aktif`, 'success');
+    })
+    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+}
+
+// ============================================
+// CONTROLS (EMERGENCY ON/OFF)
 // ============================================
 function initControls() {
   try {
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
-        set(ref(db, 'system/state'), true)
-          .then(() => { state.lampState = true;
-            scheduleRender();
-            showToast('✅ Lampu ON', 'success'); })
-          .catch(err => showToast('❌ Gagal ON: ' + err.message, 'error'));
+        setLampState(true);
       });
     }
     if (DOM.btnOff) {
       DOM.btnOff.addEventListener('click', () => {
-        set(ref(db, 'system/state'), false)
-          .then(() => { state.lampState = false;
-            scheduleRender();
-            showToast('✅ Lampu OFF', 'success'); })
-          .catch(err => showToast('❌ Gagal OFF: ' + err.message, 'error'));
+        setLampState(false);
       });
     }
     if (DOM.resetPlantBtn) {
@@ -682,21 +700,6 @@ function initModeControls() {
     }
     console.log('✅ Init Mode Controls Selesai');
   } catch (e) { console.error('❌ Error init mode controls:', e); }
-}
-
-function setModeControl(mode) {
-  set(ref(db, 'system/mode'), mode)
-    .then(() => {
-      state.controlMode = mode;
-      const display = document.getElementById('currentModeDisplay2');
-      if (display) {
-        const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-        display.textContent = labels[mode] || mode;
-      }
-      updateModeButtonUI(mode);
-      showToast(`✅ Mode ${mode} aktif`, 'success');
-    })
-    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
 }
 
 // ============================================
