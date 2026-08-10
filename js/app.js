@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL FIX - PERINTAH WEB JALAN)
+// MAIN ENTRY – app.js (FINAL FIX - PASTI JALAN)
 // ============================================
 
 import { db } from './firebase.js';
@@ -281,7 +281,6 @@ function initFirebase() {
           if (DOM.monitorTemp) DOM.monitorTemp.textContent = state.temperature.toFixed(1);
           if (DOM.monitorLight) DOM.monitorLight.textContent = state.sensorLight;
 
-          // UPDATE LAST UPDATE (BIAR NOTIF OFFLINE HILANG)
           if (DOM.dashLastUpdate) {
             const time = new Date().toLocaleTimeString('id-ID');
             DOM.dashLastUpdate.textContent = time;
@@ -328,13 +327,11 @@ function initFirebase() {
             state.lastResetDate = today;
           }
 
-          // Update UI Mode
           if (DOM.currentModeDisplay2) {
             const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
           }
 
-          // Update Status Lampu
           const statusText = state.lampState ? 'ON' : 'OFF';
           const statusColor = state.lampState ? '#22c55e' : '#ef4444';
           ['dashLampStatus', 'lampStateText', 'statLamp', 'monitorLampStatus'].forEach(id => {
@@ -355,7 +352,6 @@ function initFirebase() {
           const latestTemp = document.getElementById('dashLatestTemp');
           if (latestTemp) latestTemp.textContent = state.temperature.toFixed(1) + '°C';
 
-          // Progress
           const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
           const display = progress > 100 ? 100 : progress;
           if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
@@ -593,4 +589,12 @@ function initControls() {
   try {
     if (DOM.btnOn) {
       DOM.btnOn.addEventListener('click', () => {
-        setLampState(true
+        setLampState(true);
+      });
+    }
+    if (DOM.btnOff) {
+      DOM.btnOff.addEventListener('click', () => {
+        setLampState(false);
+      });
+    }
+    if (DOM.r
