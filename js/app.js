@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FULLY FIXED - INDOOR)
+// MAIN ENTRY – app.js (FIX PERINTAH WEB)
 // ============================================
 
 import { db } from './firebase.js';
@@ -257,43 +257,51 @@ function initFirebase() {
     console.log('🔌 Memasang Firebase listeners...');
 
     // --- Sensor ---
-unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
-  try {
-    const now = Date.now();
-    if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
-    lastSensorUpdate = now;
+    unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
+      try {
+        const now = Date.now();
+        if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
+        lastSensorUpdate = now;
 
-    const d = snap.val();
-    if (d) {
-      const oldTemp = state.temperature;
-      const oldLight = state.sensorLight;
+        const d = snap.val();
+        if (d) {
+          const oldTemp = state.temperature;
+          const oldLight = state.sensorLight;
 
-      const rawSuhu = d.suhu || 0;
-      state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
-      state.sensorLight = d.cahaya || 0;
+          const rawSuhu = d.suhu || 0;
+          state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
+          state.sensorLight = d.cahaya || 0;
 
-      if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
-        updateCharts(new Date().toLocaleTimeString());
+          if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
+            updateCharts(new Date().toLocaleTimeString());
+          }
+
+          if (DOM.statLight) DOM.statLight.textContent = state.sensorLight;
+          if (DOM.statTemp) DOM.statTemp.textContent = state.temperature.toFixed(1);
+          if (DOM.monitorTemp) DOM.monitorTemp.textContent = state.temperature.toFixed(1);
+          if (DOM.monitorLight) DOM.monitorLight.textContent = state.sensorLight;
+
+          // UPDATE LAST UPDATE (BIAR NOTIF OFFLINE HILANG)
+          if (DOM.dashLastUpdate) {
+            const time = new Date().toLocaleTimeString('id-ID');
+            DOM.dashLastUpdate.textContent = time;
+          }
+
+          updateStatusText();
+        }
+        scheduleRender();
+      } catch (e) {
+        console.error('❌ Error di listener sensor:', e);
       }
-
-      if (DOM.statLight) DOM.statLight.textContent = state.sensorLight;
-      if (DOM.statTemp) DOM.statTemp.textContent = state.temperature.toFixed(1);
-      if (DOM.monitorTemp) DOM.monitorTemp.textContent = state.temperature.toFixed(1);
-      if (DOM.monitorLight) DOM.monitorLight.textContent = state.sensorLight;
-
-      // 🔥 TAMBAHKAN INI (UPDATE LAST UPDATE)
-      if (DOM.dashLastUpdate) {
-        const time = new Date().toLocaleTimeString('id-ID');
-        DOM.dashLastUpdate.textContent = time;
+    }, (err) => {
+      console.error("❌ Sensor error:", err);
+      if (DOM.connStatus) {
+        DOM.connStatus.innerText = "Disconnected";
+        DOM.connStatus.style.color = "#ef4444";
       }
+      isListenerActive = false;
+    });
 
-      updateStatusText();
-    }
-    scheduleRender();
-  } catch (e) {
-    console.error('❌ Error di listener sensor:', e);
-  }
-});
     // --- System ---
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
       try {
@@ -540,7 +548,7 @@ function updateModeButtonUI(mode) {
 }
 
 // ============================================
-// FUNGSI SET LAMPU STATE (FIXED - PAKAI newState)
+// FUNGSI SET LAMPU STATE (FIXED)
 // ============================================
 function setLampState(newState) {
   console.log('🔄 setLampState:', newState);
@@ -557,7 +565,7 @@ function setLampState(newState) {
 }
 
 // ============================================
-// FUNGSI SET MODE
+// FUNGSI SET MODE (FIXED)
 // ============================================
 function setModeControl(mode) {
   console.log('🔄 setModeControl:', mode);
@@ -572,7 +580,10 @@ function setModeControl(mode) {
       updateModeButtonUI(mode);
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
-    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+    .catch(err => {
+      console.error('❌ Gagal:', err);
+      showToast('❌ Gagal: ' + err.message, 'error');
+    });
 }
 
 // ============================================
