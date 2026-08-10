@@ -20,9 +20,7 @@
 
   <div class="dashboard">
 
-    <!-- ======================================
-         SIDEBAR
-    ======================================= -->
+    <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="logo">
         <div class="logo-icon">
@@ -48,14 +46,10 @@
       </div>
     </aside>
 
-    <!-- ======================================
-         MAIN CONTENT
-    ======================================= -->
+    <!-- MAIN CONTENT -->
     <main class="main-content">
 
-      <!-- ======================================
-           TOPBAR
-    ======================================= -->
+      <!-- TOPBAR -->
       <header class="topbar">
         <div style="display:flex; align-items:center; gap:12px; flex:1;">
           <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
@@ -81,13 +75,10 @@
         </div>
       </header>
 
-      <!-- ======================================
-           DASHBOARD
-    ======================================= -->
+      <!-- DASHBOARD -->
       <section class="section page-section" id="dashboard">
         <h2 class="section-title green">🏠 DASHBOARD</h2>
 
-        <!-- OVERHEAT ALERT -->
         <div id="overheatContainer" style="display:none; margin-bottom:16px; background:linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.1)); border:2px solid #ef4444; border-radius:16px; padding:16px 20px; box-shadow:0 0 40px rgba(239,68,68,0.3);">
           <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -104,7 +95,6 @@
           </div>
         </div>
 
-        <!-- QUICK STATS -->
         <div class="quick-stats">
           <div class="quick-stat">
             <div class="quick-stat-icon" style="background:rgba(34,197,94,0.12); color:#22c55e;">🌡️</div>
@@ -136,7 +126,6 @@
           </div>
         </div>
 
-        <!-- GRAFIK CEPAT + STATUS LAMPU -->
         <div class="dashboard-main-grid">
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
@@ -169,7 +158,6 @@
           </div>
         </div>
 
-        <!-- STATUS SISTEM -->
         <div class="dashboard-card" style="margin-top:16px;">
           <div class="card-head">
             <div class="card-icon purple-box">🔄</div>
@@ -199,14 +187,11 @@
         </div>
       </section>
 
-      <!-- ======================================
-           MONITORING (6 KARTU)
-    ======================================= -->
+      <!-- MONITORING -->
       <section class="section page-section hidden" id="monitoring">
         <h2 class="section-title green">🌱 MONITORING</h2>
 
         <div class="monitor-grid">
-          <!-- KARTU 1: SUHU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡</div>
@@ -220,7 +205,6 @@
             <canvas id="tempMiniChart"></canvas>
           </div>
 
-          <!-- KARTU 2: INTENSITAS CAHAYA -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon yellow-box">💡</div>
@@ -233,7 +217,6 @@
             <p class="metric-status" id="lightStatus">🌤️ Sedang</p>
           </div>
 
-          <!-- KARTU 3: STATUS LAMPU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">💡</div>
@@ -249,7 +232,6 @@
 
         <div class="monitor-grid" style="margin-top:20px;">
 
-          <!-- KARTU 4: PEMENUHAN CAHAYA (GAUGE) -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon orange-box">☀️</div>
@@ -271,7 +253,6 @@
             </div>
           </div>
 
-          <!-- KARTU 5: KATEGORI SUHU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡️</div>
@@ -312,7 +293,6 @@
             </div>
           </div>
 
-          <!-- KARTU 6: WAKTU OPERASIONAL LAMPU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">💡</div>
@@ -348,13 +328,10 @@
         </div>
       </section>
 
-      <!-- ======================================
-           ANALYTICS (INDOOR - TANPA MATAHARI)
-    ======================================= -->
+      <!-- ANALYTICS -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
 
-        <!-- FILTER TANGGAL -->
         <div class="analytics-card" style="grid-column: span 1;">
           <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
             <label style="color:var(--muted); font-size:13px;">📅 Pilih Tanggal:</label>
@@ -364,7 +341,6 @@
           </div>
         </div>
 
-        <!-- CHART SUHU -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>🌡️ Suhu Realtime</h3>
@@ -375,7 +351,6 @@
           </div>
         </div>
 
-        <!-- CHART CAHAYA -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>💡 Intensitas Cahaya</h3>
@@ -386,7 +361,6 @@
           </div>
         </div>
 
-        <!-- CHART LAMPU -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>💡 Status Lampu</h3>
@@ -397,7 +371,6 @@
           </div>
         </div>
 
-        <!-- STATISTIK -->
         <div class="analytics-card" style="margin-top:20px;">
           <h3 style="margin-bottom:16px;">📊 Statistik Hari Ini</h3>
           <div id="statsContainer" style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px;">
@@ -420,7 +393,7 @@
           </div>
         </div>
 
-        <!-- DAILY HISTORY (INDOOR - HANYA GROWLIGHT) -->
+        <!-- DAILY HISTORY (INDOOR) -->
         <div class="analytics-card" style="grid-column: span 1;">
           <h3>📊 Durasi Growlight per Hari</h3>
           <div style="margin-top:12px; overflow-x:auto;">
@@ -440,13 +413,11 @@
           </div>
         </div>
 
-        <!-- TREN SUHU -->
         <div class="analytics-card">
           <h3>📈 Tren Suhu 7 Hari Terakhir</h3>
           <div id="trendContainer" style="margin-top:12px; display:grid; grid-template-columns: repeat(7,1fr); gap:8px;"></div>
         </div>
 
-        <!-- HEATMAP -->
         <div class="analytics-card">
           <h3>🌡️ Heatmap Suhu (7 Hari x 6 Jam)</h3>
           <div id="heatmapContainer" style="margin-top:12px; overflow-x:auto;">
@@ -454,13 +425,11 @@
           </div>
         </div>
 
-        <!-- HISTOGRAM -->
         <div class="analytics-card">
           <h3>📊 Distribusi Suhu (Histogram)</h3>
           <canvas id="histogramChart" style="max-height:200px;"></canvas>
         </div>
 
-        <!-- EXPORT -->
         <div class="analytics-card">
           <div class="analytics-head">
             <h3>📥 Export Data</h3>
@@ -478,9 +447,7 @@
         </div>
       </section>
 
-      <!-- ======================================
-           CONTROL
-    ======================================= -->
+      <!-- CONTROL -->
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
         <div class="control-grid" id="controlSection">
@@ -500,7 +467,7 @@
               Mode aktif: <span id="currentModeDisplay2" style="color:var(--green); font-weight:600;">Otomatis</span>
             </p>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-              <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis (Lux)</button>
+              <button id="modeAutoBtn" class="mode-btn big-btn on" style="flex:1; min-width:100px;">🤖 Otomatis</button>
               <button id="modeJadwalBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">⏰ Jadwal</button>
               <button id="modeManualBtn" class="mode-btn big-btn" style="flex:1; min-width:100px; background:rgba(255,255,255,0.05);">👋 Manual</button>
             </div>
@@ -575,9 +542,7 @@
         </div>
       </section>
 
-      <!-- ======================================
-           ADMIN PANEL
-    ======================================= -->
+      <!-- ADMIN -->
       <section class="section page-section hidden" id="admin">
         <h2 class="section-title purple">👑 ADMIN PANEL</h2>
         <div class="admin-grid">
