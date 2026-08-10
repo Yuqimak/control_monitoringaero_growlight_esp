@@ -1,19 +1,16 @@
 // ============================================
-// CORE: State, DOM, Utils
+// CORE: State, DOM, Utils (INDOOR VERSION)
 // ============================================
 
 export const state = {
   temperature: 0,
-  sensorLight: 0, // LUX (BUKAN PERSEN!)
+  sensorLight: 0,
   lampState: false,
   mode: 'manual',
   plantStartDate: null,
   alert: '',
   unlocked: false,
   controlMode: 'otomatis',
-  totalJam: 14,
-  cycleOn: 15,
-  cycleOff: 15,
   luxThreshold: 500,
   forceDayOn: false,
   jadwalStart: 6,
@@ -36,32 +33,40 @@ export const DOM = {};
 
 export function initDOM() {
   const ids = [
+    // Topbar
     'connStatus', 'userName', 'dateText', 'clockText', 'menuToggle',
+    // Quick Stats
     'statTemp', 'statTempStatus', 'statLight', 'statLightStatus',
-    'statLamp', 'statLampIcon', 'statDay', 'statDayLabel', 'statModeLabel',
+    'statLamp', 'statLampIcon',
     'statLightProgress',
+    // Dashboard
     'dashLampStatus', 'dashLatestTemp',
-    'modeIcon', 'modeName', 'modeDuration', 'dayCounter', 'timelineMessage',
-    'dashConnStatus', 'dashDataCount', 'dashLastUpdate', 'dashMaxTemp',
+    'dashConnStatus', 'dashDataCount', 'dashLastUpdate',
     'dashTempChart', 'chartStatus',
+    // Overheat
     'overheatContainer', 'overheatMessage',
+    // Monitoring
     'monitorTemp', 'monitorLight', 'monitorLampStatus',
     'tempStatus', 'lightStatus', 'lampStatusText',
+    // Gauge
+    'gaugeChart', 'gaugeProgress', 'gaugeSunlight', 'gaugeGrowlight',
+    // Control
     'btnOn', 'btnOff', 'lampStateText',
-    'growthMode', 'applyModeBtn',
-    'currentModeDisplay', 'modeDurationDisplay',
-    'resetPlantBtn', 'controlSection',
-    'modeAutoBtn', 'modeJadwalBtn', 'modeManualBtn',
     'currentModeDisplay2',
-    'totalJam', 'saveTotalJamBtn',
     'luxThreshold', 'saveThresholdBtn', 'luxThresholdDisplay',
     'forceDayOn',
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
     'totalLightNeeded', 'saveLightNeededBtn',
-    'sunlightHours', 'growlightHours', 'lightProgressDisplay',
+    'sunlightHours', 'lightProgressDisplay',
+    // Admin
     'adminMenu', 'userList', 'addUserForm', 'addUserMsg',
     'newUsername', 'newPassword', 'newNama', 'newRole',
-    'exportStatus', 'exportBtn', 'exportPdfBtn', 'exportPeriod'
+    // Export
+    'exportStatus', 'exportBtn', 'exportPdfBtn', 'exportPeriod',
+    // Filter tanggal
+    'analyticsDate', 'loadHistoryDateBtn', 'resetHistoryDateBtn',
+    // Daily history
+    'dailyHistoryBody'
   ];
   ids.forEach(id => { DOM[id] = $(id); });
 }
