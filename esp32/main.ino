@@ -1,5 +1,5 @@
 // ============================================
-// ESP32 - SIGMA GROWLIGHT (INDOOR VERSION)
+// ESP32 - SIGMA GROWLIGHT (INDOOR - TANPA KIRIM MODE)
 // ============================================
 
 #include <WiFi.h>
@@ -9,13 +9,16 @@
 #include <RTClib.h>
 #include <BH1750.h>
 #include <LiquidCrystal_I2C.h>
-#include <ArduinoJson.h>
 
 // ============================================
-// KONFIGURASI WIFI & FIREBASE
+// KONFIGURASI WIFI
 // ============================================
 const char* ssid = "KRIUK";
 const char* password = "12345!@#$&";
+
+// ============================================
+// KONFIGURASI FIREBASE
+// ============================================
 #define FIREBASE_HOST "https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app"
 
 // ============================================
@@ -29,10 +32,9 @@ const char* password = "12345!@#$&";
 // KONSTANTA
 // ============================================
 #define OVERHEAT_THRESHOLD 34.0
-#define SENSOR_INTERVAL 5000        // 5 DETIK (suhu, lux, updatedAt)
-#define STATE_INTERVAL 30000        // 30 DETIK (state, accumulated)
-#define MODE_INTERVAL 60000         // 1 MENIT (mode)
-#define HISTORY_INTERVAL 300000     // 5 MENIT (sensor_history)
+#define SENSOR_INTERVAL 5000        // 5 DETIK
+#define STATE_INTERVAL 30000        // 30 DETIK
+#define HISTORY_INTERVAL 300000     // 5 MENIT
 #define LCD_INTERVAL 10000          // 10 DETIK
 
 // ============================================
@@ -49,12 +51,12 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 float suhu = 0, hum = 0, lux = 0;
 String statusRelay = "OFF";
 bool lampState = false;
-float accumulatedLight = 0.0;        // Total jam growlight ON (akumulasi)
-float totalLightNeeded = 12.0;       // Kebutuhan 12 jam
+float accumulatedLight = 0.0;
+float totalLightNeeded = 12.0;
 String lastResetDate = "";
 String controlMode = "otomatis";
 bool manualState = false;
-int luxThreshold = 400;              // Tidak dipakai untuk kontrol, tapi tetap dibaca
+int luxThreshold = 400;
 bool forceDayOn = false;
 int jadwalStart = 6;
 int jadwalEnd = 18;
@@ -62,7 +64,6 @@ String todayDate = "";
 
 unsigned long lastSensorSend = 0;
 unsigned long lastStateSend = 0;
-unsigned long lastModeSend = 0;
 unsigned long lastHistorySend = 0;
 unsigned long lastLCDUpdate = 0;
 bool lastLampState = false;
@@ -88,7 +89,7 @@ void bacaKonfigurasi() {
   HTTPClient http;
   http.setTimeout(3000);
 
-  // 1. BACA MODE DARI system/mode
+  // 1. BACA MODE DARI system/mode (CUMA BACA, GAK NULIS!)
   String url = String(FIREBASE_HOST) + "/system/mode.json";
   http.begin(url);
   int code = http.GET();
@@ -106,7 +107,7 @@ void bacaKonfigurasi() {
   }
   http.end();
 
-  // 2. BACA STATE (manual)
+  // 2. BACA STATE (MANUAL)
   url = String(FIREBASE_HOST) + "/system/state.json";
   http.begin(url);
   code = http.GET();
@@ -115,11 +116,11 @@ void bacaKonfigurasi() {
     res.trim();
     manualState = (res == "true");
     Serial.print("[✓] State: ");
-    Serial.println(manualState ? "true" : "false");
+    Serial.println(manualState ? "ON" : "OFF");
   }
   http.end();
 
-  // 3. BACA total_light_needed
+  // 3. BACA TOTAL LIGHT NEEDED
   url = String(FIREBASE_HOST) + "/system/total_light_needed.json";
   http.begin(url);
   code = http.GET();
@@ -133,7 +134,7 @@ void bacaKonfigurasi() {
   }
   http.end();
 
-  // 4. BACA jadwal_start
+  // 4. BACA JADWAL
   url = String(FIREBASE_HOST) + "/system/jadwal_start.json";
   http.begin(url);
   code = http.GET();
@@ -147,7 +148,6 @@ void bacaKonfigurasi() {
   }
   http.end();
 
-  // 5. BACA jadwal_end
   url = String(FIREBASE_HOST) + "/system/jadwal_end.json";
   http.begin(url);
   code = http.GET();
@@ -161,7 +161,7 @@ void bacaKonfigurasi() {
   }
   http.end();
 
-  // 6. BACA force_day_on
+  // 5. BACA FORCE DAY ON
   url = String(FIREBASE_HOST) + "/system/force_day_on.json";
   http.begin(url);
   code = http.GET();
@@ -172,7 +172,7 @@ void bacaKonfigurasi() {
   }
   http.end();
 
-  // 7. BACA last_reset_date (sinkron)
+  // 6. BACA LAST RESET DATE
   url = String(FIREBASE_HOST) + "/system/last_reset_date.json";
   http.begin(url);
   code = http.GET();
@@ -212,7 +212,6 @@ void kirimSensor() {
 void kirimState() {
   HTTPClient http;
 
-  // state
   String statePayload = String(lampState ? "true" : "false");
   String url = String(FIREBASE_HOST) + "/system/state.json";
   http.begin(url);
@@ -221,25 +220,11 @@ void kirimState() {
   http.PUT(statePayload);
   http.end();
 
-  // accumulated_light (total jam growlight ON)
   url = String(FIREBASE_HOST) + "/system/accumulated_light.json";
   http.begin(url);
   http.setTimeout(2000);
   http.addHeader("Content-Type", "application/json");
   http.PUT(String(accumulatedLight, 6));
-  http.end();
-}
-
-// ============================================
-// KIRIM MODE (1 MENIT)
-// ============================================
-void kirimMode() {
-  HTTPClient http;
-  String url = String(FIREBASE_HOST) + "/system/mode.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PUT("\"" + controlMode + "\"");
   http.end();
 }
 
@@ -289,7 +274,6 @@ void kirimDailyHistory() {
   DateTime now = rtc.now();
   String today = getDateString(now);
 
-  // Hanya growlight (tidak ada matahari)
   String payload = "{";
   payload += "\"growlight\":" + String(accumulatedLight) + ",";
   payload += "\"total\":" + String(accumulatedLight);
@@ -312,101 +296,15 @@ bool cekGantiHari() {
   DateTime now = rtc.now();
   String today = getDateString(now);
   if (todayDate != today) {
-    // Kirim history kemarin
     if (todayDate != "") {
       kirimDailyHistory();
     }
-    // Reset accumulated
     accumulatedLight = 0.0;
     todayDate = today;
     Serial.println("[✓] Reset harian: " + today);
     return true;
   }
   return false;
-}
-
-// ============================================
-// KONTROL LAMPU (INDOOR - TANPA MATAHARI)
-// ============================================
-void kontrolLampu() {
-  // Baca sensor
-  suhu = dht.readTemperature();
-  hum = dht.readHumidity();
-  lux = lightMeter.readLightLevel();
-  if (isnan(suhu)) suhu = 0;
-  if (isnan(hum)) hum = 0;
-  if (isnan(lux)) lux = 0;
-
-  // OVERHEAT (prioritas tertinggi)
-  if (suhu > OVERHEAT_THRESHOLD) {
-    digitalWrite(RELAY_PIN, HIGH);
-    statusRelay = "OFF";
-    lampState = false;
-    kirimState();
-    return;
-  }
-
-  DateTime now = rtc.now();
-  int jam = now.hour();
-
-  // 🔥 CEK WAKTU ISTIRAHAT (18:00 - 06:00)
-  bool isRestTime = (jam >= 18 || jam < 6);
-
-  // 🔥 LOGIKA KONTROL SESUAI MODE
-  bool shouldOn = false;
-
-  if (controlMode == "manual") {
-    // Manual: ikut state dari web (system/state)
-    shouldOn = manualState;
-  } else if (controlMode == "jadwal") {
-    // Jadwal: ikut jadwal (06:00-18:00)
-    bool isScheduled = false;
-    if (jadwalStart < jadwalEnd) {
-      isScheduled = (jam >= jadwalStart && jam < jadwalEnd);
-    } else {
-      isScheduled = (jam >= jadwalStart || jam < jadwalEnd);
-    }
-    if (forceDayOn) {
-      shouldOn = isScheduled;
-    } else {
-      shouldOn = isScheduled && (accumulatedLight < totalLightNeeded);
-    }
-  } else {
-    // OTOMATIS (INDOOR): nyala kalo accumulated < 12 DAN bukan waktu istirahat
-    if (isRestTime) {
-      shouldOn = false;
-    } else {
-      if (forceDayOn) {
-        shouldOn = true;
-      } else {
-        shouldOn = (accumulatedLight < totalLightNeeded);
-      }
-    }
-  }
-
-  // 🔥 EKSEKUSI RELAY
-  if (shouldOn) {
-    digitalWrite(RELAY_PIN, LOW);
-    statusRelay = "ON";
-    lampState = true;
-    // Tambah accumulated selama lampu ON (di luar istirahat)
-    if (!isRestTime) {
-      accumulatedLight += (SENSOR_INTERVAL / 3600000.0);
-      if (accumulatedLight > totalLightNeeded) {
-        accumulatedLight = totalLightNeeded;
-      }
-    }
-  } else {
-    digitalWrite(RELAY_PIN, HIGH);
-    statusRelay = "OFF";
-    lampState = false;
-  }
-
-  // Kirim history jika status lampu berubah
-  if (lampState != lastLampState) {
-    kirimHistoryLampu(lampState);
-    lastLampState = lampState;
-  }
 }
 
 // ============================================
@@ -426,7 +324,79 @@ void kirimHistoryLampu(bool state) {
 }
 
 // ============================================
-// UPDATE LCD
+// KONTROL LAMPU (INDOOR - TANPA MATAHARI)
+// ============================================
+void kontrolLampu() {
+  // Baca sensor
+  suhu = dht.readTemperature();
+  hum = dht.readHumidity();
+  lux = lightMeter.readLightLevel();
+  if (isnan(suhu)) suhu = 0;
+  if (isnan(hum)) hum = 0;
+  if (isnan(lux)) lux = 0;
+
+  // OVERHEAT (PRIORITAS TERTINGGI)
+  if (suhu > OVERHEAT_THRESHOLD) {
+    digitalWrite(RELAY_PIN, HIGH);
+    statusRelay = "OFF";
+    lampState = false;
+    kirimState();
+    return;
+  }
+
+  DateTime now = rtc.now();
+  int jam = now.hour();
+
+  // CEK WAKTU ISTIRAHAT (18:00 - 06:00)
+  bool isRestTime = (jam >= 18 || jam < 6);
+
+  // LOGIKA KONTROL SESUAI MODE (mode dari Firebase)
+  if (controlMode == "manual") {
+    // MANUAL: ikut system/state dari web
+    lampState = manualState;
+  } else if (controlMode == "jadwal") {
+    // JADWAL: ikut jam
+    bool isScheduled = false;
+    if (jadwalStart < jadwalEnd) {
+      isScheduled = (jam >= jadwalStart && jam < jadwalEnd);
+    } else {
+      isScheduled = (jam >= jadwalStart || jam < jadwalEnd);
+    }
+    lampState = isScheduled;
+  } else {
+    // OTOMATIS (INDOOR): nyala kalo accumulated < 12 DAN bukan waktu istirahat
+    if (isRestTime) {
+      lampState = false;
+    } else {
+      if (forceDayOn) {
+        lampState = true;
+      } else {
+        // Tambah accumulated SELAMA lampu ON
+        if (lampState == true) {
+          accumulatedLight += (SENSOR_INTERVAL / 3600000.0);
+          if (accumulatedLight > totalLightNeeded) {
+            accumulatedLight = totalLightNeeded;
+          }
+        }
+        // Tentukan status lampu berikutnya
+        lampState = (accumulatedLight < totalLightNeeded);
+      }
+    }
+  }
+
+  // EKSEKUSI RELAY
+  digitalWrite(RELAY_PIN, lampState ? LOW : HIGH);
+  statusRelay = lampState ? "ON" : "OFF";
+
+  // Kirim history jika status lampu berubah
+  if (lampState != lastLampState) {
+    kirimHistoryLampu(lampState);
+    lastLampState = lampState;
+  }
+}
+
+// ============================================
+// UPDATE LCD (CENTER + 10 DETIK)
 // ============================================
 void updateLCD() {
   DateTime now = rtc.now();
@@ -478,6 +448,7 @@ void setup() {
   Serial.begin(115200);
   Wire.begin(21, 22);
 
+  // LCD
   lcd.init();
   lcd.backlight();
   lcd.clear();
@@ -488,10 +459,12 @@ void setup() {
   delay(2000);
   lcd.clear();
 
+  // SENSOR
   dht.begin();
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH);
 
+  // RTC
   if (!rtc.begin()) {
     Serial.println("[✗] RTC ERROR");
     lcd.clear();
@@ -504,10 +477,12 @@ void setup() {
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
 
+  // BH1750
   if (!lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
     Serial.println("[✗] BH1750 ERROR");
   }
 
+  // WIFI
   WiFi.begin(ssid, password);
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -535,6 +510,7 @@ void setup() {
   delay(2000);
   lcd.clear();
 
+  // BACA KONFIGURASI AWAL
   bacaKonfigurasi();
 
   Serial.println("[✓] ESP32 SIGMA siap (INDOOR)");
@@ -572,19 +548,13 @@ void loop() {
     kirimState();
   }
 
-  // 1 MENIT: KIRIM MODE
-  if (now - lastModeSend > MODE_INTERVAL) {
-    lastModeSend = now;
-    kirimMode();
-  }
-
   // 5 MENIT: KIRIM HISTORY
   if (now - lastHistorySend > HISTORY_INTERVAL) {
     lastHistorySend = now;
     kirimHistory();
   }
 
-  // CEK GANTI HARI (reset accumulated)
+  // CEK GANTI HARI (RESET ACCUMULATED)
   cekGantiHari();
 
   // 10 DETIK: LCD
