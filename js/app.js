@@ -597,4 +597,202 @@ function initControls() {
         setLampState(false);
       });
     }
-    if (DOM.r
+    if (DOM.resetPlantBtn) {
+      DOM.resetPlantBtn.addEventListener('click', async () => {
+        if (!confirm('🔄 Reset semua data tanam?')) return;
+        try {
+          await set(ref(db, 'system/plant_start_date'), null);
+          state.plantStartDate = null;
+          scheduleRender();
+          showToast('✅ Tanaman di-reset!', 'success');
+        } catch (e) { showToast('❌ Gagal reset: ' + e.message, 'error'); }
+      });
+    }
+  } catch (e) { console.error('❌ Error init controls:', e); }
+}
+
+// ============================================
+// MODE KONTROL
+// ============================================
+function initModeControls() {
+  try {
+    console.log('🔄 Init Mode Controls...');
+    const modeAutoBtn = document.getElementById('modeAutoBtn');
+    if (modeAutoBtn) {
+      modeAutoBtn.addEventListener('click', () => {
+        setModeControl('otomatis');
+      });
+    }
+    const modeJadwalBtn = document.getElementById('modeJadwalBtn');
+    if (modeJadwalBtn) {
+      modeJadwalBtn.addEventListener('click', () => {
+        setModeControl('jadwal');
+      });
+    }
+    const modeManualBtn = document.getElementById('modeManualBtn');
+    if (modeManualBtn) {
+      modeManualBtn.addEventListener('click', () => {
+        setModeControl('manual');
+      });
+    }
+
+    const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
+    const totalLightNeeded = document.getElementById('totalLightNeeded');
+    if (saveLightNeededBtn && totalLightNeeded) {
+      saveLightNeededBtn.addEventListener('click', function() {
+        const val = parseInt(totalLightNeeded.value);
+        if (val < 6 || val > 18) { showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error'); return; }
+        set(ref(db, 'system/total_light_needed'), val)
+          .then(() => { state.totalLightNeeded = val;
+            showToast('✅ Kebutuhan cahaya disimpan!', 'success'); })
+          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      });
+    }
+
+    const saveThresholdBtn = document.getElementById('saveThresholdBtn');
+    const luxThreshold = document.getElementById('luxThreshold');
+    if (saveThresholdBtn && luxThreshold) {
+      saveThresholdBtn.addEventListener('click', function() {
+        const val = parseInt(luxThreshold.value);
+        if (val < 0 || val > 5000) { showToast('❌ Threshold harus 0-5000 lux', 'error'); return; }
+        set(ref(db, 'system/lux_threshold'), val)
+          .then(() => { state.luxThreshold = val;
+            showToast('✅ Threshold lux disimpan!', 'success'); })
+          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      });
+      luxThreshold.addEventListener('input', function(e) {
+        const display = document.getElementById('luxThresholdDisplay');
+        if (display) display.textContent = e.target.value + ' lux';
+      });
+    }
+
+    const saveJadwalBtn = document.getElementById('saveJadwalBtn');
+    const jadwalStart = document.getElementById('jadwalStart');
+    const jadwalEnd = document.getElementById('jadwalEnd');
+    if (saveJadwalBtn && jadwalStart && jadwalEnd) {
+      saveJadwalBtn.addEventListener('click', function() {
+        const start = parseInt(jadwalStart.value);
+        const end = parseInt(jadwalEnd.value);
+        if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
+          showToast('❌ Jam harus 0-23', 'error');
+          return;
+        }
+        set(ref(db, 'system/jadwal_start'), start);
+        set(ref(db, 'system/jadwal_end'), end)
+          .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
+          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      });
+    }
+
+    const forceDayOn = document.getElementById('forceDayOn');
+    if (forceDayOn) {
+      forceDayOn.addEventListener('change', function() {
+        const val = this.checked;
+        set(ref(db, 'system/force_day_on'), val)
+          .then(() => { state.forceDayOn = val;
+            showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info'); })
+          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
+      });
+    }
+    console.log('✅ Init Mode Controls Selesai');
+  } catch (e) { console.error('❌ Error init mode controls:', e); }
+}
+
+// ============================================
+// EXPAND CHART
+// ============================================
+function initExpandChart() {
+  window.toggleExpand = function(wrapperId) {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+    const isExpanded = wrapper.classList.contains('expanded');
+    document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
+      if (el.id !== wrapperId) el.classList.remove('expanded');
+    });
+    if (isExpanded) {
+      wrapper.classList.remove('expanded');
+    } else {
+      wrapper.classList.add('expanded');
+      setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
+    }
+    const canvas = wrapper.querySelector('canvas');
+    if (canvas) {
+      const chart = Chart.getChart(canvas);
+      if (chart) chart.resize();
+    }
+  };
+}
+
+// ============================================
+// CLOCK
+// ============================================
+function updateClock() {
+  try {
+    const now = new Date();
+    const dateEl = document.getElementById('dateText');
+    const clockEl = document.getElementById('clockText');
+    if (dateEl) {
+      dateEl.innerText = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    }
+    if (clockEl) {
+      clockEl.innerText = now.toLocaleTimeString('id-ID');
+    }
+  } catch (e) { console.error('❌ Error update clock:', e); }
+}
+
+// ============================================
+// SIDEBAR
+// ============================================
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.querySelector('.sidebar');
+const overlay = document.querySelector('.mobile-overlay') || (() => {
+  const el = document.createElement('div');
+  el.className = 'mobile-overlay';
+  document.body.appendChild(el);
+  return el;
+})();
+
+function closeMenu() {
+  try {
+    sidebar.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  } catch (e) { console.error('❌ Error close menu:', e); }
+}
+
+if (menuToggle) {
+  menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+  });
+  menuToggle.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    sidebar.classList.toggle('active');
+    overlay.classList.toggle('active');
+  }, { passive: false });
+}
+
+if (overlay) {
+  overlay.addEventListener('click', closeMenu);
+  overlay.addEventListener('touchstart', (e) => { e.preventDefault();
+    closeMenu(); }, { passive: false });
+}
+
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) closeMenu();
+});
+
+// ============================================
+// DEFAULT SECTION
+// ============================================
+const defaultSection = document.getElementById('dashboard');
+if (defaultSection) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+  defaultSection.classList.remove('hidden');
+}
