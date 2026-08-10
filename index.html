@@ -20,6 +20,9 @@
 
   <div class="dashboard">
 
+    <!-- ======================================
+         SIDEBAR
+    ======================================= -->
     <aside class="sidebar">
       <div class="logo">
         <div class="logo-icon">
@@ -45,8 +48,14 @@
       </div>
     </aside>
 
+    <!-- ======================================
+         MAIN CONTENT
+    ======================================= -->
     <main class="main-content">
 
+      <!-- ======================================
+           TOPBAR
+    ======================================= -->
       <header class="topbar">
         <div style="display:flex; align-items:center; gap:12px; flex:1;">
           <button id="menuToggle" class="menu-toggle" aria-label="Toggle Menu">☰</button>
@@ -72,10 +81,13 @@
         </div>
       </header>
 
-      <!-- DASHBOARD -->
+      <!-- ======================================
+           DASHBOARD
+    ======================================= -->
       <section class="section page-section" id="dashboard">
         <h2 class="section-title green">🏠 DASHBOARD</h2>
 
+        <!-- OVERHEAT ALERT -->
         <div id="overheatContainer" style="display:none; margin-bottom:16px; background:linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.1)); border:2px solid #ef4444; border-radius:16px; padding:16px 20px; box-shadow:0 0 40px rgba(239,68,68,0.3);">
           <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
             <div style="display:flex; align-items:center; gap:10px;">
@@ -92,6 +104,7 @@
           </div>
         </div>
 
+        <!-- QUICK STATS -->
         <div class="quick-stats">
           <div class="quick-stat">
             <div class="quick-stat-icon" style="background:rgba(34,197,94,0.12); color:#22c55e;">🌡️</div>
@@ -123,6 +136,7 @@
           </div>
         </div>
 
+        <!-- GRAFIK CEPAT + STATUS LAMPU -->
         <div class="dashboard-main-grid">
           <div class="dashboard-card dashboard-chart-card">
             <div class="card-head">
@@ -155,6 +169,7 @@
           </div>
         </div>
 
+        <!-- STATUS SISTEM -->
         <div class="dashboard-card" style="margin-top:16px;">
           <div class="card-head">
             <div class="card-icon purple-box">🔄</div>
@@ -184,11 +199,14 @@
         </div>
       </section>
 
-      <!-- MONITORING -->
+      <!-- ======================================
+           MONITORING (6 KARTU)
+    ======================================= -->
       <section class="section page-section hidden" id="monitoring">
         <h2 class="section-title green">🌱 MONITORING</h2>
 
         <div class="monitor-grid">
+          <!-- KARTU 1: SUHU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡</div>
@@ -202,6 +220,7 @@
             <canvas id="tempMiniChart"></canvas>
           </div>
 
+          <!-- KARTU 2: INTENSITAS CAHAYA -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon yellow-box">💡</div>
@@ -214,6 +233,7 @@
             <p class="metric-status" id="lightStatus">🌤️ Sedang</p>
           </div>
 
+          <!-- KARTU 3: STATUS LAMPU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">💡</div>
@@ -229,6 +249,7 @@
 
         <div class="monitor-grid" style="margin-top:20px;">
 
+          <!-- KARTU 4: PEMENUHAN CAHAYA (GAUGE) -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon orange-box">☀️</div>
@@ -245,11 +266,12 @@
               </div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:12px; color:var(--muted);">
-              <span>☀️ <span id="gaugeSunlight">0</span> jam</span>
-              <span>💡 <span id="gaugeGrowlight">12</span> jam</span>
+              <span>💡 Growlight: <span id="gaugeSunlight" style="color:var(--green); font-weight:600;">0</span> jam</span>
+              <span>📊 Total: <span id="gaugeGrowlight" style="color:var(--blue); font-weight:600;">0</span> jam</span>
             </div>
           </div>
 
+          <!-- KARTU 5: KATEGORI SUHU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon green-box">🌡️</div>
@@ -290,6 +312,7 @@
             </div>
           </div>
 
+          <!-- KARTU 6: WAKTU OPERASIONAL LAMPU -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">💡</div>
@@ -325,10 +348,13 @@
         </div>
       </section>
 
-      <!-- ANALYTICS -->
+      <!-- ======================================
+           ANALYTICS (INDOOR - TANPA MATAHARI)
+    ======================================= -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
 
+        <!-- FILTER TANGGAL -->
         <div class="analytics-card" style="grid-column: span 1;">
           <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
             <label style="color:var(--muted); font-size:13px;">📅 Pilih Tanggal:</label>
@@ -338,6 +364,7 @@
           </div>
         </div>
 
+        <!-- CHART SUHU -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>🌡️ Suhu Realtime</h3>
@@ -348,6 +375,7 @@
           </div>
         </div>
 
+        <!-- CHART CAHAYA -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>💡 Intensitas Cahaya</h3>
@@ -358,6 +386,7 @@
           </div>
         </div>
 
+        <!-- CHART LAMPU -->
         <div class="analytics-card" style="margin-bottom:20px;">
           <div class="analytics-head">
             <h3>💡 Status Lampu</h3>
@@ -368,6 +397,7 @@
           </div>
         </div>
 
+        <!-- STATISTIK -->
         <div class="analytics-card" style="margin-top:20px;">
           <h3 style="margin-bottom:16px;">📊 Statistik Hari Ini</h3>
           <div id="statsContainer" style="display:grid; grid-template-columns: repeat(4,1fr); gap:12px;">
@@ -390,7 +420,7 @@
           </div>
         </div>
 
-        <!-- DAILY HISTORY (BARU) -->
+        <!-- DAILY HISTORY (INDOOR - HANYA GROWLIGHT) -->
         <div class="analytics-card" style="grid-column: span 1;">
           <h3>📊 Durasi Growlight per Hari</h3>
           <div style="margin-top:12px; overflow-x:auto;">
@@ -398,24 +428,25 @@
               <thead>
                 <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
                   <th style="padding:6px 8px; text-align:left;">Tanggal</th>
-                  <th style="padding:6px 8px; text-align:left;">☀️ Matahari</th>
                   <th style="padding:6px 8px; text-align:left;">💡 Growlight</th>
                   <th style="padding:6px 8px; text-align:left;">📊 Total</th>
                   <th style="padding:6px 8px; text-align:left;">Status</th>
                 </tr>
               </thead>
               <tbody id="dailyHistoryBody">
-                <tr><td colspan="5" style="text-align:center; color:var(--muted); padding:20px;">Belum ada data</td></tr>
+                <tr><td colspan="4" style="text-align:center; color:var(--muted); padding:20px;">Belum ada data</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
+        <!-- TREN SUHU -->
         <div class="analytics-card">
           <h3>📈 Tren Suhu 7 Hari Terakhir</h3>
           <div id="trendContainer" style="margin-top:12px; display:grid; grid-template-columns: repeat(7,1fr); gap:8px;"></div>
         </div>
 
+        <!-- HEATMAP -->
         <div class="analytics-card">
           <h3>🌡️ Heatmap Suhu (7 Hari x 6 Jam)</h3>
           <div id="heatmapContainer" style="margin-top:12px; overflow-x:auto;">
@@ -423,11 +454,13 @@
           </div>
         </div>
 
+        <!-- HISTOGRAM -->
         <div class="analytics-card">
           <h3>📊 Distribusi Suhu (Histogram)</h3>
           <canvas id="histogramChart" style="max-height:200px;"></canvas>
         </div>
 
+        <!-- EXPORT -->
         <div class="analytics-card">
           <div class="analytics-head">
             <h3>📥 Export Data</h3>
@@ -445,7 +478,9 @@
         </div>
       </section>
 
-      <!-- CONTROL -->
+      <!-- ======================================
+           CONTROL
+    ======================================= -->
       <section class="section page-section hidden" id="control">
         <h2 class="section-title orange">🎛 CONTROL</h2>
         <div class="control-grid" id="controlSection">
@@ -482,12 +517,11 @@
               <button id="saveLightNeededBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">Simpan</button>
             </div>
             <div style="margin-top:10px; display:flex; gap:20px; flex-wrap:wrap; font-size:13px; color:var(--muted);">
-              <span>☀️ Cahaya Matahari: <span id="sunlightHours" style="color:var(--orange); font-weight:600;">0</span> jam</span>
-              <span>💡 Growlight: <span id="growlightHours" style="color:var(--green); font-weight:600;">0</span> jam</span>
+              <span>💡 Growlight: <span id="sunlightHours" style="color:var(--green); font-weight:600;">0</span> jam</span>
               <span>📊 Progress: <span id="lightProgressDisplay" style="color:var(--blue); font-weight:600;">0%</span></span>
             </div>
             <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
-              💡 Growlight akan nyala otomatis untuk memenuhi sisa kebutuhan cahaya
+              💡 Growlight akan nyala otomatis untuk memenuhi kebutuhan 12 jam cahaya
             </p>
           </div>
 
@@ -541,7 +575,9 @@
         </div>
       </section>
 
-      <!-- ADMIN -->
+      <!-- ======================================
+           ADMIN PANEL
+    ======================================= -->
       <section class="section page-section hidden" id="admin">
         <h2 class="section-title purple">👑 ADMIN PANEL</h2>
         <div class="admin-grid">
