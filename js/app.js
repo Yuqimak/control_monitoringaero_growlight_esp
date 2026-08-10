@@ -1,10 +1,10 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL - SENSOR UPDATES LASTUPDATE)
+// MAIN ENTRY – app.js (FINAL - FULL INTEGRATION)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory, loadChartHistoryByDate } from './modules/analytics.js';
+import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory, loadChartHistoryByDate, loadDailyHistory } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
@@ -106,7 +106,7 @@ function updateGauge() {
   }
 }
 
-// ===== CEK KONEKSI (OFFLINE THRESHOLD 15 MENIT) =====
+// ===== CEK KONEKSI =====
 let esp32Online = false;
 let firebaseConnected = false;
 
@@ -128,7 +128,6 @@ function cekKoneksi() {
       const [h, m, s] = lastUpdate.innerText.split(':').map(Number);
       const lastDate = new Date();
       lastDate.setHours(h, m, s || 0);
-      // 🔥 FIX: 15 MENIT (BUKAN 10)
       esp32Online = (now - lastDate) / 60000 < 15;
     } else {
       esp32Online = false;
@@ -224,6 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     loadChartHistory();
     loadDashChartHistory();
+    loadDailyHistory();
 
     setTimeout(() => initGauge(), 500);
 
@@ -297,7 +297,6 @@ function initFirebase() {
             DOM.growlightHours.textContent = grow.toFixed(1);
           }
 
-          // 🔥 UPDATE LASTUPDATE DI SENSOR LISTENER (BIAR AKURAT)
           if (DOM.dashLastUpdate) {
             const time = new Date().toLocaleTimeString('id-ID');
             DOM.dashLastUpdate.textContent = time;
@@ -345,7 +344,6 @@ function initFirebase() {
             state.lastResetDate = today;
           }
 
-          // Update UI Mode
           if (DOM.currentModeDisplay2) {
             const labels = { otomatis: '🤖 Otomatis (Lux)', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
             DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
@@ -412,13 +410,12 @@ function initFirebase() {
 }
 
 // ============================================
-// UPDATE STATUS TEXT (FIX: THRESHOLD YANG BENER)
+// UPDATE STATUS TEXT
 // ============================================
 function updateStatusText() {
   const temp = state.temperature;
   const lux = state.sensorLight;
 
-  // 🔥 FIX: THRESHOLD SUHU YANG BENER (30°C BUKAN 28°C)
   const tempEl = document.getElementById('tempStatus');
   if (tempEl) {
     if (temp > 35) {
