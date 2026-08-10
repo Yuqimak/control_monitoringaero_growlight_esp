@@ -361,7 +361,7 @@ export async function loadChartHistoryByDate(dateStr) {
 }
 
 // ============================================
-// LOAD DAILY HISTORY (INDOOR - HANYA GROWLIGHT)
+// LOAD DAILY HISTORY (INDOOR)
 // ============================================
 export async function loadDailyHistory() {
   console.log('📊 loadDailyHistory dipanggil');
@@ -381,9 +381,8 @@ export async function loadDailyHistory() {
 
     dates.forEach(date => {
       const d = data[date];
-      // 🔥 HANYA GROWLIGHT (tanpa matahari)
       const growlight = d.growlight || 0;
-      const total = d.total || growlight; // total = growlight
+      const total = d.total || growlight;
       const status = total >= 12 ? '✅ Cukup' : '⚠️ Kurang';
       const color = total >= 12 ? '#22c55e' : '#f59e0b';
 
