@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (REVISI PATH)
+// MAIN ENTRY – app.js (REVISI DENGAN SMOOTHING)
 // ============================================
 
 import { db } from './firebase.js';
@@ -41,7 +41,44 @@ window.logout = function() {
   }
 };
 
-// ===== STATE LISTENER =====
+// ============================================
+// SMOOTHING FILTER (CEGAH FLICKER)
+// ============================================
+class SmoothingFilter {
+    constructor(windowSize = 5) {
+        this.windowSize = windowSize;
+        this.values = [];
+    }
+    
+    add(value) {
+        this.values.push(value);
+        if (this.values.length > this.windowSize) {
+            this.values.shift();
+        }
+        const sum = this.values.reduce((a, b) => a + b, 0);
+        return sum / this.values.length;
+    }
+    
+    getAverage() {
+        if (this.values.length === 0) return 0;
+        const sum = this.values.reduce((a, b) => a + b, 0);
+        return sum / this.values.length;
+    }
+}
+
+// Inisialisasi filter
+const suhuFilter = new SmoothingFilter(5);  // rata-rata 5 data terakhir
+const luxFilter = new SmoothingFilter(5);
+
+// ============================================
+// HYSTERESIS STATE (CEGAH FLICKER DI BATAS)
+// ============================================
+let lastTempCategory = null;
+let lastLightCategory = null;
+
+// ============================================
+// STATE LISTENER
+// ============================================
 let unsubSensor = null;
 let unsubSystem = null;
 let isListenerActive = false;
@@ -103,6 +140,150 @@ function updateGauge() {
   if (gaugeChart) {
     gaugeChart.data.datasets[0].data = [progress, 100 - progress];
     gaugeChart.update();
+  }
+}
+
+// ============================================
+// FUNGSI BANTU HYSTERESIS
+// ============================================
+function getCategoryBoundary(category) {
+  if (!category) return 0;
+  if (category.includes('Sangat Panas')) return 35;
+  if (category.includes('Panas')) return 30;
+  if (category.includes('Normal')) return 20;
+  return 0;
+}
+
+function getLightBoundary(category) {
+  if (!category) return 0;
+  if (category.includes('Sangat Terang')) return 4000;
+  if (category.includes('Terang')) return 2000;
+  if (category.includes('Sedang')) return 500;
+  if (category.includes('Redup')) return 100;
+  return 0;
+}
+
+// ============================================
+// UPDATE STATUS DENGAN SMOOTHING + HYSTERESIS
+// ============================================
+function updateStatusTextSmooth(temp, lux) {
+  // --- KATEGORI SUHU dengan HYSTERESIS 1.5°C ---
+  let newTempCategory = '';
+  let newTempColor = '';
+  
+  if (temp > 35) {
+    newTempCategory = '🔥 Sangat Panas';
+    newTempColor = '#ef4444';
+  } else if (temp > 30) {
+    newTempCategory = '🔥 Panas';
+    newTempColor = '#f59e0b';
+  } else if (temp > 20) {
+    newTempCategory = '🌤️ Normal';
+    newTempColor = '#22c55e';
+  } else {
+    newTempCategory = '❄️ Dingin';
+    newTempColor = '#3b82f6';
+  }
+  
+  // HYSTERESIS: cegah flicker di batas (28°C dan 35°C)
+  if (lastTempCategory) {
+    if (lastTempCategory.includes('Panas') && newTempCategory.includes('Normal')) {
+      if (temp > 27.5) {
+        newTempCategory = lastTempCategory;
+        newTempColor = lastTempCategory.includes('Sangat') ? '#ef4444' : '#f59e0b';
+      }
+    } else if (lastTempCategory.includes('Sangat Panas') && newTempCategory.includes('Panas')) {
+      if (temp > 33.5) {
+        newTempCategory = lastTempCategory;
+        newTempColor = '#ef4444';
+      }
+    } else if (lastTempCategory.includes('Normal') && newTempCategory.includes('Dingin')) {
+      if (temp > 19.5) {
+        newTempCategory = lastTempCategory;
+        newTempColor = '#22c55e';
+      }
+    }
+  }
+  lastTempCategory = newTempCategory;
+
+  // --- KATEGORI CAHAYA dengan HYSTERESIS ---
+  let newLightCategory = '';
+  let newLightColor = '';
+  
+  if (lux > 4000) {
+    newLightCategory = '☀️ Sangat Terang';
+    newLightColor = '#facc15';
+  } else if (lux > 2000) {
+    newLightCategory = '🌤️ Terang';
+    newLightColor = '#f59e0b';
+  } else if (lux > 500) {
+    newLightCategory = '🌥️ Sedang';
+    newLightColor = '#94a3b8';
+  } else if (lux > 100) {
+    newLightCategory = '🌥️ Redup';
+    newLightColor = '#64748b';
+  } else {
+    newLightCategory = '🌙 Gelap';
+    newLightColor = '#3b82f6';
+  }
+  
+  // HYSTERESIS: cegah flicker di batas
+  if (lastLightCategory) {
+    if (lastLightCategory.includes('Sangat Terang') && newLightCategory.includes('Terang')) {
+      if (lux > 3500) {
+        newLightCategory = lastLightCategory;
+        newLightColor = '#facc15';
+      }
+    } else if (lastLightCategory.includes('Terang') && newLightCategory.includes('Sedang')) {
+      if (lux > 1500) {
+        newLightCategory = lastLightCategory;
+        newLightColor = '#f59e0b';
+      }
+    } else if (lastLightCategory.includes('Sedang') && newLightCategory.includes('Redup')) {
+      if (lux > 300) {
+        newLightCategory = lastLightCategory;
+        newLightColor = '#94a3b8';
+      }
+    } else if (lastLightCategory.includes('Redup') && newLightCategory.includes('Gelap')) {
+      if (lux > 80) {
+        newLightCategory = lastLightCategory;
+        newLightColor = '#64748b';
+      }
+    }
+  }
+  lastLightCategory = newLightCategory;
+
+  // --- UPDATE UI SUHU ---
+  const tempEl = document.getElementById('tempStatus');
+  if (tempEl) {
+    tempEl.textContent = newTempCategory;
+    tempEl.style.color = newTempColor;
+  }
+  
+  const statTempStatus = document.getElementById('statTempStatus');
+  if (statTempStatus) {
+    statTempStatus.textContent = newTempCategory.replace(/[🔥🌤️❄️]/g, '').trim() || 'Normal';
+    statTempStatus.style.color = newTempColor;
+  }
+
+  // --- UPDATE UI CAHAYA ---
+  const lightEl = document.getElementById('lightStatus');
+  if (lightEl) {
+    lightEl.textContent = newLightCategory;
+    lightEl.style.color = newLightColor;
+  }
+  
+  const statLightStatus = document.getElementById('statLightStatus');
+  if (statLightStatus) {
+    statLightStatus.textContent = newLightCategory.replace(/[☀️🌤️🌥️🌙]/g, '').trim() || 'Sedang';
+    statLightStatus.style.color = newLightColor;
+  }
+
+  // --- STATUS LAMPU ---
+  const lampEl = document.getElementById('lampStatusText');
+  if (lampEl) {
+    lampEl.textContent = state.lampState ? '💡 Lampu Aktif' : '⛔ Lampu Mati';
+    lampEl.style.color = state.lampState ? '#22c55e' : '#ef4444';
   }
 }
 
@@ -245,7 +426,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ============================================
-// FIREBASE LISTENERS
+// FIREBASE LISTENERS (REVISI DENGAN SMOOTHING)
 // ============================================
 function initFirebase() {
   try {
@@ -256,7 +437,7 @@ function initFirebase() {
     isListenerActive = true;
     console.log('🔌 Memasang Firebase listeners...');
 
-    // --- Sensor ---
+    // --- Sensor (REVISI: PAKAI SMOOTHING) ---
     unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
       try {
         const now = Date.now();
@@ -265,28 +446,33 @@ function initFirebase() {
 
         const d = snap.val();
         if (d) {
-          const oldTemp = state.temperature;
-          const oldLight = state.sensorLight;
-
           const rawSuhu = d.suhu || 0;
-          state.temperature = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
-          state.sensorLight = d.cahaya || 0;
+          const rawLux = d.cahaya || 0;
+          
+          // SMOOTHING: filter data sebelum dipakai
+          const validSuhu = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
+          const validLux = (rawLux >= 0 && rawLux < 10000) ? rawLux : 0;
+          
+          const smoothSuhu = suhuFilter.add(validSuhu);
+          const smoothLux = luxFilter.add(validLux);
+          
+          // Simpan nilai yang sudah di-smooth ke state
+          state.temperature = smoothSuhu;
+          state.sensorLight = smoothLux;
 
-          if (state.temperature !== oldTemp || state.sensorLight !== oldLight) {
-            updateCharts(new Date().toLocaleTimeString());
-          }
-
-          if (DOM.statLight) DOM.statLight.textContent = state.sensorLight;
-          if (DOM.statTemp) DOM.statTemp.textContent = state.temperature.toFixed(1);
-          if (DOM.monitorTemp) DOM.monitorTemp.textContent = state.temperature.toFixed(1);
-          if (DOM.monitorLight) DOM.monitorLight.textContent = state.sensorLight;
+          // Update UI
+          if (DOM.statLight) DOM.statLight.textContent = Math.round(smoothLux);
+          if (DOM.statTemp) DOM.statTemp.textContent = smoothSuhu.toFixed(1);
+          if (DOM.monitorTemp) DOM.monitorTemp.textContent = smoothSuhu.toFixed(1);
+          if (DOM.monitorLight) DOM.monitorLight.textContent = Math.round(smoothLux);
 
           if (DOM.dashLastUpdate) {
             const time = new Date().toLocaleTimeString('id-ID');
             DOM.dashLastUpdate.textContent = time;
           }
 
-          updateStatusText();
+          // Update status pakai smooth + hysteresis
+          updateStatusTextSmooth(smoothSuhu, smoothLux);
         }
         scheduleRender();
       } catch (e) {
@@ -301,7 +487,7 @@ function initFirebase() {
       isListenerActive = false;
     });
 
-    // --- System (REVISI: baca actual_state) ---
+    // --- System ---
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
       try {
         const now = Date.now();
@@ -311,7 +497,6 @@ function initFirebase() {
         const d = snap.val();
         if (d) {
           state.controlMode = d.mode || 'otomatis';
-          // ⭐ PERUBAHAN: baca actual_state dari ESP32 (laporan), BUKAN state (perintah)
           state.lampState = d.actual_state || false;
           state.forceDayOn = d.force_day_on || false;
           state.jadwalStart = d.jadwal_start || 6;
@@ -327,10 +512,12 @@ function initFirebase() {
             state.lastResetDate = today;
           }
 
-          if (DOM.currentModeDisplay2) {
-            const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-            DOM.currentModeDisplay2.textContent = labels[state.controlMode] || state.controlMode;
-          }
+          // Update mode display
+          const display = document.getElementById('currentModeDisplay');
+          const displayControl = document.getElementById('currentModeDisplayControl');
+          const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+          if (display) display.textContent = labels[state.controlMode] || state.controlMode;
+          if (displayControl) displayControl.textContent = labels[state.controlMode] || state.controlMode;
 
           const statusText = state.lampState ? 'ON' : 'OFF';
           const statusColor = state.lampState ? '#22c55e' : '#ef4444';
@@ -351,14 +538,13 @@ function initFirebase() {
           if (latestTemp) latestTemp.textContent = state.temperature.toFixed(1) + '°C';
 
           const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-          const display = progress > 100 ? 100 : progress;
-          if (DOM.statLightProgress) DOM.statLightProgress.textContent = display;
-          if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display + '%';
+          const display2 = progress > 100 ? 100 : progress;
+          if (DOM.statLightProgress) DOM.statLightProgress.textContent = display2;
+          if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display2 + '%';
           if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
 
           updateGauge();
           updateModeButtonUI(state.controlMode);
-          updateStatusText();
         }
         scheduleRender();
       } catch (e) {
@@ -385,95 +571,20 @@ function initFirebase() {
 }
 
 // ============================================
-// UPDATE STATUS TEXT (tidak berubah)
+// UPDATE STATUS TEXT (FALLBACK - HANYA UNTUK LAMPU)
 // ============================================
 function updateStatusText() {
-  const temp = state.temperature;
-  const lux = state.sensorLight;
-
-  const tempEl = document.getElementById('tempStatus');
-  if (tempEl) {
-    if (temp > 35) {
-      tempEl.textContent = '🔥 Sangat Panas';
-      tempEl.style.color = '#ef4444';
-    } else if (temp > 30) {
-      tempEl.textContent = '🔥 Panas';
-      tempEl.style.color = '#f59e0b';
-    } else if (temp > 20) {
-      tempEl.textContent = '🌤️ Normal';
-      tempEl.style.color = '#22c55e';
-    } else {
-      tempEl.textContent = '❄️ Dingin';
-      tempEl.style.color = '#3b82f6';
-    }
-  }
-
-  const lightEl = document.getElementById('lightStatus');
-  if (lightEl) {
-    if (lux > 4000) {
-      lightEl.textContent = '☀️ Sangat Terang';
-      lightEl.style.color = '#facc15';
-    } else if (lux > 2000) {
-      lightEl.textContent = '🌤️ Terang';
-      lightEl.style.color = '#f59e0b';
-    } else if (lux > 500) {
-      lightEl.textContent = '🌥️ Sedang';
-      lightEl.style.color = '#94a3b8';
-    } else if (lux > 100) {
-      lightEl.textContent = '🌥️ Redup';
-      lightEl.style.color = '#64748b';
-    } else {
-      lightEl.textContent = '🌙 Gelap';
-      lightEl.style.color = '#3b82f6';
-    }
-  }
-
+  // Fungsi ini digantikan oleh updateStatusTextSmooth()
+  // Hanya untuk update status lampu dari listener system
   const lampEl = document.getElementById('lampStatusText');
   if (lampEl) {
     lampEl.textContent = state.lampState ? '💡 Lampu Aktif' : '⛔ Lampu Mati';
     lampEl.style.color = state.lampState ? '#22c55e' : '#ef4444';
   }
-
-  const statTempStatus = document.getElementById('statTempStatus');
-  if (statTempStatus) {
-    if (temp > 35) {
-      statTempStatus.textContent = 'Sangat Panas';
-      statTempStatus.style.color = '#ef4444';
-    } else if (temp > 30) {
-      statTempStatus.textContent = 'Panas';
-      statTempStatus.style.color = '#f59e0b';
-    } else if (temp > 20) {
-      statTempStatus.textContent = 'Normal';
-      statTempStatus.style.color = '#22c55e';
-    } else {
-      statTempStatus.textContent = 'Dingin';
-      statTempStatus.style.color = '#3b82f6';
-    }
-  }
-
-  const statLightStatus = document.getElementById('statLightStatus');
-  if (statLightStatus) {
-    if (lux > 4000) {
-      statLightStatus.textContent = 'Sangat Terang';
-      statLightStatus.style.color = '#facc15';
-    } else if (lux > 2000) {
-      statLightStatus.textContent = 'Terang';
-      statLightStatus.style.color = '#f59e0b';
-    } else if (lux > 500) {
-      statLightStatus.textContent = 'Sedang';
-      statLightStatus.style.color = '#94a3b8';
-    } else if (lux > 100) {
-      statLightStatus.textContent = 'Redup';
-      statLightStatus.style.color = '#64748b';
-    } else {
-      statLightStatus.textContent = 'Gelap';
-      statLightStatus.style.color = '#3b82f6';
-    }
-  }
 }
 
 // ============================================
-// UNSUBSCRIBE (tidak berubah)
+// UNSUBSCRIBE
 // ============================================
 function unsubscribeAll() {
   try {
@@ -489,7 +600,7 @@ function unsubscribeAll() {
 }
 
 // ============================================
-// NAVIGASI (tidak berubah)
+// NAVIGASI
 // ============================================
 function setupNavigation() {
   try {
@@ -517,7 +628,7 @@ function setupNavigation() {
 }
 
 // ============================================
-// UPDATE UI TOMBOL MODE (tidak berubah)
+// UPDATE UI TOMBOL MODE
 // ============================================
 function updateModeButtonUI(mode) {
   try {
@@ -542,14 +653,12 @@ function updateModeButtonUI(mode) {
 }
 
 // ============================================
-// FUNGSI SET LAMPU STATE (REVISI: tetap tulis ke state)
+// FUNGSI SET LAMPU STATE
 // ============================================
 function setLampState(newState) {
   console.log('🔄 setLampState:', newState);
-  // PERINTAH tetap ditulis ke /system/state (bukan actual_state)
   set(ref(db, 'system/state'), newState)
     .then(() => {
-      // state.lampState akan diperbarui oleh listener yang membaca actual_state
       showToast(`✅ Perintah ${newState ? 'ON' : 'OFF'} dikirim`, 'success');
     })
     .catch(err => {
@@ -559,18 +668,18 @@ function setLampState(newState) {
 }
 
 // ============================================
-// FUNGSI SET MODE (tidak berubah)
+// FUNGSI SET MODE
 // ============================================
 function setModeControl(mode) {
   console.log('🔄 setModeControl:', mode);
   set(ref(db, 'system/mode'), mode)
     .then(() => {
       state.controlMode = mode;
-      const display = document.getElementById('currentModeDisplay2');
-      if (display) {
-        const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-        display.textContent = labels[mode] || mode;
-      }
+      const display = document.getElementById('currentModeDisplay');
+      const displayControl = document.getElementById('currentModeDisplayControl');
+      const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+      if (display) display.textContent = labels[mode] || mode;
+      if (displayControl) displayControl.textContent = labels[mode] || mode;
       updateModeButtonUI(mode);
       showToast(`✅ Mode ${mode} aktif`, 'success');
     })
@@ -581,7 +690,7 @@ function setModeControl(mode) {
 }
 
 // ============================================
-// CONTROLS (tidak berubah)
+// CONTROLS
 // ============================================
 function initControls() {
   try {
@@ -610,7 +719,7 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL (REVISI: hapus semua referensi luxThreshold)
+// MODE KONTROL (REVISI: HAPUS LUX THRESHOLD)
 // ============================================
 function initModeControls() {
   try {
@@ -648,8 +757,6 @@ function initModeControls() {
       });
     }
 
-    // ⭐ HAPUS: blok saveThresholdBtn, luxThreshold, luxThresholdDisplay (sudah dihapus dari HTML)
-
     // Save Jadwal
     const saveJadwalBtn = document.getElementById('saveJadwalBtn');
     const jadwalStart = document.getElementById('jadwalStart');
@@ -685,7 +792,7 @@ function initModeControls() {
 }
 
 // ============================================
-// EXPAND CHART (tidak berubah)
+// EXPAND CHART
 // ============================================
 function initExpandChart() {
   window.toggleExpand = function(wrapperId) {
@@ -710,7 +817,7 @@ function initExpandChart() {
 }
 
 // ============================================
-// CLOCK (tidak berubah)
+// CLOCK
 // ============================================
 function updateClock() {
   try {
@@ -732,7 +839,7 @@ function updateClock() {
 }
 
 // ============================================
-// SIDEBAR (tidak berubah)
+// SIDEBAR
 // ============================================
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.querySelector('.sidebar');
