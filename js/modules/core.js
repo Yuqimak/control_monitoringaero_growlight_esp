@@ -1,5 +1,5 @@
 // ============================================
-// CORE: State, DOM, Utils (INDOOR VERSION - REVISI)
+// CORE: State, DOM, Utils (FULL REVISI)
 // ============================================
 
 export const state = {
@@ -11,7 +11,6 @@ export const state = {
   alert: '',
   unlocked: false,
   controlMode: 'otomatis',
-  // ⭐ luxThreshold: 500,  --> DIHAPUS
   forceDayOn: false,
   jadwalStart: 6,
   jadwalEnd: 18,
@@ -52,8 +51,7 @@ export function initDOM() {
     'gaugeChart', 'gaugeProgress', 'gaugeSunlight', 'gaugeGrowlight',
     // Control
     'btnOn', 'btnOff', 'lampStateText',
-    'currentModeDisplay2',
-    // ⭐ HAPUS: 'luxThreshold', 'saveThresholdBtn', 'luxThresholdDisplay',
+    'currentModeDisplay', 'currentModeDisplayControl',
     'forceDayOn',
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
     'totalLightNeeded', 'saveLightNeededBtn',
@@ -66,7 +64,13 @@ export function initDOM() {
     // Filter tanggal
     'analyticsDate', 'loadHistoryDateBtn', 'resetHistoryDateBtn',
     // Daily history
-    'dailyHistoryBody'
+    'dailyHistoryBody',
+    // Lamp Operation
+    'lampOnTime', 'lampOffTime', 'lampOnBar', 'lampOffBar',
+    'onPercent', 'offPercent',
+    // Category bars
+    'coldBar', 'normalBar', 'warmBar', 'hotBar',
+    'coldPercent', 'normalPercent', 'warmPercent', 'hotPercent'
   ];
   ids.forEach(id => { DOM[id] = $(id); });
 }
