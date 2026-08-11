@@ -1,5 +1,5 @@
 // ============================================
-// CORE: State, DOM, Utils (INDOOR VERSION)
+// CORE: State, DOM, Utils (INDOOR VERSION - REVISI)
 // ============================================
 
 export const state = {
@@ -11,7 +11,7 @@ export const state = {
   alert: '',
   unlocked: false,
   controlMode: 'otomatis',
-  luxThreshold: 500,
+  // ⭐ luxThreshold: 500,  --> DIHAPUS
   forceDayOn: false,
   jadwalStart: 6,
   jadwalEnd: 18,
@@ -53,7 +53,7 @@ export function initDOM() {
     // Control
     'btnOn', 'btnOff', 'lampStateText',
     'currentModeDisplay2',
-    'luxThreshold', 'saveThresholdBtn', 'luxThresholdDisplay',
+    // ⭐ HAPUS: 'luxThreshold', 'saveThresholdBtn', 'luxThresholdDisplay',
     'forceDayOn',
     'jadwalStart', 'jadwalEnd', 'saveJadwalBtn',
     'totalLightNeeded', 'saveLightNeededBtn',
