@@ -1,328 +1,173 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🔐 Login - IoT Greenhouse</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+  <title>Login - SIGMA Growlight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Inter', sans-serif;
-      background: radial-gradient(circle at top, #132235 0%, #081018 100%);
+      background: radial-gradient(circle at top, #132235 0%, #081018 45%, #050b12 100%);
       min-height: 100vh;
       display: flex;
-      justify-content: center;
       align-items: center;
-      color: white;
+      justify-content: center;
+      padding: 20px;
     }
-    .login-box {
-      background: rgba(20,28,40,.92);
+    .login-container {
+      background: rgba(20,28,40,0.92);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 32px;
       padding: 40px 36px;
-      border-radius: 24px;
-      min-width: 360px;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,.06);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
     }
-    .login-box .icon { font-size: 56px; margin-bottom: 8px; }
-    .login-box h1 { font-size: 28px; font-weight: 700; }
-    .login-box .sub { color: #94a3b8; margin-bottom: 24px; font-size: 14px; }
-    .login-box input {
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 56px; height: 56px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #22c55e, #14532d);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 10px 30px rgba(34,197,94,0.25);
+    }
+    .logo h2 { font-size: 24px; color: #fff; }
+    .logo p { color: #94a3b8; font-size: 13px; }
+    h1 { color: #fff; font-size: 28px; margin-bottom: 8px; }
+    .sub { color: #94a3b8; margin-bottom: 28px; font-size: 14px; }
+    .form-group { margin-bottom: 18px; }
+    label { color: #cbd5e1; font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
+    input {
       width: 100%;
       padding: 14px 16px;
-      border-radius: 12px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.1);
-      color: white;
-      font-size: 15px;
-      outline: none;
-      margin-bottom: 12px;
-      transition: border-color .2s;
-    }
-    .login-box input:focus { border-color: #22c55e; }
-    .login-box input::placeholder { color: #64748b; }
-    .login-box button {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: white;
-      border: none;
-      font-weight: 700;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
       font-size: 16px;
-      cursor: pointer;
-      transition: transform .2s;
-    }
-    .login-box button:hover { transform: translateY(-2px); }
-    .login-box .error {
-      color: #ef4444;
-      font-size: 14px;
-      margin-top: 12px;
-      min-height: 24px;
-    }
-    .login-box .register-link {
-      color: #22c55e;
-      cursor: pointer;
-      margin-top: 16px;
-      display: inline-block;
-      font-size: 14px;
-    }
-    .login-box .register-link:hover { text-decoration: underline; }
-    .login-box .footer { margin-top: 20px; font-size: 12px; color: #475569; }
-
-    /* ===== MODAL REGISTRASI ===== */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(4px);
-      z-index: 9999;
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-overlay.active {
-      display: flex;
-    }
-    .modal-box {
-      background: #1e293b;
-      padding: 32px 28px;
-      border-radius: 20px;
-      max-width: 400px;
-      width: 90%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-      border: 1px solid rgba(255,255,255,.06);
-    }
-    .modal-box h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 22px;
-    }
-    .modal-box input, .modal-box select {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 10px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.1);
-      color: white;
-      font-size: 14px;
       outline: none;
-      margin-bottom: 12px;
+      transition: border-color 0.3s;
     }
-    .modal-box input:focus, .modal-box select:focus {
-      border-color: #22c55e;
-    }
-    .modal-box select option {
-      background: #1e293b;
-    }
-    .modal-box .btn-daftar {
+    input:focus { border-color: #22c55e; }
+    .btn {
       width: 100%;
-      padding: 12px;
-      background: linear-gradient(135deg, #22c55e, #16a34a);
+      padding: 16px;
       border: none;
-      border-radius: 10px;
-      color: white;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #22c55e, #15803d);
+      color: #fff;
+      font-size: 18px;
       font-weight: 700;
-      font-size: 16px;
       cursor: pointer;
-      transition: transform .2s;
+      transition: transform 0.2s;
     }
-    .modal-box .btn-daftar:hover {
-      transform: translateY(-2px);
-    }
-    .modal-box .btn-batal {
-      width: 100%;
-      padding: 10px;
-      margin-top: 8px;
-      background: rgba(239,68,68,.15);
-      border: none;
-      border-radius: 10px;
-      color: #f87171;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .2s;
-    }
-    .modal-box .btn-batal:hover {
-      background: rgba(239,68,68,.3);
-    }
-    .modal-box .reg-msg {
-      margin-top: 12px;
-      font-size: 14px;
-      text-align: center;
-      min-height: 20px;
-    }
+    .btn:hover { transform: scale(1.02); }
+    .btn:active { transform: scale(0.98); }
+    .error { color: #ef4444; font-size: 14px; margin-top: 12px; text-align: center; }
+    .success { color: #22c55e; font-size: 14px; margin-top: 12px; text-align: center; }
+    .footer { text-align: center; margin-top: 20px; color: #64748b; font-size: 13px; }
   </style>
 </head>
 <body>
-  <div class="login-box">
-    <div class="icon">🌱</div>
-    <h1>IoT Greenhouse</h1>
-    <p class="sub">Smart Monitoring & Control System</p>
-    
-    <form id="loginForm">
-      <input type="text" id="loginUsername" placeholder="👤 Username" required autocomplete="username">
-      <input type="password" id="loginPassword" placeholder="🔒 Password" required autocomplete="current-password">
-      <button type="submit">🔓 Login</button>
-      <p id="errorMsg" class="error"></p>
-    </form>
-    
-    <a class="register-link" id="registerLink">📝 Belum punya akun? Daftar</a>
-    <p class="footer">© 2026 IoT Greenhouse TA</p>
-  </div>
 
-  <!-- ===== MODAL REGISTRASI ===== -->
-  <div class="modal-overlay" id="registerModal">
-    <div class="modal-box">
-      <h2>📝 Daftar Akun</h2>
-      <input type="text" id="regUsername" placeholder="Username" required>
-      <input type="password" id="regPassword" placeholder="Password" required>
-      <input type="text" id="regNama" placeholder="Nama Lengkap">
-      <select id="regRole">
-        <option value="petani">👨‍🌾 Petani</option>
-        <option value="admin">👑 Admin</option>
-      </select>
-      <button class="btn-daftar" id="btnDaftar">Daftar</button>
-      <button class="btn-batal" id="btnBatal">Batal</button>
-      <p id="regMsg" class="reg-msg"></p>
+  <div class="login-container">
+    <div class="logo">
+      <div class="logo-icon">🌱</div>
+      <div>
+        <h2>SIGMA</h2>
+        <p>Grow Light System</p>
+      </div>
     </div>
+    <h1>Selamat Datang</h1>
+    <p class="sub">Masuk ke dashboard monitoring dan kontrol</p>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Masukkan username" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Masukkan password" required />
+      </div>
+      <button type="submit" class="btn">🚀 Masuk</button>
+      <div id="loginMessage" class="error"></div>
+    </form>
+    <div class="footer">SIGMA v2.0 • Indoor Farming</div>
   </div>
 
   <script type="module">
-    import { db } from "./js/firebase.js";
-    import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { db } from './js/firebase.js';
+    import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-    // DOM Elements
     const form = document.getElementById('loginForm');
-    const errorMsg = document.getElementById('errorMsg');
-    const registerLink = document.getElementById('registerLink');
-    const modal = document.getElementById('registerModal');
-    const regUsername = document.getElementById('regUsername');
-    const regPassword = document.getElementById('regPassword');
-    const regNama = document.getElementById('regNama');
-    const regRole = document.getElementById('regRole');
-    const btnDaftar = document.getElementById('btnDaftar');
-    const btnBatal = document.getElementById('btnBatal');
-    const regMsg = document.getElementById('regMsg');
+    const msg = document.getElementById('loginMessage');
 
-    // Open / Close Modal
-    function bukaModal() {
-      modal.classList.add('active');
-      regUsername.value = '';
-      regPassword.value = '';
-      regNama.value = '';
-      regRole.value = 'petani';
-      regMsg.textContent = '';
-    }
-    function tutupModal() { modal.classList.remove('active'); }
-
-    // Register new user
-    async function daftarAkun() {
-      const username = regUsername.value.trim();
-      const password = regPassword.value.trim();
-      const nama = regNama.value.trim() || username;
-      const role = regRole.value;
-
-      if (!username || !password) {
-        regMsg.textContent = '❌ Username dan password wajib diisi!';
-        regMsg.style.color = '#ef4444';
-        return;
-      }
-      if (username.length < 3) {
-        regMsg.textContent = '❌ Username minimal 3 karakter!';
-        regMsg.style.color = '#ef4444';
-        return;
-      }
-      if (password.length < 4) {
-        regMsg.textContent = '❌ Password minimal 4 karakter!';
-        regMsg.style.color = '#ef4444';
-        return;
-      }
-
-      try {
-        const userRef = ref(db, `users/${username}`);
-        const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-          regMsg.textContent = '❌ Username sudah terdaftar!';
-          regMsg.style.color = '#ef4444';
-          return;
-        }
-        await set(userRef, {
-          password: password,
-          nama: nama,
-          role: role,
-          createdAt: new Date().toISOString()
-        });
-        regMsg.textContent = '✅ Akun berhasil dibuat! Silakan login.';
-        regMsg.style.color = '#22c55e';
-        setTimeout(() => {
-          tutupModal();
-        }, 1500);
-      } catch (err) {
-        console.error('Register error:', err);
-        regMsg.textContent = '❌ Gagal daftar: ' + err.message;
-        regMsg.style.color = '#ef4444';
-      }
-    }
-
-    // Event listeners
-    registerLink.addEventListener('click', bukaModal);
-    btnBatal.addEventListener('click', tutupModal);
-    btnDaftar.addEventListener('click', daftarAkun);
-    modal.addEventListener('click', (e) => { if (e.target === modal) tutupModal(); });
-
-    // Login
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      errorMsg.textContent = '⏳ Memeriksa...';
-      
-      const username = document.getElementById('loginUsername').value.trim();
-      const password = document.getElementById('loginPassword').value.trim();
-      
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
       if (!username || !password) {
-        errorMsg.textContent = '❌ Username dan password wajib diisi!';
+        msg.textContent = '⚠️ Username dan password wajib diisi!';
+        msg.className = 'error';
         return;
       }
 
       try {
-        const userRef = ref(db, `users/${username}`);
-        const snapshot = await get(userRef);
-        const userData = snapshot.val();
+        const snapshot = await get(ref(db, 'users'));
+        const users = snapshot.val();
 
-        if (!userData) {
-          errorMsg.textContent = '❌ Username tidak terdaftar!';
+        if (!users) {
+          msg.textContent = '❌ Tidak ada user terdaftar!';
+          msg.className = 'error';
           return;
         }
 
-        if (userData.password === password) {
+        let found = null;
+        for (const key in users) {
+          if (users[key].username === username && users[key].password === password) {
+            found = { ...users[key], id: key };
+            break;
+          }
+        }
+
+        if (found) {
           const session = {
-            username: username,
-            nama: userData.nama || username,
-            role: userData.role || 'petani',
+            username: found.username,
+            nama: found.nama || 'User',
+            role: found.role || 'petani',
             loginTime: Date.now()
           };
           localStorage.setItem('iot_user', JSON.stringify(session));
-          window.location.href = 'index.html';
+          msg.textContent = '✅ Login berhasil! Mengarahkan...';
+          msg.className = 'success';
+          setTimeout(() => {
+            window.location.href = 'index.html';
+          }, 800);
         } else {
-          errorMsg.textContent = '❌ Password salah!';
+          msg.textContent = '❌ Username atau password salah!';
+          msg.className = 'error';
         }
-      } catch (error) {
-        console.error('Login error:', error);
-        errorMsg.textContent = '❌ Gagal koneksi ke server!';
+      } catch (err) {
+        console.error(err);
+        msg.textContent = '❌ Gagal koneksi ke database. Cek internet.';
+        msg.className = 'error';
       }
     });
-
-    // Redirect if already logged in
-    const session = localStorage.getItem('iot_user');
-    if (session) {
-      try {
-        const user = JSON.parse(session);
-        if (user.username && user.loginTime) {
-          window.location.href = 'index.html';
-        }
-      } catch(e) {}
-    }
   </script>
 </body>
 </html>
