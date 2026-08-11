@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daftar - SIGMA Growlight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top, #132235 0%, #081018 45%, #050b12 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .register-container {
+      background: rgba(20,28,40,0.92);
+      backdrop-filter: blur(18px);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 32px;
+      padding: 40px 36px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 56px; height: 56px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #22c55e, #14532d);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      box-shadow: 0 10px 30px rgba(34,197,94,0.25);
+    }
+    .logo h2 { font-size: 24px; color: #fff; }
+    .logo p { color: #94a3b8; font-size: 13px; }
+    h1 { color: #fff; font-size: 28px; margin-bottom: 8px; }
+    .sub { color: #94a3b8; margin-bottom: 28px; font-size: 14px; }
+    .form-group { margin-bottom: 18px; }
+    label { color: #cbd5e1; font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    input:focus { border-color: #22c55e; }
+    .btn {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #22c55e, #15803d);
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .btn:hover { transform: scale(1.02); }
+    .btn:active { transform: scale(0.98); }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      margin-top: 12px;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.05); }
+    .message {
+      font-size: 14px;
+      margin-top: 12px;
+      text-align: center;
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .error { color: #ef4444; background: rgba(239,68,68,0.1); }
+    .success { color: #22c55e; background: rgba(34,197,94,0.1); }
+    .info { color: #3b82f6; background: rgba(59,130,246,0.1); }
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      color: #64748b;
+      font-size: 13px;
+    }
+    .footer a {
+      color: #22c55e;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="register-container">
+    <div class="logo">
+      <div class="logo-icon">🌱</div>
+      <div>
+        <h2>SIGMA</h2>
+        <p>Grow Light System</p>
+      </div>
+    </div>
+    <h1>Buat Akun</h1>
+    <p class="sub">Daftar untuk mulai menggunakan sistem</p>
+
+    <form id="registerForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Masukkan username" required />
+      </div>
+      <div class="form-group">
+        <label for="nama">Nama Lengkap</label>
+        <input type="text" id="nama" placeholder="Masukkan nama lengkap" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Minimal 4 karakter" required minlength="4" />
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Konfirmasi Password</label>
+        <input type="password" id="confirmPassword" placeholder="Ulangi password" required />
+      </div>
+      <button type="submit" class="btn">🚀 Daftar</button>
+      <div id="registerMessage" class="message"></div>
+    </form>
+
+    <div class="footer">
+      Sudah punya akun? <a href="login.html">Masuk di sini</a>
+      <br>
+      SIGMA v2.0 • Indoor Farming
+    </div>
+  </div>
+
+  <script type="module">
+    import { db } from './js/firebase.js';
+    import { ref, get, push, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+    const form = document.getElementById('registerForm');
+    const msg = document.getElementById('registerMessage');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById('username').value.trim();
+      const nama = document.getElementById('nama').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const confirm = document.getElementById('confirmPassword').value.trim();
+
+      // Validasi
+      if (!username || !nama || !password || !confirm) {
+        msg.textContent = '⚠️ Semua kolom wajib diisi!';
+        msg.className = 'message error';
+        return;
+      }
+      if (password.length < 4) {
+        msg.textContent = '⚠️ Password minimal 4 karakter!';
+        msg.className = 'message error';
+        return;
+      }
+      if (password !== confirm) {
+        msg.textContent = '⚠️ Password dan konfirmasi tidak cocok!';
+        msg.className = 'message error';
+        return;
+      }
+
+      try {
+        // Cek apakah username sudah terdaftar
+        const snapshot = await get(ref(db, 'users'));
+        const users = snapshot.val();
+
+        if (users) {
+          let exists = false;
+          for (const key in users) {
+            if (users[key].username === username) {
+              exists = true;
+              break;
+            }
+          }
+          if (exists) {
+            msg.textContent = '❌ Username "' + username + '" sudah digunakan!';
+            msg.className = 'message error';
+            return;
+          }
+        }
+
+        // Simpan user baru
+        const newUser = {
+          username: username,
+          nama: nama,
+          password: password,  // Untuk demo, simpan plaintext (bisa di-hash nanti)
+          role: 'petani'       // Default role
+        };
+
+        const newRef = push(ref(db, 'users'));
+        await set(newRef, newUser);
+
+        msg.textContent = '✅ Pendaftaran berhasil! Silakan login.';
+        msg.className = 'message success';
+
+        // Redirect ke login setelah 1,5 detik
+        setTimeout(() => {
+          window.location.href = 'login.html';
+        }, 1500);
+
+      } catch (err) {
+        console.error(err);
+        msg.textContent = '❌ Gagal mendaftar: ' + err.message;
+        msg.className = 'message error';
+      }
+    });
+  </script>
+</body>
+</html>
