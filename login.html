@@ -76,9 +76,38 @@
     }
     .btn:hover { transform: scale(1.02); }
     .btn:active { transform: scale(0.98); }
-    .error { color: #ef4444; font-size: 14px; margin-top: 12px; text-align: center; }
-    .success { color: #22c55e; font-size: 14px; margin-top: 12px; text-align: center; }
-    .footer { text-align: center; margin-top: 20px; color: #64748b; font-size: 13px; }
+    .error {
+      color: #ef4444;
+      font-size: 14px;
+      margin-top: 12px;
+      text-align: center;
+      background: rgba(239,68,68,0.1);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .success {
+      color: #22c55e;
+      font-size: 14px;
+      margin-top: 12px;
+      text-align: center;
+      background: rgba(34,197,94,0.1);
+      padding: 8px;
+      border-radius: 8px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      color: #64748b;
+      font-size: 13px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 20px;
+    }
+    .footer a {
+      color: #22c55e;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -106,9 +135,16 @@
       <button type="submit" class="btn">🚀 Masuk</button>
       <div id="loginMessage" class="error"></div>
     </form>
-    <div class="footer">SIGMA v2.0 • Indoor Farming</div>
+
+    <!-- ⭐ INI DIA FOOTER YANG BENAR (DI LUAR SCRIPT, DI DALAM HTML) -->
+    <div class="footer">
+      Belum punya akun? <a href="register.html">Daftar di sini</a>
+      <br>
+      SIGMA v2.0 • Indoor Farming
+    </div>
   </div>
 
+  <!-- ⭐ SCRIPT HANYA UNTUK LOGIC LOGIN (TANPA CAMPURAN HTML) -->
   <script type="module">
     import { db } from './js/firebase.js';
     import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
@@ -132,7 +168,7 @@
         const users = snapshot.val();
 
         if (!users) {
-          msg.textContent = '❌ Tidak ada user terdaftar!';
+          msg.textContent = '❌ Tidak ada user terdaftar! Silakan daftar dulu.';
           msg.className = 'error';
           return;
         }
@@ -164,15 +200,10 @@
         }
       } catch (err) {
         console.error(err);
-        msg.textContent = '❌ Gagal koneksi ke database. Cek internet.';
+        msg.textContent = '❌ Gagal koneksi ke database. Cek internet atau Firebase Rules.';
         msg.className = 'error';
       }
     });
-    <div class="footer">
-  Belum punya akun? <a href="register.html" style="color:#22c55e; text-decoration:none; font-weight:600;">Daftar di sini</a>
-  <br>
-  SIGMA v2.0 • Indoor Farming
-</div>
   </script>
 </body>
 </html>
