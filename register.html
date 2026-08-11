@@ -135,7 +135,6 @@
         <input type="password" id="confirmPassword" placeholder="Ulangi password" required />
       </div>
 
-      <!-- ⭐ INI DIA DROPDOWN PILIHAN ROLE (ADMIN / PETANI) -->
       <div class="form-group">
         <label for="role">Pilih Role</label>
         <select id="role">
@@ -170,7 +169,7 @@
       const nama = document.getElementById('nama').value.trim();
       const password = document.getElementById('password').value.trim();
       const confirm = document.getElementById('confirmPassword').value.trim();
-      const role = document.getElementById('role').value; // ⭐ Ambil nilai role
+      const role = document.getElementById('role').value;
 
       if (!username || !nama || !password || !confirm) {
         msg.textContent = '⚠️ Semua kolom wajib diisi!';
@@ -207,12 +206,11 @@
           }
         }
 
-        // ⭐ Simpan role yang dipilih user
         const newUser = {
           username: username,
           nama: nama,
           password: password,
-          role: role // <-- Sekarang dinamis (admin / petani)
+          role: role
         };
 
         const newRef = push(ref(db, 'users'));
