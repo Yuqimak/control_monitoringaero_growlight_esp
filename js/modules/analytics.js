@@ -3,8 +3,8 @@
 // ============================================
 
 import { db } from '../firebase.js';
-import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { state, DOM, showToast, formatTime } from './core.js';
+import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 console.log('📊 analytics.js loaded!');
 
