@@ -283,7 +283,7 @@
                 </div>
                 <span id="warmPercent" style="font-size:11px; color:var(--muted);">0%</span>
               </div>
-              <div style="display:flex; gap:8px; align-items:center;">
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
                 <span style="color:#ef4444; font-size:12px;">🔥 Panas</span>
                 <div style="flex:1; height:6px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
                   <div id="hotBar" style="height:100%; width:0%; background:#ef4444; border-radius:999px;"></div>
@@ -393,7 +393,7 @@
           </div>
         </div>
 
-        <!-- DAILY HISTORY (INDOOR) -->
+        <!-- DAILY HISTORY -->
         <div class="analytics-card" style="grid-column: span 1;">
           <h3>📊 Durasi Growlight per Hari</h3>
           <div style="margin-top:12px; overflow-x:auto;">
@@ -493,18 +493,6 @@
           </div>
 
           <div class="control-card">
-            <h3>🌡️ Batas Lux</h3>
-            <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
-              Lampu mati jika lux melewati batas ini
-            </p>
-            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-              <input type="range" id="luxThreshold" min="0" max="5000" value="500" step="50" style="flex:1; min-width:120px;">
-              <span id="luxThresholdDisplay" style="font-weight:600; min-width:70px;">500 lux</span>
-            </div>
-            <button id="saveThresholdBtn" class="big-btn on" style="width:100%; margin-top:8px; padding:10px;">Simpan Threshold</button>
-          </div>
-
-          <div class="control-card">
             <h3>⏰ Jadwal Nyala</h3>
             <p style="font-size:13px; color:var(--muted); margin-bottom:8px;">
               Atur jam lampu menyala setiap hari
@@ -528,7 +516,7 @@
             <div style="display:flex; align-items:center; gap:12px; margin-top:8px;">
               <label style="color:var(--muted); font-size:14px;">Siang Tetap ON:</label>
               <input type="checkbox" id="forceDayOn" style="width:22px; height:22px; accent-color:var(--green); cursor:pointer;">
-              <span style="font-size:13px; color:var(--muted);">(abaikan lux untuk pengujian)</span>
+              <span style="font-size:13px; color:var(--muted);">(abaikan akumulasi untuk pengujian)</span>
             </div>
             <p style="font-size:12px; color:#f59e0b; margin-top:6px;">
               ⚠️ Hanya untuk pengujian! Jangan lupa matikan.
