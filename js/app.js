@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FINAL FIX - PASTI JALAN)
+// MAIN ENTRY – app.js (REVISI PATH)
 // ============================================
 
 import { db } from './firebase.js';
@@ -301,7 +301,7 @@ function initFirebase() {
       isListenerActive = false;
     });
 
-    // --- System ---
+    // --- System (REVISI: baca actual_state) ---
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
       try {
         const now = Date.now();
@@ -311,11 +311,11 @@ function initFirebase() {
         const d = snap.val();
         if (d) {
           state.controlMode = d.mode || 'otomatis';
-          state.lampState = d.state || false;
+          // ⭐ PERUBAHAN: baca actual_state dari ESP32 (laporan), BUKAN state (perintah)
+          state.lampState = d.actual_state || false;
           state.forceDayOn = d.force_day_on || false;
           state.jadwalStart = d.jadwal_start || 6;
           state.jadwalEnd = d.jadwal_end || 18;
-          state.luxThreshold = d.lux_threshold || 500;
           state.totalLightNeeded = d.total_light_needed || 12;
           state.accumulatedLight = d.accumulated_light || 0;
           state.lastResetDate = d.last_reset_date || '';
@@ -343,8 +343,6 @@ function initFirebase() {
           });
 
           if (DOM.forceDayOn) DOM.forceDayOn.checked = state.forceDayOn;
-          if (DOM.luxThresholdDisplay) DOM.luxThresholdDisplay.textContent = state.luxThreshold + ' lux';
-          if (DOM.luxThreshold) DOM.luxThreshold.value = state.luxThreshold;
           if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
           if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
           if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
@@ -387,7 +385,7 @@ function initFirebase() {
 }
 
 // ============================================
-// UPDATE STATUS TEXT
+// UPDATE STATUS TEXT (tidak berubah)
 // ============================================
 function updateStatusText() {
   const temp = state.temperature;
@@ -475,7 +473,7 @@ function updateStatusText() {
 }
 
 // ============================================
-// UNSUBSCRIBE
+// UNSUBSCRIBE (tidak berubah)
 // ============================================
 function unsubscribeAll() {
   try {
@@ -491,7 +489,7 @@ function unsubscribeAll() {
 }
 
 // ============================================
-// NAVIGASI
+// NAVIGASI (tidak berubah)
 // ============================================
 function setupNavigation() {
   try {
@@ -519,7 +517,7 @@ function setupNavigation() {
 }
 
 // ============================================
-// UPDATE UI TOMBOL MODE
+// UPDATE UI TOMBOL MODE (tidak berubah)
 // ============================================
 function updateModeButtonUI(mode) {
   try {
@@ -544,15 +542,15 @@ function updateModeButtonUI(mode) {
 }
 
 // ============================================
-// FUNGSI SET LAMPU STATE (FIXED)
+// FUNGSI SET LAMPU STATE (REVISI: tetap tulis ke state)
 // ============================================
 function setLampState(newState) {
   console.log('🔄 setLampState:', newState);
+  // PERINTAH tetap ditulis ke /system/state (bukan actual_state)
   set(ref(db, 'system/state'), newState)
     .then(() => {
-      state.lampState = newState;
-      scheduleRender();
-      showToast(`✅ Lampu ${newState ? 'ON' : 'OFF'}`, 'success');
+      // state.lampState akan diperbarui oleh listener yang membaca actual_state
+      showToast(`✅ Perintah ${newState ? 'ON' : 'OFF'} dikirim`, 'success');
     })
     .catch(err => {
       console.error('❌ Gagal:', err);
@@ -561,7 +559,7 @@ function setLampState(newState) {
 }
 
 // ============================================
-// FUNGSI SET MODE (FIXED)
+// FUNGSI SET MODE (tidak berubah)
 // ============================================
 function setModeControl(mode) {
   console.log('🔄 setModeControl:', mode);
@@ -583,7 +581,7 @@ function setModeControl(mode) {
 }
 
 // ============================================
-// CONTROLS (EMERGENCY ON/OFF)
+// CONTROLS (tidak berubah)
 // ============================================
 function initControls() {
   try {
@@ -612,7 +610,7 @@ function initControls() {
 }
 
 // ============================================
-// MODE KONTROL
+// MODE KONTROL (REVISI: hapus semua referensi luxThreshold)
 // ============================================
 function initModeControls() {
   try {
@@ -636,6 +634,7 @@ function initModeControls() {
       });
     }
 
+    // Kebutuhan Cahaya Harian
     const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
     const totalLightNeeded = document.getElementById('totalLightNeeded');
     if (saveLightNeededBtn && totalLightNeeded) {
@@ -649,23 +648,9 @@ function initModeControls() {
       });
     }
 
-    const saveThresholdBtn = document.getElementById('saveThresholdBtn');
-    const luxThreshold = document.getElementById('luxThreshold');
-    if (saveThresholdBtn && luxThreshold) {
-      saveThresholdBtn.addEventListener('click', function() {
-        const val = parseInt(luxThreshold.value);
-        if (val < 0 || val > 5000) { showToast('❌ Threshold harus 0-5000 lux', 'error'); return; }
-        set(ref(db, 'system/lux_threshold'), val)
-          .then(() => { state.luxThreshold = val;
-            showToast('✅ Threshold lux disimpan!', 'success'); })
-          .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-      });
-      luxThreshold.addEventListener('input', function(e) {
-        const display = document.getElementById('luxThresholdDisplay');
-        if (display) display.textContent = e.target.value + ' lux';
-      });
-    }
+    // ⭐ HAPUS: blok saveThresholdBtn, luxThreshold, luxThresholdDisplay (sudah dihapus dari HTML)
 
+    // Save Jadwal
     const saveJadwalBtn = document.getElementById('saveJadwalBtn');
     const jadwalStart = document.getElementById('jadwalStart');
     const jadwalEnd = document.getElementById('jadwalEnd');
@@ -684,6 +669,7 @@ function initModeControls() {
       });
     }
 
+    // Force Day On
     const forceDayOn = document.getElementById('forceDayOn');
     if (forceDayOn) {
       forceDayOn.addEventListener('change', function() {
@@ -699,7 +685,7 @@ function initModeControls() {
 }
 
 // ============================================
-// EXPAND CHART
+// EXPAND CHART (tidak berubah)
 // ============================================
 function initExpandChart() {
   window.toggleExpand = function(wrapperId) {
@@ -724,7 +710,7 @@ function initExpandChart() {
 }
 
 // ============================================
-// CLOCK
+// CLOCK (tidak berubah)
 // ============================================
 function updateClock() {
   try {
@@ -746,7 +732,7 @@ function updateClock() {
 }
 
 // ============================================
-// SIDEBAR
+// SIDEBAR (tidak berubah)
 // ============================================
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.querySelector('.sidebar');
