@@ -50,7 +50,7 @@
     .sub { color: #94a3b8; margin-bottom: 28px; font-size: 14px; }
     .form-group { margin-bottom: 18px; }
     label { color: #cbd5e1; font-size: 14px; font-weight: 500; display: block; margin-bottom: 6px; }
-    input {
+    input, select {
       width: 100%;
       padding: 14px 16px;
       border-radius: 14px;
@@ -60,8 +60,11 @@
       font-size: 16px;
       outline: none;
       transition: border-color 0.3s;
+      appearance: none;
+      -webkit-appearance: none;
     }
-    input:focus { border-color: #22c55e; }
+    select option { background: #1e293b; color: #fff; }
+    input:focus, select:focus { border-color: #22c55e; }
     .btn {
       width: 100%;
       padding: 16px;
@@ -76,12 +79,6 @@
     }
     .btn:hover { transform: scale(1.02); }
     .btn:active { transform: scale(0.98); }
-    .btn-secondary {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.15);
-      margin-top: 12px;
-    }
-    .btn-secondary:hover { background: rgba(255,255,255,0.05); }
     .message {
       font-size: 14px;
       margin-top: 12px;
@@ -91,12 +88,13 @@
     }
     .error { color: #ef4444; background: rgba(239,68,68,0.1); }
     .success { color: #22c55e; background: rgba(34,197,94,0.1); }
-    .info { color: #3b82f6; background: rgba(59,130,246,0.1); }
     .footer {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 24px;
       color: #64748b;
       font-size: 13px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding-top: 20px;
     }
     .footer a {
       color: #22c55e;
@@ -136,6 +134,17 @@
         <label for="confirmPassword">Konfirmasi Password</label>
         <input type="password" id="confirmPassword" placeholder="Ulangi password" required />
       </div>
+
+      <!-- ⭐ INI DIA DROPDOWN PILIHAN ROLE (ADMIN / PETANI) -->
+      <div class="form-group">
+        <label for="role">Pilih Role</label>
+        <select id="role">
+          <option value="petani">👨‍🌾 Petani</option>
+          <option value="admin">👑 Admin</option>
+        </select>
+        <p style="color:#94a3b8; font-size:11px; margin-top:4px;">(Pilih Admin untuk mengakses Panel Kontrol Admin)</p>
+      </div>
+
       <button type="submit" class="btn">🚀 Daftar</button>
       <div id="registerMessage" class="message"></div>
     </form>
@@ -161,8 +170,8 @@
       const nama = document.getElementById('nama').value.trim();
       const password = document.getElementById('password').value.trim();
       const confirm = document.getElementById('confirmPassword').value.trim();
+      const role = document.getElementById('role').value; // ⭐ Ambil nilai role
 
-      // Validasi
       if (!username || !nama || !password || !confirm) {
         msg.textContent = '⚠️ Semua kolom wajib diisi!';
         msg.className = 'message error';
@@ -180,7 +189,6 @@
       }
 
       try {
-        // Cek apakah username sudah terdaftar
         const snapshot = await get(ref(db, 'users'));
         const users = snapshot.val();
 
@@ -199,12 +207,12 @@
           }
         }
 
-        // Simpan user baru
+        // ⭐ Simpan role yang dipilih user
         const newUser = {
           username: username,
           nama: nama,
-          password: password,  // Untuk demo, simpan plaintext (bisa di-hash nanti)
-          role: 'petani'       // Default role
+          password: password,
+          role: role // <-- Sekarang dinamis (admin / petani)
         };
 
         const newRef = push(ref(db, 'users'));
@@ -213,7 +221,6 @@
         msg.textContent = '✅ Pendaftaran berhasil! Silakan login.';
         msg.className = 'message success';
 
-        // Redirect ke login setelah 1,5 detik
         setTimeout(() => {
           window.location.href = 'login.html';
         }, 1500);
