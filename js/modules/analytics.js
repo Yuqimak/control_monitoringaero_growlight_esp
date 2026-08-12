@@ -1,38 +1,30 @@
 // ============================================
-// ANALYTICS: Charts, Export, Statistik (FIXED)
+// ANALYTICS: VERSION HEMAT BANDWIDTH
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded!');
+console.log('📊 analytics.js loaded (HEMATH)');
 
-const MAX_POINTS = 288;
+// ⭐ OPTIMASI: Kurangi jumlah data
+const MAX_POINTS = 96; // Hanya 96 titik (setiap 15 menit)
+const CACHE_DURATION = 60 * 60 * 1000; // Cache 1 jam
+const CACHE_KEY = 'analytics_24h_cache_hemat';
+
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
 export let tempChart = null, lightChart = null, lampStatusChart = null;
 const dashTempLabels = [], dashTempData = [];
 export let dashTempChart = null;
 
-const CACHE_KEY = 'analytics_24h_cache';
-const CACHE_DURATION = 30 * 60 * 1000;
-
 // ============================================
-// TOGGLE EXPAND CHART
+// TOGGLE EXPAND
 // ============================================
 window.toggleExpand = function(wrapperId) {
   const wrapper = document.getElementById(wrapperId);
   if (!wrapper) return;
-  const isExpanded = wrapper.classList.contains('expanded');
-  document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
-    if (el.id !== wrapperId) el.classList.remove('expanded');
-  });
-  if (isExpanded) {
-    wrapper.classList.remove('expanded');
-  } else {
-    wrapper.classList.add('expanded');
-    setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
-  }
+  wrapper.classList.toggle('expanded');
   const canvas = wrapper.querySelector('canvas');
   if (canvas) {
     const chart = Chart.getChart(canvas);
@@ -41,10 +33,8 @@ window.toggleExpand = function(wrapperId) {
 };
 
 // ============================================
-// CEK MOBILE
+// CHART OPTIONS (MOBILE FRIENDLY)
 // ============================================
-const isMobile = window.innerWidth < 768;
-
 function getChartOptions() {
   const isMobile = window.innerWidth < 768;
   return {
@@ -85,14 +75,12 @@ function getChartOptions() {
 }
 
 // ============================================
-// ⭐ FIX: INIT CHARTS DENGAN SAFE DESTROY
+// ⭐ INIT CHARTS (DENGAN SAFE DESTROY)
 // ============================================
 export function initCharts() {
-  console.log('📊 initCharts dipanggil');
+  console.log('📊 initCharts dipanggil (HEMATH)');
   
-  // Tunggu Chart.js benar-benar ready
   if (typeof Chart === 'undefined') {
-    console.warn('⚠️ Chart.js belum loaded, retry in 500ms...');
     setTimeout(() => initCharts(), 500);
     return;
   }
@@ -100,13 +88,11 @@ export function initCharts() {
   const isMobile = window.innerWidth < 768;
   const opts = getChartOptions();
 
-  // ─── TEMP CHART ───
+  // TEMP CHART
   const tEl = document.getElementById('tempChart');
   if (tEl) {
-    // Destroy existing chart
     const existing = Chart.getChart(tEl);
     if (existing) existing.destroy();
-    
     tempChart = new Chart(tEl, {
       type: 'line',
       data: {
@@ -119,26 +105,20 @@ export function initCharts() {
           borderWidth: 2,
           fill: true,
           tension: 0.4,
-          pointRadius: isMobile ? 3 : 5,
-          pointHoverRadius: isMobile ? 5 : 8,
-          pointBackgroundColor: '#22c55e',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
+          pointRadius: isMobile ? 2 : 4,
+          pointBackgroundColor: '#22c55e'
         }]
       },
       options: opts
     });
     console.log('✅ tempChart initialized');
-  } else {
-    console.warn('⚠️ tempChart canvas not found');
   }
 
-  // ─── LIGHT CHART ───
+  // LIGHT CHART
   const lEl = document.getElementById('lightChart');
   if (lEl) {
     const existing = Chart.getChart(lEl);
     if (existing) existing.destroy();
-    
     lightChart = new Chart(lEl, {
       type: 'line',
       data: {
@@ -151,140 +131,82 @@ export function initCharts() {
           borderWidth: 2,
           fill: true,
           tension: 0.4,
-          pointRadius: isMobile ? 3 : 5,
-          pointHoverRadius: isMobile ? 5 : 8,
-          pointBackgroundColor: '#38bdf8',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
+          pointRadius: isMobile ? 2 : 4,
+          pointBackgroundColor: '#38bdf8'
         }]
       },
       options: opts
     });
     console.log('✅ lightChart initialized');
-  } else {
-    console.warn('⚠️ lightChart canvas not found');
   }
 
-  // ─── LAMP STATUS CHART ───
+  // LAMP STATUS CHART
   const lsEl = document.getElementById('lampStatusChart');
   if (lsEl) {
     const existing = Chart.getChart(lsEl);
     if (existing) existing.destroy();
-    
     lampStatusChart = new Chart(lsEl, {
       type: 'bar',
-      data: { 
-        labels: [], 
-        datasets: [{ 
-          label: 'Status Lampu', 
-          data: [], 
-          backgroundColor: (ctx) => { 
-            const value = ctx.dataset.data[ctx.dataIndex]; 
-            return value === 1 ? '#22c55e' : '#ef4444'; 
-          }, 
-          borderColor: 'rgba(255,255,255,0.2)', 
-          borderWidth: 1, 
-          borderRadius: 4, 
-          barPercentage: isMobile ? 0.6 : 0.8 
-        }] 
-      },
+      data: { labels: [], datasets: [{ label: 'Status Lampu', data: [], backgroundColor: (ctx) => ctx.dataset.data[ctx.dataIndex] === 1 ? '#22c55e' : '#ef4444', borderWidth: 1, borderRadius: 4, barPercentage: isMobile ? 0.6 : 0.8 }] },
       options: {
         responsive: true,
         maintainAspectRatio: true,
-        plugins: { 
-          legend: { display: false }, 
-          tooltip: { 
-            callbacks: { 
-              label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' 
-            }, 
-            bodyFont: { size: isMobile ? 10 : 12 } 
-          } 
-        },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' } } },
         scales: {
-          x: { 
-            ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 6 : 10, font: { size: isMobile ? 8 : 10 } }, 
-            grid: { color: 'rgba(255,255,255,0.05)' } 
-          },
-          y: { 
-            ticks: { color: '#94a3b8', stepSize: 1, callback: (v) => v === 1 ? 'ON' : 'OFF', font: { size: isMobile ? 8 : 10 } }, 
-            min: -0.5, 
-            max: 1.5, 
-            grid: { color: 'rgba(255,255,255,0.05)' } 
-          }
+          x: { ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 6 : 10, font: { size: isMobile ? 8 : 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { ticks: { color: '#94a3b8', stepSize: 1, callback: (v) => v === 1 ? 'ON' : 'OFF', font: { size: isMobile ? 8 : 10 } }, min: -0.5, max: 1.5, grid: { color: 'rgba(255,255,255,0.05)' } }
         }
       }
     });
     console.log('✅ lampStatusChart initialized');
-  } else {
-    console.warn('⚠️ lampStatusChart canvas not found');
   }
 
-  // ─── DASHBOARD TEMP CHART ───
+  // DASHBOARD CHART
   const dEl = document.getElementById('dashTempChart');
   if (dEl) {
     const existing = Chart.getChart(dEl);
     if (existing) existing.destroy();
-    
     dashTempChart = new Chart(dEl, {
       type: 'line',
-      data: { 
-        labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], 
-        datasets: [{ 
-          label: 'Suhu (°C)', 
-          data: dashTempData.length > 0 ? dashTempData : [0], 
-          borderColor: '#22c55e', 
-          backgroundColor: 'rgba(34,197,94,0.15)', 
-          borderWidth: 2, 
-          fill: true, 
-          tension: 0.4, 
-          pointRadius: isMobile ? 2 : 3 
-        }] 
-      },
-      options: { 
-        responsive: true, 
-        maintainAspectRatio: true, 
-        plugins: { legend: { display: false } }, 
-        scales: { 
-          x: { 
-            display: true,
-            ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } },
-            grid: { color: 'rgba(255,255,255,0.05)' }
-          }, 
-          y: { 
-            display: true,
-            ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } },
-            grid: { color: 'rgba(255,255,255,0.05)' }
-          } 
-        } 
-      }
+      data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
+      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
     });
     console.log('✅ dashTempChart initialized');
-  } else {
-    console.warn('⚠️ dashTempChart canvas not found');
   }
 }
 
 // ============================================
-// UPDATE CHARTS DENGAN DATA BARU
+// ⭐ UPDATE CHARTS (DENGAN THROTTLE)
 // ============================================
+let lastChartUpdate = 0;
+const CHART_THROTTLE = 5000; // Update setiap 5 detik saja
+
 export function updateCharts(time) {
+  const now = Date.now();
+  if (now - lastChartUpdate < CHART_THROTTLE) return;
+  lastChartUpdate = now;
+
+  const temp = state.temperature || 0;
+  const light = state.sensorLight || 0;
+  const lamp = state.lampState || false;
+
   if (tempChart && tempChart.data) {
     tempLabels.push(time);
-    tempData.push(state.temperature || 0);
+    tempData.push(temp);
     if (tempLabels.length > MAX_POINTS) { tempLabels.shift(); tempData.shift(); }
     tempChart.update('none');
   }
   
   if (lightChart && lightChart.data) {
     lightLabels.push(time);
-    sensorData.push(state.sensorLight || 0);
+    sensorData.push(light);
     if (lightLabels.length > MAX_POINTS) { lightLabels.shift(); sensorData.shift(); }
     lightChart.update('none');
   }
   
   if (lampStatusChart && lampStatusChart.data) {
     lampStatusChart.data.labels.push(time);
-    lampStatusChart.data.datasets[0].data.push(state.lampState ? 1 : 0);
+    lampStatusChart.data.datasets[0].data.push(lamp ? 1 : 0);
     if (lampStatusChart.data.labels.length > MAX_POINTS) {
       lampStatusChart.data.labels.shift();
       lampStatusChart.data.datasets[0].data.shift();
@@ -294,7 +216,7 @@ export function updateCharts(time) {
   
   if (dashTempChart && dashTempChart.data) {
     dashTempLabels.push(time);
-    dashTempData.push(state.temperature || 0);
+    dashTempData.push(temp);
     if (dashTempLabels.length > 15) {
       dashTempLabels.shift();
       dashTempData.shift();
@@ -304,78 +226,32 @@ export function updateCharts(time) {
 }
 
 // ============================================
-// ⭐ FIX: LOAD DASHBOARD CHART HISTORY
-// ============================================
-export async function loadDashChartHistory() {
-  console.log('📊 loadDashChartHistory dipanggil');
-  try {
-    const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
-    const data = snapshot.val();
-    
-    if (!data) {
-      console.log('⚠️ Tidak ada data history untuk dashboard');
-      // Tampilkan data dummy agar chart tidak kosong
-      if (dashTempChart) {
-        dashTempChart.data.labels = ['Tidak Ada Data'];
-        dashTempChart.data.datasets[0].data = [0];
-        dashTempChart.update();
-      }
-      return;
-    }
-    
-    const keys = Object.keys(data).sort();
-    const labels = [];
-    const values = [];
-    
-    keys.forEach(key => {
-      const entry = data[key];
-      const suhu = entry?.value ?? entry ?? 0;
-      if (suhu > 0) {
-        const date = new Date(parseKeyToTimestamp(key));
-        labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
-        values.push(suhu);
-      }
-    });
-    
-    // Update chart
-    if (dashTempChart) {
-      dashTempChart.data.labels = labels.length > 0 ? labels : ['Tidak Ada Data'];
-      dashTempChart.data.datasets[0].data = values.length > 0 ? values : [0];
-      dashTempChart.update();
-      console.log('✅ Dashboard chart diisi dengan', values.length, 'data');
-    }
-    
-  } catch (e) { 
-    console.error('❌ Gagal load dashboard chart:', e); 
-  }
-}
-
-// ============================================
-// ⭐ FIX: LOAD CHART HISTORY UTAMA
+// ⭐ LOAD HISTORY (HEMAT BANDWIDTH)
 // ============================================
 export async function loadChartHistory() {
-  console.log('📊 loadChartHistory dipanggil');
+  console.log('📊 loadChartHistory dipanggil (HEMATH)');
   
-  // Cek cache
+  // Cek cache dulu
   const cached = localStorage.getItem(CACHE_KEY);
   if (cached) {
     try {
       const parsed = JSON.parse(cached);
       if (Date.now() - parsed.timestamp < CACHE_DURATION) {
-        console.log('📦 Gunakan cache');
+        console.log('📦 Gunakan cache (hemat bandwidth)');
         if (parsed.data && parsed.data.length > 0) {
           applyChartData(parsed.data);
           return;
         }
       }
-    } catch (e) { console.warn('⚠️ Cache corrupt, load from DB'); }
+    } catch (e) { console.warn('⚠️ Cache corrupt'); }
   }
 
   try {
+    // ⭐ Hanya ambil data yang diperlukan (limit 100)
     const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
-      get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(MAX_POINTS))),
-      get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(MAX_POINTS))),
-      get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(MAX_POINTS)))
+      get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(100))),
+      get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(100))),
+      get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(100)))
     ]);
 
     const suhuData = suhuSnap.val() || {};
@@ -384,8 +260,6 @@ export async function loadChartHistory() {
 
     const allKeys = Object.keys(suhuData).sort();
     if (allKeys.length === 0) {
-      console.log('⚠️ Tidak ada data sensor history');
-      // Tampilkan data dummy
       applyChartData([]);
       return;
     }
@@ -401,11 +275,7 @@ export async function loadChartHistory() {
       let lampu = 0;
       if (lampuEntry !== undefined && lampuEntry !== null) {
         if (typeof lampuEntry === 'object') {
-          if (lampuEntry.state !== undefined) {
-            lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
-          } else if (lampuEntry.value !== undefined) {
-            lampu = (lampuEntry.value === true || lampuEntry.value === 1 || lampuEntry.value === 'ON') ? 1 : 0;
-          }
+          lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
         } else {
           lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
         }
@@ -421,15 +291,17 @@ export async function loadChartHistory() {
       return;
     }
 
-    const now = Date.now();
-    const oneDayAgo = now - 86400000;
-    const recentData = validData.filter(d => d.timestamp >= oneDayAgo);
-
-    let chartData = recentData.length <= 48 ? recentData : reduceToHourly(recentData, 48);
-
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: chartData }));
+    // ⭐ Ambil 24 titik data terakhir (per jam)
+    const chartData = reduceToHourly(validData, 24);
+    
+    // Simpan cache
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ 
+      timestamp: Date.now(), 
+      data: chartData 
+    }));
+    
     applyChartData(chartData);
-    console.log('✅ History loaded, titik:', chartData.length);
+    console.log('✅ History loaded (hemat):', chartData.length, 'titik');
     
   } catch (e) { 
     console.error('❌ Gagal load history:', e);
@@ -438,129 +310,8 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE
+// REDUCE TO HOURLY (SAMPLE PER JAM)
 // ============================================
-export async function loadChartHistoryByDate(dateStr) {
-  console.log('📅 loadChartHistoryByDate:', dateStr);
-  try {
-    if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
-
-    const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
-      get(ref(db, 'sensor_history/suhu')),
-      get(ref(db, 'sensor_history/cahaya')),
-      get(ref(db, 'sensor_history/lampu'))
-    ]);
-
-    const suhuData = suhuSnap.val() || {};
-    const cahayaData = cahayaSnap.val() || {};
-    const lampuData = lampuSnap.val() || {};
-
-    const allKeys = Object.keys(suhuData).sort();
-    const filteredKeys = allKeys.filter(key => {
-      const ts = parseKeyToTimestamp(key);
-      if (ts === 0) return false;
-      return new Date(ts).toISOString().slice(0, 10) === dateStr;
-    });
-
-    if (filteredKeys.length === 0) {
-      showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
-      return;
-    }
-
-    const rawData = filteredKeys.map(key => {
-      const suhuEntry = suhuData[key];
-      const cahayaEntry = cahayaData[key];
-      const lampuEntry = lampuData[key];
-
-      let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
-      let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
-
-      let lampu = 0;
-      if (lampuEntry !== undefined && lampuEntry !== null) {
-        if (typeof lampuEntry === 'object') {
-          if (lampuEntry.state !== undefined) {
-            lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
-          } else if (lampuEntry.value !== undefined) {
-            lampu = (lampuEntry.value === true || lampuEntry.value === 1 || lampuEntry.value === 'ON') ? 1 : 0;
-          }
-        } else {
-          lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
-        }
-      }
-
-      const timestamp = parseKeyToTimestamp(key);
-      return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
-    });
-
-    applyChartData(rawData);
-    showToast(`✅ Menampilkan data ${dateStr} (${rawData.length} titik)`, 'success');
-    console.log(`✅ Load history ${dateStr}, titik: ${rawData.length}`);
-    
-  } catch (e) {
-    console.error('❌ Gagal load by date:', e);
-    showToast('❌ Gagal load data: ' + e.message, 'error');
-  }
-}
-
-// ============================================
-// LOAD DAILY HISTORY
-// ============================================
-export async function loadDailyHistory() {
-  console.log('📊 loadDailyHistory dipanggil');
-  try {
-    const snapshot = await get(ref(db, 'daily_history'));
-    const data = snapshot.val();
-    if (!data) {
-      console.warn('⚠️ Tidak ada daily history.');
-      const tbody = document.getElementById('dailyHistoryBody');
-      if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
-      }
-      return;
-    }
-
-    const tbody = document.getElementById('dailyHistoryBody');
-    if (!tbody) return;
-
-    const dates = Object.keys(data).sort().reverse();
-    let html = '';
-
-    dates.forEach(date => {
-      const d = data[date];
-      const growlight = d.growlight || 0;
-      const total = d.total || growlight;
-      const status = total >= 12 ? '✅ Cukup' : '⚠️ Kurang';
-      const color = total >= 12 ? '#22c55e' : '#f59e0b';
-
-      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
-        <td style="padding:6px 8px; color:var(--text-muted);">${date}</td>
-        <td style="padding:6px 8px; color:#22c55e;">${growlight.toFixed(1)} jam</td>
-        <td style="padding:6px 8px; font-weight:600;">${total.toFixed(1)} jam</td>
-        <td style="padding:6px 8px; color:${color}; font-weight:600;">${status}</td>
-      </tr>`;
-    });
-
-    tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
-    console.log('✅ Daily history loaded,', dates.length, 'hari');
-
-  } catch (e) {
-    console.error('❌ Gagal load daily history:', e);
-  }
-}
-
-// ============================================
-// FUNGSI BANTU
-// ============================================
-function parseKeyToTimestamp(key) {
-  try {
-    const clean = key.replace(/-000Z$/, '');
-    const [datePart, timePart] = clean.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute, second] = timePart.split('-').map(Number);
-    return new Date(year, month - 1, day, hour, minute, second).getTime();
-  } catch (e) { return 0; }
-}
-
 function reduceToHourly(data, totalPoints) {
   if (data.length === 0) return [];
   data.sort((a, b) => a.timestamp - b.timestamp);
@@ -582,10 +333,22 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// ⭐ FIX: APPLY CHART DATA
+// PARSE KEY TO TIMESTAMP
+// ============================================
+function parseKeyToTimestamp(key) {
+  try {
+    const clean = key.replace(/-000Z$/, '');
+    const [datePart, timePart] = clean.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute, second] = timePart.split('-').map(Number);
+    return new Date(year, month - 1, day, hour, minute, second).getTime();
+  } catch (e) { return 0; }
+}
+
+// ============================================
+// ⭐ APPLY CHART DATA
 // ============================================
 function applyChartData(hourlyData) {
-  // Reset data
   tempLabels.length = 0;
   tempData.length = 0;
   lightLabels.length = 0;
@@ -597,18 +360,15 @@ function applyChartData(hourlyData) {
   }
 
   if (!hourlyData || hourlyData.length === 0) {
-    // Data kosong - tampilkan placeholder
     const placeholder = ['Tidak Ada Data'];
     tempLabels.push(...placeholder);
     tempData.push(0);
     lightLabels.push(...placeholder);
     sensorData.push(0);
-    
     if (lampStatusChart) {
       lampStatusChart.data.labels.push(...placeholder);
       lampStatusChart.data.datasets[0].data.push(0);
     }
-    
     if (tempChart) tempChart.update();
     if (lightChart) lightChart.update();
     if (lampStatusChart) lampStatusChart.update();
@@ -625,19 +385,17 @@ function applyChartData(hourlyData) {
     tempData.push(d.suhu || 0);
     lightLabels.push(labels[i] || `${i}`);
     sensorData.push(Math.round(d.cahaya || 0));
-
     if (lampStatusChart) {
       lampStatusChart.data.labels.push(labels[i] || `${i}`);
       lampStatusChart.data.datasets[0].data.push((d.lampu === true || d.lampu === 1) ? 1 : 0);
     }
   });
 
-  // Update charts
   if (tempChart) tempChart.update('none');
   if (lightChart) lightChart.update('none');
   if (lampStatusChart) lampStatusChart.update('none');
 
-  // Update stats
+  // Update stats tetap jalan
   updateStats(hourlyData);
   updateCategoryStats(hourlyData);
   updateLampStats(hourlyData);
@@ -647,7 +405,7 @@ function applyChartData(hourlyData) {
 }
 
 // ============================================
-// STATISTIK FUNGSI
+// STATS FUNCTIONS (SAMA SEPERTI SEBELUMNYA)
 // ============================================
 function updateStats(data) {
   const temps = data.map(d => d.suhu).filter(v => v > 0);
@@ -660,7 +418,6 @@ function updateStats(data) {
     if (maxEl) maxEl.textContent = Math.max(...temps).toFixed(1) + '°C';
     if (minEl) minEl.textContent = Math.min(...temps).toFixed(1) + '°C';
   }
-  
   const lights = data.map(d => d.cahaya).filter(v => v > 0);
   if (lights.length) {
     const avgL = lights.reduce((a, b) => a + b, 0) / lights.length;
@@ -814,7 +571,6 @@ function updateHistogram(data) {
   const values = data.map(d => d.suhu).filter(v => v > 0);
   let chart = Chart.getChart(canvas);
   if (chart) chart.destroy();
-  
   if (!values.length) {
     new Chart(canvas, {
       type: 'bar',
@@ -837,7 +593,7 @@ function updateHistogram(data) {
 }
 
 // ============================================
-// EXPORT DATA
+// EXPORT FUNCTIONS (SAMA)
 // ============================================
 export async function exportData(period) {
   const status = DOM.exportStatus;
@@ -895,9 +651,6 @@ export async function exportData(period) {
   }
 }
 
-// ============================================
-// EXPORT PDF
-// ============================================
 export async function exportPDF() {
   if (DOM.exportStatus) DOM.exportStatus.textContent = '⏳ Membuat PDF...';
   try {
@@ -938,4 +691,119 @@ export async function exportPDF() {
   }
 }
 
-console.log('✅ analytics.js fully loaded (FIXED)');
+export async function loadDashChartHistory() {
+  // Sama seperti sebelumnya
+  console.log('📊 loadDashChartHistory dipanggil');
+  try {
+    const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
+    const data = snapshot.val();
+    if (!data) {
+      if (dashTempChart) {
+        dashTempChart.data.labels = ['Tidak Ada Data'];
+        dashTempChart.data.datasets[0].data = [0];
+        dashTempChart.update();
+      }
+      return;
+    }
+    const keys = Object.keys(data).sort();
+    const labels = [];
+    const values = [];
+    keys.forEach(key => {
+      const entry = data[key];
+      const suhu = entry?.value ?? entry ?? 0;
+      if (suhu > 0) {
+        const date = new Date(parseKeyToTimestamp(key));
+        labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+        values.push(suhu);
+      }
+    });
+    if (dashTempChart) {
+      dashTempChart.data.labels = labels.length > 0 ? labels : ['Tidak Ada Data'];
+      dashTempChart.data.datasets[0].data = values.length > 0 ? values : [0];
+      dashTempChart.update();
+    }
+  } catch (e) { console.error('❌ Gagal load dashboard chart:', e); }
+}
+
+export async function loadChartHistoryByDate(dateStr) {
+  // Sama seperti sebelumnya
+  console.log('📅 loadChartHistoryByDate:', dateStr);
+  try {
+    if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
+    const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
+      get(ref(db, 'sensor_history/suhu')),
+      get(ref(db, 'sensor_history/cahaya')),
+      get(ref(db, 'sensor_history/lampu'))
+    ]);
+    const suhuData = suhuSnap.val() || {};
+    const cahayaData = cahayaSnap.val() || {};
+    const lampuData = lampuSnap.val() || {};
+    const allKeys = Object.keys(suhuData).sort();
+    const filteredKeys = allKeys.filter(key => {
+      const ts = parseKeyToTimestamp(key);
+      if (ts === 0) return false;
+      return new Date(ts).toISOString().slice(0, 10) === dateStr;
+    });
+    if (filteredKeys.length === 0) {
+      showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
+      return;
+    }
+    const rawData = filteredKeys.map(key => {
+      const suhuEntry = suhuData[key];
+      const cahayaEntry = cahayaData[key];
+      const lampuEntry = lampuData[key];
+      let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
+      let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
+      let lampu = 0;
+      if (lampuEntry !== undefined && lampuEntry !== null) {
+        if (typeof lampuEntry === 'object') {
+          lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
+        } else {
+          lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
+        }
+      }
+      const timestamp = parseKeyToTimestamp(key);
+      return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
+    });
+    applyChartData(rawData);
+    showToast(`✅ Menampilkan data ${dateStr} (${rawData.length} titik)`, 'success');
+  } catch (e) {
+    console.error('❌ Gagal load by date:', e);
+    showToast('❌ Gagal load data: ' + e.message, 'error');
+  }
+}
+
+export async function loadDailyHistory() {
+  // Sama seperti sebelumnya
+  console.log('📊 loadDailyHistory dipanggil');
+  try {
+    const snapshot = await get(ref(db, 'daily_history'));
+    const data = snapshot.val();
+    const tbody = document.getElementById('dailyHistoryBody');
+    if (!tbody) return;
+    if (!data) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
+      return;
+    }
+    const dates = Object.keys(data).sort().reverse();
+    let html = '';
+    dates.forEach(date => {
+      const d = data[date];
+      const growlight = d.growlight || 0;
+      const total = d.total || growlight;
+      const status = total >= 12 ? '✅ Cukup' : '⚠️ Kurang';
+      const color = total >= 12 ? '#22c55e' : '#f59e0b';
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+        <td style="padding:6px 8px; color:var(--text-muted);">${date}</td>
+        <td style="padding:6px 8px; color:#22c55e;">${growlight.toFixed(1)} jam</td>
+        <td style="padding:6px 8px; font-weight:600;">${total.toFixed(1)} jam</td>
+        <td style="padding:6px 8px; color:${color}; font-weight:600;">${status}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
+  } catch (e) {
+    console.error('❌ Gagal load daily history:', e);
+  }
+}
+
+console.log('✅ analytics.js fully loaded (HEMATH BANDWIDTH)');
