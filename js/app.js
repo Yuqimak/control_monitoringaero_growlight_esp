@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FULL REVISI - FIX FLICKER)
+// MAIN ENTRY – app.js (FULL REVISI - FIX FLICKER + DASHBOARD ID)
 // ============================================
 
 import { db } from './firebase.js';
@@ -151,6 +151,267 @@ function updateGauge() {
 }
 
 // ============================================
+// UPDATE DASHBOARD CARD (BARU - SAMA PERSIS DENGAN MONITORING)
+// ============================================
+function updateDashboardCards(temp, lux, lampState) {
+    requestAnimationFrame(() => {
+        // ========== CARD 1: SUHU ==========
+        const dashTempValue = document.getElementById('dashTempValue');
+        const dashTempStatus = document.getElementById('dashTempStatus');
+        
+        if (dashTempValue) dashTempValue.textContent = temp.toFixed(1);
+        
+        let tempCategory = '🌤️ Normal';
+        let tempColor = '#22c55e';
+        if (temp > 35) { tempCategory = '🔥 Sangat Panas'; tempColor = '#ef4444'; }
+        else if (temp > 30) { tempCategory = '🔥 Panas'; tempColor = '#f59e0b'; }
+        else if (temp > 20) { tempCategory = '🌤️ Normal'; tempColor = '#22c55e'; }
+        else { tempCategory = '❄️ Dingin'; tempColor = '#3b82f6'; }
+        
+        if (dashTempStatus) {
+            dashTempStatus.textContent = tempCategory;
+            dashTempStatus.style.color = tempColor;
+        }
+
+        // ========== CARD 2: INTENSITAS CAHAYA ==========
+        const dashLightValue = document.getElementById('dashLightValue');
+        const dashLightStatus = document.getElementById('dashLightStatus');
+        
+        if (dashLightValue) dashLightValue.textContent = Math.round(lux);
+        
+        let lightCategory = '🌤️ Sedang';
+        let lightColor = '#94a3b8';
+        if (lux > 4000) { lightCategory = '☀️ Sangat Terang'; lightColor = '#facc15'; }
+        else if (lux > 2000) { lightCategory = '🌤️ Terang'; lightColor = '#f59e0b'; }
+        else if (lux > 500) { lightCategory = '🌥️ Sedang'; lightColor = '#94a3b8'; }
+        else if (lux > 100) { lightCategory = '🌥️ Redup'; lightColor = '#64748b'; }
+        else { lightCategory = '🌙 Gelap'; lightColor = '#3b82f6'; }
+        
+        if (dashLightStatus) {
+            dashLightStatus.textContent = lightCategory;
+            dashLightStatus.style.color = lightColor;
+        }
+
+        // ========== CARD 3: STATUS LAMPU ==========
+        const dashLampStatus = document.getElementById('dashLampStatus');
+        const dashLampStatusText = document.getElementById('dashLampStatusText');
+        
+        const statusText = lampState ? 'ON' : 'OFF';
+        const statusColor = lampState ? '#22c55e' : '#ef4444';
+        const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
+        
+        if (dashLampStatus) {
+            dashLampStatus.textContent = statusText;
+            dashLampStatus.style.color = statusColor;
+        }
+        if (dashLampStatusText) {
+            dashLampStatusText.textContent = statusLabel;
+            dashLampStatusText.style.color = statusColor;
+        }
+
+        // ========== CARD 4: PEMENUHAN CAHAYA ==========
+        const dashProgressValue = document.getElementById('dashProgressValue');
+        const dashProgressStatus = document.getElementById('dashProgressStatus');
+        const dashSunlightHours = document.getElementById('dashSunlightHours');
+        
+        const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+        const displayProgress = progress > 100 ? 100 : progress;
+        
+        if (dashProgressValue) dashProgressValue.textContent = displayProgress + '%';
+        if (dashProgressStatus) {
+            dashProgressStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
+        }
+        if (dashSunlightHours) dashSunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
+
+        // ========== MODE KONTROL ==========
+        const dashModeDisplay = document.getElementById('dashModeDisplay');
+        if (dashModeDisplay) {
+            const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+            dashModeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
+        }
+
+        // ========== STATUS SISTEM ==========
+        const dashConnStatus = document.getElementById('dashConnStatus');
+        if (dashConnStatus) {
+            dashConnStatus.textContent = '● Online';
+            dashConnStatus.className = 'status-badge online';
+        }
+
+        const dashDataCount = document.getElementById('dashDataCount');
+        if (dashDataCount) {
+            // Hitung data dari sensor history
+            dashDataCount.textContent = state.sensorCount || 0;
+        }
+
+        const dashLastUpdate = document.getElementById('dashLastUpdate');
+        if (dashLastUpdate) {
+            const now = new Date();
+            dashLastUpdate.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
+        }
+
+        const dashLatestTemp = document.getElementById('dashLatestTemp');
+        if (dashLatestTemp) {
+            dashLatestTemp.textContent = temp.toFixed(1) + '°C';
+        }
+
+        // ========== CHART STATUS ==========
+        const chartStatus = document.getElementById('chartStatus');
+        if (chartStatus) {
+            // Cek stabilitas data
+            if (state.tempHistory && state.tempHistory.length > 5) {
+                const avg = state.tempHistory.reduce((a, b) => a + b, 0) / state.tempHistory.length;
+                const variance = state.tempHistory.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / state.tempHistory.length;
+                if (variance < 1) {
+                    chartStatus.textContent = '🟢 Stabil';
+                    chartStatus.style.color = '#22c55e';
+                } else if (variance < 5) {
+                    chartStatus.textContent = '🟡 Fluktuatif';
+                    chartStatus.style.color = '#f59e0b';
+                } else {
+                    chartStatus.textContent = '🔴 Tidak Stabil';
+                    chartStatus.style.color = '#ef4444';
+                }
+            }
+        }
+    });
+}
+
+// ============================================
+// UPDATE MONITORING UI (FOKUS KE FLICKER)
+// ============================================
+let lastMonitorUpdate = 0;
+const MONITOR_THROTTLE = 500;
+
+function updateMonitoringUI(temp, lux, lampState) {
+    const now = Date.now();
+    if (now - lastMonitorUpdate < MONITOR_THROTTLE) return;
+    lastMonitorUpdate = now;
+
+    requestAnimationFrame(() => {
+        // Update Suhu
+        const tempEl = document.getElementById('monitorTemp');
+        const statTemp = document.getElementById('statTemp');
+        const tempStatus = document.getElementById('tempStatus');
+        const statTempStatus = document.getElementById('statTempStatus');
+
+        if (tempEl) tempEl.textContent = temp.toFixed(1);
+        if (statTemp) statTemp.textContent = temp.toFixed(1);
+
+        let tempCategory = '';
+        let tempColor = '';
+        if (temp > 35) { tempCategory = '🔥 Sangat Panas';
+            tempColor = '#ef4444'; } else if (temp > 30) { tempCategory = '🔥 Panas';
+            tempColor = '#f59e0b'; } else if (temp > 20) { tempCategory = '🌤️ Normal';
+            tempColor = '#22c55e'; } else { tempCategory = '❄️ Dingin';
+            tempColor = '#3b82f6'; }
+
+        if (tempStatus) {
+            tempStatus.textContent = tempCategory;
+            tempStatus.style.color = tempColor;
+        }
+        if (statTempStatus) {
+            statTempStatus.textContent = tempCategory.replace(/[🔥🌤️❄️]/g, '').trim();
+            statTempStatus.style.color = tempColor;
+        }
+
+        // Update Lux
+        const lightEl = document.getElementById('monitorLight');
+        const statLight = document.getElementById('statLight');
+        const lightStatus = document.getElementById('lightStatus');
+        const statLightStatus = document.getElementById('statLightStatus');
+
+        if (lightEl) lightEl.textContent = Math.round(lux);
+        if (statLight) statLight.textContent = Math.round(lux);
+
+        let lightCategory = '';
+        let lightColor = '';
+        if (lux > 4000) { lightCategory = '☀️ Sangat Terang';
+            lightColor = '#facc15'; } else if (lux > 2000) { lightCategory = '🌤️ Terang';
+            lightColor = '#f59e0b'; } else if (lux > 500) { lightCategory = '🌥️ Sedang';
+            lightColor = '#94a3b8'; } else if (lux > 100) { lightCategory = '🌥️ Redup';
+            lightColor = '#64748b'; } else { lightCategory = '🌙 Gelap';
+            lightColor = '#3b82f6'; }
+
+        if (lightStatus) {
+            lightStatus.textContent = lightCategory;
+            lightStatus.style.color = lightColor;
+        }
+        if (statLightStatus) {
+            statLightStatus.textContent = lightCategory.replace(/[☀️🌤️🌥️🌙]/g, '').trim();
+            statLightStatus.style.color = lightColor;
+        }
+
+        // Update Status Lampu (Monitoring)
+        const monitorLampStatus = document.getElementById('monitorLampStatus');
+        const lampStatusText = document.getElementById('lampStatusText');
+
+        const statusText = lampState ? 'ON' : 'OFF';
+        const statusColor = lampState ? '#22c55e' : '#ef4444';
+        const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
+
+        if (monitorLampStatus) {
+            monitorLampStatus.textContent = statusText;
+            monitorLampStatus.style.color = statusColor;
+        }
+        if (lampStatusText) {
+            lampStatusText.textContent = statusLabel;
+            lampStatusText.style.color = statusColor;
+        }
+
+        // Update Status Lampu (Dashboard Quick Stats - legacy)
+        const statLamp = document.getElementById('statLamp');
+        if (statLamp) {
+            statLamp.textContent = statusText;
+            statLamp.style.color = statusColor;
+        }
+    });
+}
+
+// ============================================
+// UPDATE STATUS TEXT (HANYA UNTUK DASHBOARD QUICK STATS LEGACY)
+// ============================================
+function updateStatusTextSmooth(temp, lux) {
+    // Hanya update quick stats di dashboard (legacy)
+    const statTempStatus = document.getElementById('statTempStatus');
+    if (statTempStatus) {
+        let category = 'Normal';
+        let color = '#22c55e';
+        if (temp > 35) { category = 'Sangat Panas';
+            color = '#ef4444'; } else if (temp > 30) { category = 'Panas';
+            color = '#f59e0b'; } else if (temp > 20) { category = 'Normal';
+            color = '#22c55e'; } else { category = 'Dingin';
+            color = '#3b82f6'; }
+        statTempStatus.textContent = category;
+        statTempStatus.style.color = color;
+    }
+
+    const statLightStatus = document.getElementById('statLightStatus');
+    if (statLightStatus) {
+        let category = 'Sedang';
+        let color = '#94a3b8';
+        if (lux > 4000) { category = 'Sangat Terang';
+            color = '#facc15'; } else if (lux > 2000) { category = 'Terang';
+            color = '#f59e0b'; } else if (lux > 500) { category = 'Sedang';
+            color = '#94a3b8'; } else if (lux > 100) { category = 'Redup';
+            color = '#64748b'; } else { category = 'Gelap';
+            color = '#3b82f6'; }
+        statLightStatus.textContent = category;
+        statLightStatus.style.color = color;
+    }
+}
+
+// ============================================
+// UPDATE DASHBOARD CHART (LEGACY)
+// ============================================
+function updateDashChart(temp) {
+    // Ini akan di-handle oleh loadDashChartHistory dari modules/analytics.js
+    // Tapi kita tambahkan state tempHistory untuk stabilitas
+    if (!state.tempHistory) state.tempHistory = [];
+    state.tempHistory.push(temp);
+    if (state.tempHistory.length > 20) state.tempHistory.shift();
+}
+
+// ============================================
 // UPDATE KATEGORI DARI SENSOR_HISTORY
 // ============================================
 async function updateCategoriesFromHistory() {
@@ -278,134 +539,6 @@ function updateCategoriesFromCurrentData() {
     if (statLightStatus) {
         statLightStatus.textContent = lightCategory.replace(/[☀️🌤️🌥️🌙]/g, '').trim();
         statLightStatus.style.color = lightColor;
-    }
-}
-
-// ============================================
-// UPDATE MONITORING UI (FOKUS KE FLICKER)
-// ============================================
-let lastMonitorUpdate = 0;
-const MONITOR_THROTTLE = 500;
-
-function updateMonitoringUI(temp, lux, lampState) {
-    const now = Date.now();
-    if (now - lastMonitorUpdate < MONITOR_THROTTLE) return;
-    lastMonitorUpdate = now;
-
-    requestAnimationFrame(() => {
-        // Update Suhu
-        const tempEl = document.getElementById('monitorTemp');
-        const statTemp = document.getElementById('statTemp');
-        const tempStatus = document.getElementById('tempStatus');
-        const statTempStatus = document.getElementById('statTempStatus');
-
-        if (tempEl) tempEl.textContent = temp.toFixed(1);
-        if (statTemp) statTemp.textContent = temp.toFixed(1);
-
-        let tempCategory = '';
-        let tempColor = '';
-        if (temp > 35) { tempCategory = '🔥 Sangat Panas';
-            tempColor = '#ef4444'; } else if (temp > 30) { tempCategory = '🔥 Panas';
-            tempColor = '#f59e0b'; } else if (temp > 20) { tempCategory = '🌤️ Normal';
-            tempColor = '#22c55e'; } else { tempCategory = '❄️ Dingin';
-            tempColor = '#3b82f6'; }
-
-        if (tempStatus) {
-            tempStatus.textContent = tempCategory;
-            tempStatus.style.color = tempColor;
-        }
-        if (statTempStatus) {
-            statTempStatus.textContent = tempCategory.replace(/[🔥🌤️❄️]/g, '').trim();
-            statTempStatus.style.color = tempColor;
-        }
-
-        // Update Lux
-        const lightEl = document.getElementById('monitorLight');
-        const statLight = document.getElementById('statLight');
-        const lightStatus = document.getElementById('lightStatus');
-        const statLightStatus = document.getElementById('statLightStatus');
-
-        if (lightEl) lightEl.textContent = Math.round(lux);
-        if (statLight) statLight.textContent = Math.round(lux);
-
-        let lightCategory = '';
-        let lightColor = '';
-        if (lux > 4000) { lightCategory = '☀️ Sangat Terang';
-            lightColor = '#facc15'; } else if (lux > 2000) { lightCategory = '🌤️ Terang';
-            lightColor = '#f59e0b'; } else if (lux > 500) { lightCategory = '🌥️ Sedang';
-            lightColor = '#94a3b8'; } else if (lux > 100) { lightCategory = '🌥️ Redup';
-            lightColor = '#64748b'; } else { lightCategory = '🌙 Gelap';
-            lightColor = '#3b82f6'; }
-
-        if (lightStatus) {
-            lightStatus.textContent = lightCategory;
-            lightStatus.style.color = lightColor;
-        }
-        if (statLightStatus) {
-            statLightStatus.textContent = lightCategory.replace(/[☀️🌤️🌥️🌙]/g, '').trim();
-            statLightStatus.style.color = lightColor;
-        }
-
-        // Update Status Lampu
-        const lampStatus = document.getElementById('monitorLampStatus');
-        const lampText = document.getElementById('lampStatusText');
-        const statLamp = document.getElementById('statLamp');
-
-        const statusText = lampState ? 'ON' : 'OFF';
-        const statusColor = lampState ? '#22c55e' : '#ef4444';
-        const statusLabel = lampState ? '💡 Lampu Aktif' : '⛔ Lampu Mati';
-
-        if (lampStatus) {
-            lampStatus.textContent = statusText;
-            lampStatus.style.color = statusColor;
-        }
-        if (lampText) {
-            lampText.textContent = statusLabel;
-            lampText.style.color = statusColor;
-        }
-        if (statLamp) {
-            statLamp.textContent = statusText;
-            statLamp.style.color = statusColor;
-        }
-    });
-}
-
-// ============================================
-// UPDATE STATUS TEXT (HANYA UNTUK DASHBOARD)
-// ============================================
-function updateStatusTextSmooth(temp, lux) {
-    // Hanya update quick stats di dashboard
-    const statTempStatus = document.getElementById('statTempStatus');
-    if (statTempStatus) {
-        let category = 'Normal';
-        let color = '#22c55e';
-        if (temp > 35) { category = 'Sangat Panas';
-            color = '#ef4444'; } else if (temp > 30) { category = 'Panas';
-            color = '#f59e0b'; } else if (temp > 20) { category = 'Normal';
-            color = '#22c55e'; } else { category = 'Dingin';
-            color = '#3b82f6'; }
-        statTempStatus.textContent = category;
-        statTempStatus.style.color = color;
-    }
-
-    const statLightStatus = document.getElementById('statLightStatus');
-    if (statLightStatus) {
-        let category = 'Sedang';
-        let color = '#94a3b8';
-        if (lux > 4000) { category = 'Sangat Terang';
-            color = '#facc15'; } else if (lux > 2000) { category = 'Terang';
-            color = '#f59e0b'; } else if (lux > 500) { category = 'Sedang';
-            color = '#94a3b8'; } else if (lux > 100) { category = 'Redup';
-            color = '#64748b'; } else { category = 'Gelap';
-            color = '#3b82f6'; }
-        statLightStatus.textContent = category;
-        statLightStatus.style.color = color;
-    }
-
-    const lampEl = document.getElementById('lampStatusText');
-    if (lampEl) {
-        lampEl.textContent = state.lampState ? '💡 Lampu Aktif' : '⛔ Lampu Mati';
-        lampEl.style.color = state.lampState ? '#22c55e' : '#ef4444';
     }
 }
 
@@ -602,10 +735,25 @@ document.addEventListener("DOMContentLoaded", () => {
         setInterval(() => {
             const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
             const display = progress > 100 ? 100 : progress;
-            const el = document.getElementById('statLightProgress');
-            if (el) el.textContent = display;
-            const gauge = document.getElementById('gaugeProgress');
-            if (gauge) gauge.textContent = display + '%';
+            
+            // Update Dashboard cards
+            const dashProgressValue = document.getElementById('dashProgressValue');
+            if (dashProgressValue) dashProgressValue.textContent = display + '%';
+            
+            const dashProgressStatus = document.getElementById('dashProgressStatus');
+            if (dashProgressStatus) {
+                dashProgressStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
+            }
+            
+            const dashSunlightHours = document.getElementById('dashSunlightHours');
+            if (dashSunlightHours) dashSunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
+            
+            // Update Monitoring gauge
+            const gaugeProgress = document.getElementById('gaugeProgress');
+            if (gaugeProgress) gaugeProgress.textContent = display + '%';
+            
+            const statLightProgress = document.getElementById('statLightProgress');
+            if (statLightProgress) statLightProgress.textContent = display;
         }, 10000);
 
         setInterval(() => {
@@ -620,7 +768,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ============================================
-// FIREBASE LISTENERS (REVISI - FIX FLICKER)
+// FIREBASE LISTENERS (REVISI - FIX FLICKER + DASHBOARD ID)
 // ============================================
 function initFirebase() {
     try {
@@ -652,7 +800,10 @@ function initFirebase() {
                     state.temperature = smoothSuhu;
                     state.sensorLight = smoothLux;
 
-                    // ⭐ HANYA 1 FUNGSI UNTUK UPDATE UI MONITORING
+                    // ⭐ UPDATE DASHBOARD CARDS (BARU)
+                    updateDashboardCards(smoothSuhu, smoothLux, state.lampState);
+
+                    // ⭐ UPDATE MONITORING UI
                     updateMonitoringUI(smoothSuhu, smoothLux, state.lampState);
 
                     // Update elemen lain yang tidak flicker
@@ -664,8 +815,11 @@ function initFirebase() {
                         DOM.dashLastUpdate.textContent = time;
                     }
 
-                    // Update quick stats di dashboard
+                    // Update quick stats di dashboard (legacy)
                     updateStatusTextSmooth(smoothSuhu, smoothLux);
+
+                    // Update chart history
+                    updateDashChart(smoothSuhu);
                 }
             } catch (e) {
                 console.error('❌ Error di listener sensor:', e);
@@ -711,15 +865,20 @@ function initFirebase() {
                         state.lastResetDate = today;
                     }
 
+                    // Update Dashboard Cards (refresh dengan data terbaru)
+                    updateDashboardCards(state.temperature, state.sensorLight, state.lampState);
+
+                    // Update Control
                     const display = document.getElementById('currentModeDisplay');
                     const displayControl = document.getElementById('currentModeDisplayControl');
                     const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
                     if (display) display.textContent = labels[state.controlMode] || state.controlMode;
                     if (displayControl) displayControl.textContent = labels[state.controlMode] || state.controlMode;
 
+                    // Update Control Lamp Status
                     const statusText = state.lampState ? 'ON' : 'OFF';
                     const statusColor = state.lampState ? '#22c55e' : '#ef4444';
-                    ['dashLampStatus', 'lampStateText', 'statLamp', 'monitorLampStatus'].forEach(id => {
+                    ['lampStateText', 'statLamp'].forEach(id => {
                         const el = document.getElementById(id);
                         if (el) {
                             el.textContent = statusText;
@@ -732,9 +891,11 @@ function initFirebase() {
                     if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
                     if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
 
+                    // Update dashboard latest temp
                     const latestTemp = document.getElementById('dashLatestTemp');
                     if (latestTemp) latestTemp.textContent = state.temperature.toFixed(1) + '°C';
 
+                    // Update progress di control
                     const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
                     const display2 = progress > 100 ? 100 : progress;
                     if (DOM.statLightProgress) DOM.statLightProgress.textContent = display2;
