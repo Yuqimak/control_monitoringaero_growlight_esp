@@ -1243,5 +1243,418 @@ canvas { width: 100% !important; max-height: 180px; }
         font-size: 8px;
     }
 }
+/* ============================================
+   MOBILE RESPONSIVE - TAMBAHKAN
+   ============================================ */
 
+/* Mobile Menu Toggle */
+.menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 999;
+    backdrop-filter: blur(4px);
+}
+
+.mobile-overlay.active {
+    display: block;
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+/* Tablet & Mobile */
+@media (max-width: 1024px) {
+    .dashboard-main-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .monitor-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .control-grid {
+        grid-template-columns: 1fr !important;
+    }
+    
+    .control-card {
+        grid-column: span 1 !important;
+    }
+    
+    .analytics-card {
+        grid-column: span 1 !important;
+    }
+    
+    #statsContainer {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Sidebar - slide from left */
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        height: 100vh;
+        z-index: 1000;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+        padding: 20px;
+        background: #0f0f1a;
+        border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .sidebar.active {
+        left: 0;
+    }
+    
+    .menu-toggle {
+        display: block !important;
+    }
+    
+    /* Topbar mobile */
+    .topbar {
+        flex-wrap: wrap;
+        padding: 10px 12px !important;
+        gap: 8px;
+    }
+    
+    .topbar-right {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .status-card {
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+    }
+    
+    .user-card {
+        padding: 4px 10px !important;
+        font-size: 12px !important;
+    }
+    
+    .clock-card {
+        padding: 4px 10px !important;
+    }
+    
+    .clock-card h3 {
+        font-size: 16px !important;
+    }
+    
+    .clock-card p {
+        font-size: 10px !important;
+    }
+    
+    /* Main content */
+    .main-content {
+        padding: 12px !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    /* Grid jadi 1 kolom */
+    .monitor-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .dashboard-main-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .control-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    .control-card {
+        grid-column: span 1 !important;
+        padding: 16px !important;
+    }
+    
+    .analytics-card {
+        grid-column: span 1 !important;
+        padding: 16px !important;
+    }
+    
+    /* Quick stats */
+    .quick-stats {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    
+    .quick-stat {
+        padding: 10px !important;
+    }
+    
+    .quick-stat-value {
+        font-size: 18px !important;
+    }
+    
+    /* Cards */
+    .monitor-card {
+        padding: 16px !important;
+    }
+    
+    .metric {
+        font-size: 28px !important;
+    }
+    
+    .card-head h3 {
+        font-size: 14px !important;
+    }
+    
+    /* Analytics */
+    #statsContainer {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+    
+    .stat-item {
+        padding: 10px !important;
+    }
+    
+    .stat-item div:last-child {
+        font-size: 18px !important;
+    }
+    
+    /* Buttons */
+    .big-btn {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+        min-width: 60px !important;
+    }
+    
+    .mode-btn {
+        min-width: 80px !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
+    
+    .button-row {
+        gap: 8px !important;
+    }
+    
+    /* Table */
+    table {
+        font-size: 11px !important;
+    }
+    
+    table th, table td {
+        padding: 4px 6px !important;
+    }
+    
+    /* Admin */
+    .admin-grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    
+    /* Export */
+    #exportPeriod {
+        min-width: 100px !important;
+        padding: 8px !important;
+        font-size: 12px !important;
+    }
+    
+    .analytics-head {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .analytics-head h3 {
+        font-size: 14px !important;
+    }
+    
+    .time-btn {
+        font-size: 11px !important;
+        padding: 4px 10px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* HP kecil */
+    .quick-stats {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+    }
+    
+    .quick-stat {
+        padding: 8px !important;
+    }
+    
+    .quick-stat-value {
+        font-size: 15px !important;
+    }
+    
+    .quick-stat-label {
+        font-size: 10px !important;
+    }
+    
+    .quick-stat-icon {
+        font-size: 18px !important;
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    .monitor-card {
+        padding: 12px !important;
+    }
+    
+    .metric {
+        font-size: 22px !important;
+    }
+    
+    .topbar h1 {
+        font-size: 16px !important;
+    }
+    
+    .topbar .subtitle {
+        font-size: 10px !important;
+    }
+    
+    .sidebar {
+        width: 240px !important;
+        left: -240px !important;
+    }
+    
+    .sidebar.active {
+        left: 0 !important;
+    }
+    
+    .logo h2 {
+        font-size: 18px !important;
+    }
+    
+    .menu-item {
+        font-size: 13px !important;
+        padding: 10px 14px !important;
+    }
+    
+    .status-card {
+        font-size: 10px !important;
+        padding: 2px 8px !important;
+    }
+    
+    .user-card {
+        font-size: 11px !important;
+        padding: 2px 8px !important;
+    }
+    
+    .clock-card h3 {
+        font-size: 14px !important;
+    }
+    
+    #statsContainer {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 6px !important;
+    }
+    
+    .stat-item div:last-child {
+        font-size: 16px !important;
+    }
+    
+    .control-card h3 {
+        font-size: 14px !important;
+    }
+    
+    input, select {
+        font-size: 14px !important; /* Mencegah zoom di iOS */
+        padding: 8px !important;
+    }
+    
+    .gauge-container {
+        width: 120px !important;
+        height: 120px !important;
+    }
+}
+
+/* ============================================
+   LANDSCAPE MODE DI HP
+   ============================================ */
+@media (max-width: 900px) and (orientation: landscape) {
+    .sidebar {
+        width: 220px !important;
+        left: -220px !important;
+    }
+    
+    .sidebar.active {
+        left: 0 !important;
+    }
+    
+    .monitor-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    .main-content {
+        padding: 10px !important;
+    }
+    
+    .topbar {
+        padding: 6px 10px !important;
+    }
+}
+
+/* ============================================
+   TOUCH FRIENDLY - UKURAN TAP MINIMAL
+   ============================================ */
+button, 
+.menu-item,
+.mode-btn,
+.big-btn,
+.time-btn,
+.unlock-btn,
+.logout-btn,
+input[type="checkbox"] {
+    min-height: 44px !important; /* Apple HIG minimum */
+    min-width: 44px !important;
+}
+
+.menu-item {
+    min-height: 44px !important;
+}
+
+/* ============================================
+   SCROLLBAR KUSTOM
+   ============================================ */
+::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(34,197,94,0.3);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(34,197,94,0.5);
+}
  
