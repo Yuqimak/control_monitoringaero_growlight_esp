@@ -1,10 +1,18 @@
 // ============================================
-// MAIN ENTRY – app.js (MODULAR PER SECTION)
+// MAIN ENTRY – app.js (FULL FIX - CHART LOAD)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, exportData, exportPDF, loadChartHistory, loadChartHistoryByDate, loadDailyHistory } from './modules/analytics.js';
+import { 
+    initCharts, 
+    exportData, 
+    exportPDF, 
+    loadChartHistory, 
+    loadChartHistoryByDate, 
+    loadDailyHistory,
+    loadDashChartHistory 
+} from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
@@ -83,7 +91,6 @@ function getTodayKey() {
 const Dashboard = {
     chartInstance: null,
 
-    // 1.1 Init Chart - FIX: Destroy existing chart
     initChart() {
         console.log('📊 Dashboard.initChart()');
         const canvas = document.getElementById('dashTempChart');
@@ -92,7 +99,6 @@ const Dashboard = {
             return;
         }
 
-        // ⭐ FIX: Destroy chart yang sudah ada di canvas
         const existingChart = Chart.getChart(canvas);
         if (existingChart) {
             console.log('⚠️ Destroy existing chart on canvas');
@@ -151,7 +157,6 @@ const Dashboard = {
         console.log('✅ Dashboard chart initialized');
     },
 
-    // 1.2 Update Chart dengan Data Baru
     updateChart(temp, timestamp) {
         if (!this.chartInstance) {
             this.initChart();
@@ -176,7 +181,6 @@ const Dashboard = {
         this.updateStability(chart.data.datasets[0].data);
     },
 
-    // 1.3 Update Status Stabilitas
     updateStability(data) {
         const el = document.getElementById('chartStatus');
         if (!el || data.length < 5) return;
@@ -196,13 +200,15 @@ const Dashboard = {
         }
     },
 
-    // 1.4 Load History dari Firebase
     async loadHistory() {
         try {
             console.log('📊 Dashboard.loadHistory()');
             const snapshot = await get(ref(db, 'sensor'));
             const data = snapshot.val();
-            if (!data) return;
+            if (!data) {
+                console.log('⚠️ Tidak ada data sensor untuk dashboard');
+                return;
+            }
 
             const keys = Object.keys(data).sort().slice(-15);
             const temps = [];
@@ -232,7 +238,6 @@ const Dashboard = {
         }
     },
 
-    // 1.5 Update Card Utama (4 card)
     updateCards(temp, lux, lampState) {
         requestAnimationFrame(() => {
             // Card 1: Suhu
@@ -278,14 +283,12 @@ const Dashboard = {
             if (progStatus) progStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
             if (sunHours) sunHours.textContent = (state.accumulatedLight || 0).toFixed(1);
 
-            // Mode Kontrol
             const modeDisplay = document.getElementById('dashModeDisplay');
             if (modeDisplay) {
                 const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
                 modeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
             }
 
-            // Status Sistem
             const connStatus = document.getElementById('dashConnStatus');
             if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
 
@@ -314,7 +317,6 @@ const Monitoring = {
         this.lastUpdate = now;
 
         requestAnimationFrame(() => {
-            // Suhu
             const el = document.getElementById('monitorTemp');
             const status = document.getElementById('tempStatus');
             if (el) el.textContent = temp.toFixed(1);
@@ -325,7 +327,6 @@ const Monitoring = {
             else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
             if (status) { status.textContent = category; status.style.color = color; }
 
-            // Cahaya
             const lightEl = document.getElementById('monitorLight');
             const lightStatus = document.getElementById('lightStatus');
             if (lightEl) lightEl.textContent = Math.round(lux);
@@ -338,7 +339,6 @@ const Monitoring = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // Status Lampu
             const lampStatus = document.getElementById('monitorLampStatus');
             const lampText = document.getElementById('lampStatusText');
             const statusText = lampState ? 'ON' : 'OFF';
@@ -349,7 +349,6 @@ const Monitoring = {
         });
     },
 
-    // Quick Stats (legacy)
     updateQuickStats(temp, lux) {
         const tempStatus = document.getElementById('statTempStatus');
         if (tempStatus) {
@@ -397,7 +396,6 @@ const Gauge = {
         const canvas = document.getElementById('gaugeChart');
         if (!canvas) return;
 
-        // FIX: Destroy existing chart
         const existingChart = Chart.getChart(canvas);
         if (existingChart) {
             existingChart.destroy();
@@ -457,20 +455,16 @@ const Control = {
     init() {
         console.log('🎛 Control.init()');
         
-        // Mode buttons
         document.getElementById('modeAutoBtn')?.addEventListener('click', () => this.setMode('otomatis'));
         document.getElementById('modeJadwalBtn')?.addEventListener('click', () => this.setMode('jadwal'));
         document.getElementById('modeManualBtn')?.addEventListener('click', () => this.setMode('manual'));
 
-        // Lamp ON/OFF
         document.getElementById('btnOn')?.addEventListener('click', () => this.setLamp(true));
         document.getElementById('btnOff')?.addEventListener('click', () => this.setLamp(false));
 
-        // Save settings
         document.getElementById('saveLightNeededBtn')?.addEventListener('click', () => this.saveLightNeeded());
         document.getElementById('saveJadwalBtn')?.addEventListener('click', () => this.saveJadwal());
 
-        // Force Day ON
         document.getElementById('forceDayOn')?.addEventListener('change', (e) => {
             const val = e.target.checked;
             set(ref(db, 'system/force_day_on'), val)
@@ -478,7 +472,6 @@ const Control = {
                 .catch(err => showToast('❌ ' + err.message, 'error'));
         });
 
-        // Reset Plant
         document.getElementById('resetPlantBtn')?.addEventListener('click', async () => {
             if (!confirm('🔄 Reset semua data tanam?')) return;
             try {
@@ -534,7 +527,6 @@ const Control = {
             if (el) el.textContent = labels[mode] || mode;
         });
 
-        // Highlight button
         document.querySelectorAll('.mode-btn').forEach(btn => {
             btn.style.background = 'rgba(255,255,255,0.05)';
             btn.style.border = '1px solid rgba(255,255,255,0.1)';
@@ -557,9 +549,9 @@ let unsubSensor = null;
 let unsubSystem = null;
 let isListenerActive = false;
 let lastSensorUpdate = 0;
-const SENSOR_THROTTLE = 1000;
+const SENSOR_THROTTLE = 10000; // ⭐ 10 DETIK (HEMAT)
 let lastSystemUpdate = 0;
-const SYSTEM_THROTTLE = 2000;
+const SYSTEM_THROTTLE = 5000;
 
 function initFirebase() {
     if (isListenerActive) {
@@ -569,7 +561,6 @@ function initFirebase() {
     isListenerActive = true;
     console.log('🔌 Memasang Firebase listeners...');
 
-    // Sensor Listener
     unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
         try {
             const now = Date.now();
@@ -589,15 +580,12 @@ function initFirebase() {
                 state.temperature = smoothSuhu;
                 state.sensorLight = smoothLux;
 
-                // ⭐ UPDATE DASHBOARD
                 Dashboard.updateCards(smoothSuhu, smoothLux, state.lampState);
                 Dashboard.updateChart(smoothSuhu, d.timestamp || Date.now());
 
-                // ⭐ UPDATE MONITORING
                 Monitoring.updateUI(smoothSuhu, smoothLux, state.lampState);
                 Monitoring.updateQuickStats(smoothSuhu, smoothLux);
 
-                // Update legacy elements
                 const statTemp = document.getElementById('statTemp');
                 const statLight = document.getElementById('statLight');
                 if (statTemp) statTemp.textContent = smoothSuhu.toFixed(1);
@@ -614,7 +602,6 @@ function initFirebase() {
         isListenerActive = false;
     });
 
-    // System Listener
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
         try {
             const now = Date.now();
@@ -642,16 +629,10 @@ function initFirebase() {
                     state.lastResetDate = today;
                 }
 
-                // ⭐ UPDATE DASHBOARD
                 Dashboard.updateCards(state.temperature, state.sensorLight, state.lampState);
-
-                // ⭐ UPDATE GAUGE
                 Gauge.update();
-
-                // ⭐ UPDATE CONTROL
                 Control.updateUI(state.controlMode);
 
-                // Update lamp status di berbagai tempat
                 const statusText = state.lampState ? 'ON' : 'OFF';
                 const statusColor = state.lampState ? '#22c55e' : '#ef4444';
                 ['lampStateText', 'statLamp'].forEach(id => {
@@ -659,7 +640,6 @@ function initFirebase() {
                     if (el) { el.textContent = statusText; el.style.color = statusColor; }
                 });
 
-                // Update progress
                 const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
                 const display = progress > 100 ? 100 : progress;
                 const statProgress = document.getElementById('statLightProgress');
@@ -669,7 +649,6 @@ function initFirebase() {
                 if (lightProgress) lightProgress.textContent = display + '%';
                 if (sunlight) sunlight.textContent = (state.accumulatedLight || 0).toFixed(1);
 
-                // Update daily history
                 updateDailyHistory();
             }
         } catch (e) {
@@ -708,7 +687,6 @@ async function updateDailyHistory() {
             updatedAt: Date.now()
         });
 
-        // Update UI
         const onTime = document.getElementById('lampOnTime');
         const offTime = document.getElementById('lampOffTime');
         if (onTime) onTime.textContent = accumulatedLight.toFixed(1) + ' jam';
@@ -751,16 +729,11 @@ function setupNavigation() {
 }
 
 // ============================================
-// 📱 SECTION 8: SIDEBAR
+// 📱 SECTION 8: SIDEBAR (MOBILE FRIENDLY)
 // ============================================
 const menuToggle = document.getElementById('menuToggle');
-const sidebar = document.querySelector('.sidebar');
-const overlay = document.querySelector('.mobile-overlay') || (() => {
-    const el = document.createElement('div');
-    el.className = 'mobile-overlay';
-    document.body.appendChild(el);
-    return el;
-})();
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('mobileOverlay');
 
 function closeMenu() {
     sidebar?.classList.remove('active');
@@ -769,17 +742,32 @@ function closeMenu() {
 }
 
 if (menuToggle) {
-    menuToggle.addEventListener('click', () => {
+    menuToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         sidebar.classList.toggle('active');
         overlay.classList.toggle('active');
         document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
     });
+    
+    menuToggle.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+    }, { passive: false });
 }
+
 if (overlay) {
     overlay.addEventListener('click', closeMenu);
+    overlay.addEventListener('touchstart', (e) => { e.preventDefault(); closeMenu(); }, { passive: false });
 }
+
 window.addEventListener('resize', () => {
     if (window.innerWidth > 768) closeMenu();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
 });
 
 // ============================================
@@ -808,28 +796,38 @@ function updateClock() {
 document.addEventListener("DOMContentLoaded", () => {
     console.log('📄 DOMContentLoaded fired!');
     try {
-        // Init core
         initDOM();
         initAdminPanel();
+        
+        // ⭐ INIT CHARTS (dari analytics.js)
+        console.log('📊 Panggil initCharts...');
         initCharts();
 
-        // ⭐ Init Dashboard
+        // ⭐ LOAD ALL HISTORY (INI YANG SELAMA INI MISSING!)
+        setTimeout(() => {
+            console.log('📊 Load chart history from Firebase...');
+            loadChartHistory();
+            loadDashChartHistory();
+            loadDailyHistory();
+        }, 500);
+
+        // ⭐ Dashboard
         Dashboard.initChart();
         setTimeout(() => Dashboard.loadHistory(), 500);
 
-        // ⭐ Init Gauge
+        // ⭐ Gauge
         setTimeout(() => Gauge.init(), 500);
 
-        // ⭐ Init Control
+        // ⭐ Control
         Control.init();
-
-        // ⭐ Init Firebase
+        
+        // ⭐ Firebase
         initFirebase();
-
-        // ⭐ Init Navigation
+        
+        // ⭐ Navigation
         setupNavigation();
 
-        // ⭐ Init Expand Chart
+        // ⭐ Expand Chart
         window.toggleExpand = function(wrapperId) {
             const wrapper = document.getElementById(wrapperId);
             if (!wrapper) return;
@@ -877,4 +875,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-console.log('✅ app.js fully loaded (modular per section)!');
+console.log('✅ app.js fully loaded (FIXED - chart load)');
