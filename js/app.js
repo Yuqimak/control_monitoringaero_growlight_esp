@@ -1,10 +1,10 @@
 // ============================================
-// MAIN ENTRY – app.js (FULL REVISI - FIX FLICKER + DASHBOARD ID)
+// MAIN ENTRY – app.js (MODULAR PER SECTION)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initCharts, updateCharts, exportData, exportPDF, loadChartHistory, loadDashChartHistory, loadChartHistoryByDate, loadDailyHistory } from './modules/analytics.js';
+import { initCharts, exportData, exportPDF, loadChartHistory, loadChartHistoryByDate, loadDailyHistory } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
 import { ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
@@ -46,23 +46,19 @@ window.logout = function() {
 };
 
 // ============================================
-// SMOOTHING FILTER (CEGAH FLICKER)
+// SMOOTHING FILTER
 // ============================================
 class SmoothingFilter {
     constructor(windowSize = 5) {
         this.windowSize = windowSize;
         this.values = [];
     }
-
     add(value) {
         this.values.push(value);
-        if (this.values.length > this.windowSize) {
-            this.values.shift();
-        }
+        if (this.values.length > this.windowSize) this.values.shift();
         const sum = this.values.reduce((a, b) => a + b, 0);
         return sum / this.values.length;
     }
-
     getAverage() {
         if (this.values.length === 0) return 0;
         const sum = this.values.reduce((a, b) => a + b, 0);
@@ -70,1118 +66,688 @@ class SmoothingFilter {
     }
 }
 
-// Inisialisasi filter
 const suhuFilter = new SmoothingFilter(5);
 const luxFilter = new SmoothingFilter(5);
 
 // ============================================
-// FUNGSI BANTU FORMAT TANGGAL (FLEKSIBEL)
+// FUNGSI BANTU
 // ============================================
 function getTodayKey() {
     const now = new Date();
     return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
-function getTodayKeyWithFormat(format = 'short') {
-    const now = new Date();
-    if (format === 'short') {
-        return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
-    } else if (format === 'iso') {
-        return now.toISOString().slice(0, 10);
+// ============================================
+// 🔵 SECTION 1: DASHBOARD
+// ============================================
+const Dashboard = {
+    chartInstance: null,
+
+    // 1.1 Init Chart
+    initChart() {
+        console.log('📊 Dashboard.initChart()');
+        const canvas = document.getElementById('dashTempChart');
+        if (!canvas) {
+            console.warn('⚠️ Canvas dashTempChart tidak ditemukan');
+            return;
+        }
+
+        if (this.chartInstance) {
+            this.chartInstance.destroy();
+            this.chartInstance = null;
+        }
+
+        const ctx = canvas.getContext('2d');
+        this.chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Suhu (°C)',
+                    data: [],
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34,197,94,0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    pointBackgroundColor: '#22c55e'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => ctx.parsed.y + '°C'
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: { color: 'rgba(255,255,255,0.5)', maxTicksLimit: 10, font: { size: 9 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y: {
+                        display: true,
+                        ticks: { color: 'rgba(255,255,255,0.5)', callback: (v) => v + '°C', font: { size: 9 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        min: 0,
+                        max: 45
+                    }
+                },
+                animation: { duration: 300 }
+            }
+        });
+        console.log('✅ Dashboard chart initialized');
+    },
+
+    // 1.2 Update Chart dengan Data Baru
+    updateChart(temp, timestamp) {
+        if (!this.chartInstance) {
+            this.initChart();
+            if (!this.chartInstance) return;
+        }
+
+        const time = new Date(timestamp || Date.now()).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        const chart = this.chartInstance;
+        chart.data.labels.push(time);
+        chart.data.datasets[0].data.push(Math.round(temp * 10) / 10);
+
+        if (chart.data.labels.length > 15) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+
+        chart.update('none');
+        this.updateStability(chart.data.datasets[0].data);
+    },
+
+    // 1.3 Update Status Stabilitas
+    updateStability(data) {
+        const el = document.getElementById('chartStatus');
+        if (!el || data.length < 5) return;
+
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        const variance = data.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / data.length;
+
+        if (variance < 1) {
+            el.textContent = '🟢 Stabil';
+            el.style.color = '#22c55e';
+        } else if (variance < 5) {
+            el.textContent = '🟡 Fluktuatif';
+            el.style.color = '#f59e0b';
+        } else {
+            el.textContent = '🔴 Tidak Stabil';
+            el.style.color = '#ef4444';
+        }
+    },
+
+    // 1.4 Load History dari Firebase
+    async loadHistory() {
+        try {
+            console.log('📊 Dashboard.loadHistory()');
+            const snapshot = await get(ref(db, 'sensor'));
+            const data = snapshot.val();
+            if (!data) return;
+
+            const keys = Object.keys(data).sort().slice(-15);
+            const temps = [];
+            const labels = [];
+
+            keys.forEach(key => {
+                const val = data[key];
+                const temp = val.suhu || val.temperature || 0;
+                if (temp > 0 && temp < 60) {
+                    temps.push(Math.round(temp * 10) / 10);
+                    labels.push(new Date(val.timestamp || Date.now()).toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }));
+                }
+            });
+
+            if (temps.length > 0 && this.chartInstance) {
+                this.chartInstance.data.labels = labels;
+                this.chartInstance.data.datasets[0].data = temps;
+                this.chartInstance.update();
+                this.updateStability(temps);
+                console.log(`✅ Dashboard chart loaded: ${temps.length} data`);
+            }
+        } catch (e) {
+            console.error('❌ Dashboard.loadHistory error:', e);
+        }
+    },
+
+    // 1.5 Update Card Utama (4 card)
+    updateCards(temp, lux, lampState) {
+        requestAnimationFrame(() => {
+            // Card 1: Suhu
+            const tempVal = document.getElementById('dashTempValue');
+            const tempStatus = document.getElementById('dashTempStatus');
+            if (tempVal) tempVal.textContent = temp.toFixed(1);
+
+            let category = '🌤️ Normal', color = '#22c55e';
+            if (temp > 35) { category = '🔥 Sangat Panas'; color = '#ef4444'; }
+            else if (temp > 30) { category = '🔥 Panas'; color = '#f59e0b'; }
+            else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
+            if (tempStatus) { tempStatus.textContent = category; tempStatus.style.color = color; }
+
+            // Card 2: Cahaya
+            const lightVal = document.getElementById('dashLightValue');
+            const lightStatus = document.getElementById('dashLightStatus');
+            if (lightVal) lightVal.textContent = Math.round(lux);
+
+            let lCat = '🌤️ Sedang', lColor = '#94a3b8';
+            if (lux > 4000) { lCat = '☀️ Sangat Terang'; lColor = '#facc15'; }
+            else if (lux > 2000) { lCat = '🌤️ Terang'; lColor = '#f59e0b'; }
+            else if (lux > 500) { lCat = '🌥️ Sedang'; lColor = '#94a3b8'; }
+            else if (lux > 100) { lCat = '🌥️ Redup'; lColor = '#64748b'; }
+            else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
+            if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
+
+            // Card 3: Status Lampu
+            const lampStatus = document.getElementById('dashLampStatus');
+            const lampText = document.getElementById('dashLampStatusText');
+            const statusText = lampState ? 'ON' : 'OFF';
+            const statusColor = lampState ? '#22c55e' : '#ef4444';
+            const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
+            if (lampStatus) { lampStatus.textContent = statusText; lampStatus.style.color = statusColor; }
+            if (lampText) { lampText.textContent = statusLabel; lampText.style.color = statusColor; }
+
+            // Card 4: Pemenuhan Cahaya
+            const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+            const display = progress > 100 ? 100 : progress;
+            const progVal = document.getElementById('dashProgressValue');
+            const progStatus = document.getElementById('dashProgressStatus');
+            const sunHours = document.getElementById('dashSunlightHours');
+            if (progVal) progVal.textContent = display + '%';
+            if (progStatus) progStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
+            if (sunHours) sunHours.textContent = (state.accumulatedLight || 0).toFixed(1);
+
+            // Mode Kontrol
+            const modeDisplay = document.getElementById('dashModeDisplay');
+            if (modeDisplay) {
+                const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+                modeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
+            }
+
+            // Status Sistem
+            const connStatus = document.getElementById('dashConnStatus');
+            if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
+
+            const dataCount = document.getElementById('dashDataCount');
+            if (dataCount) dataCount.textContent = state.sensorCount || 0;
+
+            const lastUpdate = document.getElementById('dashLastUpdate');
+            if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
+
+            const latestTemp = document.getElementById('dashLatestTemp');
+            if (latestTemp) latestTemp.textContent = temp.toFixed(1) + '°C';
+        });
     }
-    return now.toISOString().slice(0, 10);
-}
+};
 
 // ============================================
-// STATE LISTENER
+// 🟢 SECTION 2: MONITORING
+// ============================================
+const Monitoring = {
+    lastUpdate: 0,
+    throttle: 500,
+
+    updateUI(temp, lux, lampState) {
+        const now = Date.now();
+        if (now - this.lastUpdate < this.throttle) return;
+        this.lastUpdate = now;
+
+        requestAnimationFrame(() => {
+            // Suhu
+            const el = document.getElementById('monitorTemp');
+            const status = document.getElementById('tempStatus');
+            if (el) el.textContent = temp.toFixed(1);
+
+            let category = '🌤️ Normal', color = '#22c55e';
+            if (temp > 35) { category = '🔥 Sangat Panas'; color = '#ef4444'; }
+            else if (temp > 30) { category = '🔥 Panas'; color = '#f59e0b'; }
+            else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
+            if (status) { status.textContent = category; status.style.color = color; }
+
+            // Cahaya
+            const lightEl = document.getElementById('monitorLight');
+            const lightStatus = document.getElementById('lightStatus');
+            if (lightEl) lightEl.textContent = Math.round(lux);
+
+            let lCat = '🌤️ Sedang', lColor = '#94a3b8';
+            if (lux > 4000) { lCat = '☀️ Sangat Terang'; lColor = '#facc15'; }
+            else if (lux > 2000) { lCat = '🌤️ Terang'; lColor = '#f59e0b'; }
+            else if (lux > 500) { lCat = '🌥️ Sedang'; lColor = '#94a3b8'; }
+            else if (lux > 100) { lCat = '🌥️ Redup'; lColor = '#64748b'; }
+            else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
+            if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
+
+            // Status Lampu
+            const lampStatus = document.getElementById('monitorLampStatus');
+            const lampText = document.getElementById('lampStatusText');
+            const statusText = lampState ? 'ON' : 'OFF';
+            const statusColor = lampState ? '#22c55e' : '#ef4444';
+            const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
+            if (lampStatus) { lampStatus.textContent = statusText; lampStatus.style.color = statusColor; }
+            if (lampText) { lampText.textContent = statusLabel; lampText.style.color = statusColor; }
+        });
+    },
+
+    // Quick Stats (legacy)
+    updateQuickStats(temp, lux) {
+        const tempStatus = document.getElementById('statTempStatus');
+        if (tempStatus) {
+            let category = 'Normal', color = '#22c55e';
+            if (temp > 35) { category = 'Sangat Panas'; color = '#ef4444'; }
+            else if (temp > 30) { category = 'Panas'; color = '#f59e0b'; }
+            else if (temp < 20) { category = 'Dingin'; color = '#3b82f6'; }
+            tempStatus.textContent = category;
+            tempStatus.style.color = color;
+        }
+
+        const lightStatus = document.getElementById('statLightStatus');
+        if (lightStatus) {
+            let category = 'Sedang', color = '#94a3b8';
+            if (lux > 4000) { category = 'Sangat Terang'; color = '#facc15'; }
+            else if (lux > 2000) { category = 'Terang'; color = '#f59e0b'; }
+            else if (lux > 500) { category = 'Sedang'; color = '#94a3b8'; }
+            else if (lux > 100) { category = 'Redup'; color = '#64748b'; }
+            else { category = 'Gelap'; color = '#3b82f6'; }
+            lightStatus.textContent = category;
+            lightStatus.style.color = color;
+        }
+
+        const statLamp = document.getElementById('statLamp');
+        if (statLamp) {
+            const state = this._lampState || false;
+            statLamp.textContent = state ? 'ON' : 'OFF';
+            statLamp.style.color = state ? '#22c55e' : '#ef4444';
+        }
+    },
+
+    setLampState(state) {
+        this._lampState = state;
+    }
+};
+
+// ============================================
+// 🟡 SECTION 3: GAUGE CHART
+// ============================================
+const Gauge = {
+    instance: null,
+
+    init() {
+        console.log('📊 Gauge.init()');
+        const canvas = document.getElementById('gaugeChart');
+        if (!canvas) return;
+
+        if (this.instance) {
+            this.instance.destroy();
+            this.instance = null;
+        }
+
+        const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+        const ctx = canvas.getContext('2d');
+        this.instance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                datasets: [{
+                    data: [progress, 100 - progress],
+                    backgroundColor: ['#22c55e', 'rgba(255,255,255,0.1)'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '75%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+    },
+
+    update() {
+        const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+        const display = progress > 100 ? 100 : progress;
+
+        const el = document.getElementById('gaugeProgress');
+        if (el) el.textContent = display + '%';
+
+        const sun = document.getElementById('gaugeSunlight');
+        if (sun) sun.textContent = (state.accumulatedLight || 0).toFixed(1);
+
+        const grow = document.getElementById('gaugeGrowlight');
+        if (grow) {
+            const val = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
+            grow.textContent = val.toFixed(1);
+        }
+
+        if (this.instance) {
+            this.instance.data.datasets[0].data = [display, 100 - display];
+            this.instance.update();
+        }
+    }
+};
+
+// ============================================
+// 🟠 SECTION 4: CONTROL
+// ============================================
+const Control = {
+    init() {
+        console.log('🎛 Control.init()');
+        
+        // Mode buttons
+        document.getElementById('modeAutoBtn')?.addEventListener('click', () => this.setMode('otomatis'));
+        document.getElementById('modeJadwalBtn')?.addEventListener('click', () => this.setMode('jadwal'));
+        document.getElementById('modeManualBtn')?.addEventListener('click', () => this.setMode('manual'));
+
+        // Lamp ON/OFF
+        document.getElementById('btnOn')?.addEventListener('click', () => this.setLamp(true));
+        document.getElementById('btnOff')?.addEventListener('click', () => this.setLamp(false));
+
+        // Save settings
+        document.getElementById('saveLightNeededBtn')?.addEventListener('click', () => this.saveLightNeeded());
+        document.getElementById('saveJadwalBtn')?.addEventListener('click', () => this.saveJadwal());
+
+        // Force Day ON
+        document.getElementById('forceDayOn')?.addEventListener('change', (e) => {
+            const val = e.target.checked;
+            set(ref(db, 'system/force_day_on'), val)
+                .then(() => showToast(val ? '☀️ Force Day ON' : '🌙 Force Day OFF', 'info'))
+                .catch(err => showToast('❌ ' + err.message, 'error'));
+        });
+
+        // Reset Plant
+        document.getElementById('resetPlantBtn')?.addEventListener('click', async () => {
+            if (!confirm('🔄 Reset semua data tanam?')) return;
+            try {
+                await set(ref(db, 'system/plant_start_date'), null);
+                showToast('✅ Tanaman di-reset!', 'success');
+            } catch (e) { showToast('❌ ' + e.message, 'error'); }
+        });
+    },
+
+    setMode(mode) {
+        console.log('🔄 Set mode:', mode);
+        set(ref(db, 'system/mode'), mode)
+            .then(() => {
+                state.controlMode = mode;
+                this.updateUI(mode);
+                showToast(`✅ Mode ${mode} aktif`, 'success');
+            })
+            .catch(err => showToast('❌ ' + err.message, 'error'));
+    },
+
+    setLamp(state) {
+        console.log('🔄 Set lamp:', state);
+        set(ref(db, 'system/state'), state)
+            .then(() => showToast(`✅ Lamp ${state ? 'ON' : 'OFF'}`, 'success'))
+            .catch(err => showToast('❌ ' + err.message, 'error'));
+    },
+
+    saveLightNeeded() {
+        const val = parseInt(document.getElementById('totalLightNeeded')?.value || 12);
+        if (val < 6 || val > 18) { showToast('❌ Harus 6-18 jam', 'error'); return; }
+        set(ref(db, 'system/total_light_needed'), val)
+            .then(() => { state.totalLightNeeded = val; showToast('✅ Disimpan!', 'success'); })
+            .catch(err => showToast('❌ ' + err.message, 'error'));
+    },
+
+    saveJadwal() {
+        const start = parseInt(document.getElementById('jadwalStart')?.value || 6);
+        const end = parseInt(document.getElementById('jadwalEnd')?.value || 18);
+        if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23 || start >= end) {
+            showToast('❌ Jam tidak valid', 'error');
+            return;
+        }
+        set(ref(db, 'system/jadwal_start'), start);
+        set(ref(db, 'system/jadwal_end'), end)
+            .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00`, 'success'))
+            .catch(err => showToast('❌ ' + err.message, 'error'));
+    },
+
+    updateUI(mode) {
+        const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
+        ['currentModeDisplay', 'currentModeDisplayControl'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = labels[mode] || mode;
+        });
+
+        // Highlight button
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.style.border = '1px solid rgba(255,255,255,0.1)';
+            btn.style.color = 'white';
+        });
+        const map = { otomatis: 'modeAutoBtn', jadwal: 'modeJadwalBtn', manual: 'modeManualBtn' };
+        const active = document.getElementById(map[mode]);
+        if (active) {
+            active.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+            active.style.border = '1px solid #22c55e';
+            active.style.color = 'white';
+        }
+    }
+};
+
+// ============================================
+// 🔴 SECTION 5: FIREBASE LISTENERS
 // ============================================
 let unsubSensor = null;
 let unsubSystem = null;
 let isListenerActive = false;
-
 let lastSensorUpdate = 0;
 const SENSOR_THROTTLE = 1000;
 let lastSystemUpdate = 0;
 const SYSTEM_THROTTLE = 2000;
 
-// ============================================
-// GAUGE CHART
-// ============================================
-let gaugeChart = null;
+function initFirebase() {
+    if (isListenerActive) {
+        console.log('⚠️ Listener sudah aktif');
+        return;
+    }
+    isListenerActive = true;
+    console.log('🔌 Memasang Firebase listeners...');
 
-function initGauge() {
-    console.log('📊 initGauge dipanggil');
-    const ctx = document.getElementById('gaugeChart');
-    if (!ctx) return;
-    if (gaugeChart) gaugeChart.destroy();
+    // Sensor Listener
+    unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
+        try {
+            const now = Date.now();
+            if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
+            lastSensorUpdate = now;
 
-    const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-    gaugeChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            datasets: [{
-                data: [progress, 100 - progress],
-                backgroundColor: ['#22c55e', 'rgba(255,255,255,0.1)'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            cutout: '75%',
-            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            const d = snap.val();
+            if (d) {
+                const rawSuhu = d.suhu || 0;
+                const rawLux = d.cahaya || 0;
+                const validSuhu = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
+                const validLux = (rawLux >= 0 && rawLux < 10000) ? rawLux : 0;
+
+                const smoothSuhu = suhuFilter.add(validSuhu);
+                const smoothLux = luxFilter.add(validLux);
+
+                state.temperature = smoothSuhu;
+                state.sensorLight = smoothLux;
+
+                // ⭐ UPDATE DASHBOARD
+                Dashboard.updateCards(smoothSuhu, smoothLux, state.lampState);
+                Dashboard.updateChart(smoothSuhu, d.timestamp || Date.now());
+
+                // ⭐ UPDATE MONITORING
+                Monitoring.updateUI(smoothSuhu, smoothLux, state.lampState);
+                Monitoring.updateQuickStats(smoothSuhu, smoothLux);
+
+                // Update legacy elements
+                const statTemp = document.getElementById('statTemp');
+                const statLight = document.getElementById('statLight');
+                if (statTemp) statTemp.textContent = smoothSuhu.toFixed(1);
+                if (statLight) statLight.textContent = Math.round(smoothLux);
+
+                const lastUpdate = document.getElementById('dashLastUpdate');
+                if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
+            }
+        } catch (e) {
+            console.error('❌ Sensor listener error:', e);
         }
+    }, (err) => {
+        console.error('❌ Sensor error:', err);
+        isListenerActive = false;
     });
-}
 
-function updateGauge() {
-    const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-    const el = document.getElementById('gaugeProgress');
-    if (el) el.textContent = progress + '%';
-    const sun = document.getElementById('gaugeSunlight');
-    if (sun) sun.textContent = (state.accumulatedLight || 0).toFixed(1);
-    const grow = document.getElementById('gaugeGrowlight');
-    if (grow) {
-        const val = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
-        grow.textContent = val.toFixed(1);
-    }
-    if (gaugeChart) {
-        gaugeChart.data.datasets[0].data = [progress, 100 - progress];
-        gaugeChart.update();
-    }
-}
+    // System Listener
+    unsubSystem = onValue(ref(db, 'system'), (snap) => {
+        try {
+            const now = Date.now();
+            if (now - lastSystemUpdate < SYSTEM_THROTTLE) return;
+            lastSystemUpdate = now;
 
-// ============================================
-// UPDATE DASHBOARD CARD (BARU - SAMA PERSIS DENGAN MONITORING)
-// ============================================
-function updateDashboardCards(temp, lux, lampState) {
-    requestAnimationFrame(() => {
-        // ========== CARD 1: SUHU ==========
-        const dashTempValue = document.getElementById('dashTempValue');
-        const dashTempStatus = document.getElementById('dashTempStatus');
-        
-        if (dashTempValue) dashTempValue.textContent = temp.toFixed(1);
-        
-        let tempCategory = '🌤️ Normal';
-        let tempColor = '#22c55e';
-        if (temp > 35) { tempCategory = '🔥 Sangat Panas'; tempColor = '#ef4444'; }
-        else if (temp > 30) { tempCategory = '🔥 Panas'; tempColor = '#f59e0b'; }
-        else if (temp > 20) { tempCategory = '🌤️ Normal'; tempColor = '#22c55e'; }
-        else { tempCategory = '❄️ Dingin'; tempColor = '#3b82f6'; }
-        
-        if (dashTempStatus) {
-            dashTempStatus.textContent = tempCategory;
-            dashTempStatus.style.color = tempColor;
-        }
-
-        // ========== CARD 2: INTENSITAS CAHAYA ==========
-        const dashLightValue = document.getElementById('dashLightValue');
-        const dashLightStatus = document.getElementById('dashLightStatus');
-        
-        if (dashLightValue) dashLightValue.textContent = Math.round(lux);
-        
-        let lightCategory = '🌤️ Sedang';
-        let lightColor = '#94a3b8';
-        if (lux > 4000) { lightCategory = '☀️ Sangat Terang'; lightColor = '#facc15'; }
-        else if (lux > 2000) { lightCategory = '🌤️ Terang'; lightColor = '#f59e0b'; }
-        else if (lux > 500) { lightCategory = '🌥️ Sedang'; lightColor = '#94a3b8'; }
-        else if (lux > 100) { lightCategory = '🌥️ Redup'; lightColor = '#64748b'; }
-        else { lightCategory = '🌙 Gelap'; lightColor = '#3b82f6'; }
-        
-        if (dashLightStatus) {
-            dashLightStatus.textContent = lightCategory;
-            dashLightStatus.style.color = lightColor;
-        }
-
-        // ========== CARD 3: STATUS LAMPU ==========
-        const dashLampStatus = document.getElementById('dashLampStatus');
-        const dashLampStatusText = document.getElementById('dashLampStatusText');
-        
-        const statusText = lampState ? 'ON' : 'OFF';
-        const statusColor = lampState ? '#22c55e' : '#ef4444';
-        const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
-        
-        if (dashLampStatus) {
-            dashLampStatus.textContent = statusText;
-            dashLampStatus.style.color = statusColor;
-        }
-        if (dashLampStatusText) {
-            dashLampStatusText.textContent = statusLabel;
-            dashLampStatusText.style.color = statusColor;
-        }
-
-        // ========== CARD 4: PEMENUHAN CAHAYA ==========
-        const dashProgressValue = document.getElementById('dashProgressValue');
-        const dashProgressStatus = document.getElementById('dashProgressStatus');
-        const dashSunlightHours = document.getElementById('dashSunlightHours');
-        
-        const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-        const displayProgress = progress > 100 ? 100 : progress;
-        
-        if (dashProgressValue) dashProgressValue.textContent = displayProgress + '%';
-        if (dashProgressStatus) {
-            dashProgressStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
-        }
-        if (dashSunlightHours) dashSunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-
-        // ========== MODE KONTROL ==========
-        const dashModeDisplay = document.getElementById('dashModeDisplay');
-        if (dashModeDisplay) {
-            const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-            dashModeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
-        }
-
-        // ========== STATUS SISTEM ==========
-        const dashConnStatus = document.getElementById('dashConnStatus');
-        if (dashConnStatus) {
-            dashConnStatus.textContent = '● Online';
-            dashConnStatus.className = 'status-badge online';
-        }
-
-        const dashDataCount = document.getElementById('dashDataCount');
-        if (dashDataCount) {
-            // Hitung data dari sensor history
-            dashDataCount.textContent = state.sensorCount || 0;
-        }
-
-        const dashLastUpdate = document.getElementById('dashLastUpdate');
-        if (dashLastUpdate) {
-            const now = new Date();
-            dashLastUpdate.textContent = now.toLocaleTimeString('id-ID', { hour12: false });
-        }
-
-        const dashLatestTemp = document.getElementById('dashLatestTemp');
-        if (dashLatestTemp) {
-            dashLatestTemp.textContent = temp.toFixed(1) + '°C';
-        }
-
-        // ========== CHART STATUS ==========
-        const chartStatus = document.getElementById('chartStatus');
-        if (chartStatus) {
-            // Cek stabilitas data
-            if (state.tempHistory && state.tempHistory.length > 5) {
-                const avg = state.tempHistory.reduce((a, b) => a + b, 0) / state.tempHistory.length;
-                const variance = state.tempHistory.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / state.tempHistory.length;
-                if (variance < 1) {
-                    chartStatus.textContent = '🟢 Stabil';
-                    chartStatus.style.color = '#22c55e';
-                } else if (variance < 5) {
-                    chartStatus.textContent = '🟡 Fluktuatif';
-                    chartStatus.style.color = '#f59e0b';
-                } else {
-                    chartStatus.textContent = '🔴 Tidak Stabil';
-                    chartStatus.style.color = '#ef4444';
+            const d = snap.val();
+            if (d) {
+                state.controlMode = d.mode || 'otomatis';
+                if (!['otomatis', 'jadwal', 'manual'].includes(state.controlMode)) {
+                    state.controlMode = 'otomatis';
                 }
+
+                state.lampState = d.actual_state || false;
+                state.forceDayOn = d.force_day_on || false;
+                state.jadwalStart = d.jadwal_start || 6;
+                state.jadwalEnd = d.jadwal_end || 18;
+                state.totalLightNeeded = d.total_light_needed || 12;
+                state.accumulatedLight = d.accumulated_light || 0;
+                state.lastResetDate = d.last_reset_date || '';
+
+                const today = getTodayKey();
+                if (state.lastResetDate !== today) {
+                    state.accumulatedLight = 0;
+                    state.lastResetDate = today;
+                }
+
+                // ⭐ UPDATE DASHBOARD
+                Dashboard.updateCards(state.temperature, state.sensorLight, state.lampState);
+
+                // ⭐ UPDATE GAUGE
+                Gauge.update();
+
+                // ⭐ UPDATE CONTROL
+                Control.updateUI(state.controlMode);
+
+                // Update lamp status di berbagai tempat
+                const statusText = state.lampState ? 'ON' : 'OFF';
+                const statusColor = state.lampState ? '#22c55e' : '#ef4444';
+                ['lampStateText', 'statLamp'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) { el.textContent = statusText; el.style.color = statusColor; }
+                });
+
+                // Update progress
+                const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+                const display = progress > 100 ? 100 : progress;
+                const statProgress = document.getElementById('statLightProgress');
+                const lightProgress = document.getElementById('lightProgressDisplay');
+                const sunlight = document.getElementById('sunlightHours');
+                if (statProgress) statProgress.textContent = display;
+                if (lightProgress) lightProgress.textContent = display + '%';
+                if (sunlight) sunlight.textContent = (state.accumulatedLight || 0).toFixed(1);
+
+                // Update daily history
+                updateDailyHistory();
             }
+        } catch (e) {
+            console.error('❌ System listener error:', e);
         }
+    }, (err) => {
+        console.error('❌ System error:', err);
+        isListenerActive = false;
     });
-}
 
-// ============================================
-// UPDATE MONITORING UI (FOKUS KE FLICKER)
-// ============================================
-let lastMonitorUpdate = 0;
-const MONITOR_THROTTLE = 500;
-
-function updateMonitoringUI(temp, lux, lampState) {
-    const now = Date.now();
-    if (now - lastMonitorUpdate < MONITOR_THROTTLE) return;
-    lastMonitorUpdate = now;
-
-    requestAnimationFrame(() => {
-        // Update Suhu
-        const tempEl = document.getElementById('monitorTemp');
-        const statTemp = document.getElementById('statTemp');
-        const tempStatus = document.getElementById('tempStatus');
-        const statTempStatus = document.getElementById('statTempStatus');
-
-        if (tempEl) tempEl.textContent = temp.toFixed(1);
-        if (statTemp) statTemp.textContent = temp.toFixed(1);
-
-        let tempCategory = '';
-        let tempColor = '';
-        if (temp > 35) { tempCategory = '🔥 Sangat Panas';
-            tempColor = '#ef4444'; } else if (temp > 30) { tempCategory = '🔥 Panas';
-            tempColor = '#f59e0b'; } else if (temp > 20) { tempCategory = '🌤️ Normal';
-            tempColor = '#22c55e'; } else { tempCategory = '❄️ Dingin';
-            tempColor = '#3b82f6'; }
-
-        if (tempStatus) {
-            tempStatus.textContent = tempCategory;
-            tempStatus.style.color = tempColor;
-        }
-        if (statTempStatus) {
-            statTempStatus.textContent = tempCategory.replace(/[🔥🌤️❄️]/g, '').trim();
-            statTempStatus.style.color = tempColor;
-        }
-
-        // Update Lux
-        const lightEl = document.getElementById('monitorLight');
-        const statLight = document.getElementById('statLight');
-        const lightStatus = document.getElementById('lightStatus');
-        const statLightStatus = document.getElementById('statLightStatus');
-
-        if (lightEl) lightEl.textContent = Math.round(lux);
-        if (statLight) statLight.textContent = Math.round(lux);
-
-        let lightCategory = '';
-        let lightColor = '';
-        if (lux > 4000) { lightCategory = '☀️ Sangat Terang';
-            lightColor = '#facc15'; } else if (lux > 2000) { lightCategory = '🌤️ Terang';
-            lightColor = '#f59e0b'; } else if (lux > 500) { lightCategory = '🌥️ Sedang';
-            lightColor = '#94a3b8'; } else if (lux > 100) { lightCategory = '🌥️ Redup';
-            lightColor = '#64748b'; } else { lightCategory = '🌙 Gelap';
-            lightColor = '#3b82f6'; }
-
-        if (lightStatus) {
-            lightStatus.textContent = lightCategory;
-            lightStatus.style.color = lightColor;
-        }
-        if (statLightStatus) {
-            statLightStatus.textContent = lightCategory.replace(/[☀️🌤️🌥️🌙]/g, '').trim();
-            statLightStatus.style.color = lightColor;
-        }
-
-        // Update Status Lampu (Monitoring)
-        const monitorLampStatus = document.getElementById('monitorLampStatus');
-        const lampStatusText = document.getElementById('lampStatusText');
-
-        const statusText = lampState ? 'ON' : 'OFF';
-        const statusColor = lampState ? '#22c55e' : '#ef4444';
-        const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
-
-        if (monitorLampStatus) {
-            monitorLampStatus.textContent = statusText;
-            monitorLampStatus.style.color = statusColor;
-        }
-        if (lampStatusText) {
-            lampStatusText.textContent = statusLabel;
-            lampStatusText.style.color = statusColor;
-        }
-
-        // Update Status Lampu (Dashboard Quick Stats - legacy)
-        const statLamp = document.getElementById('statLamp');
-        if (statLamp) {
-            statLamp.textContent = statusText;
-            statLamp.style.color = statusColor;
-        }
-    });
-}
-
-// ============================================
-// UPDATE STATUS TEXT (HANYA UNTUK DASHBOARD QUICK STATS LEGACY)
-// ============================================
-function updateStatusTextSmooth(temp, lux) {
-    // Hanya update quick stats di dashboard (legacy)
-    const statTempStatus = document.getElementById('statTempStatus');
-    if (statTempStatus) {
-        let category = 'Normal';
-        let color = '#22c55e';
-        if (temp > 35) { category = 'Sangat Panas';
-            color = '#ef4444'; } else if (temp > 30) { category = 'Panas';
-            color = '#f59e0b'; } else if (temp > 20) { category = 'Normal';
-            color = '#22c55e'; } else { category = 'Dingin';
-            color = '#3b82f6'; }
-        statTempStatus.textContent = category;
-        statTempStatus.style.color = color;
-    }
-
-    const statLightStatus = document.getElementById('statLightStatus');
-    if (statLightStatus) {
-        let category = 'Sedang';
-        let color = '#94a3b8';
-        if (lux > 4000) { category = 'Sangat Terang';
-            color = '#facc15'; } else if (lux > 2000) { category = 'Terang';
-            color = '#f59e0b'; } else if (lux > 500) { category = 'Sedang';
-            color = '#94a3b8'; } else if (lux > 100) { category = 'Redup';
-            color = '#64748b'; } else { category = 'Gelap';
-            color = '#3b82f6'; }
-        statLightStatus.textContent = category;
-        statLightStatus.style.color = color;
+    const connStatus = document.getElementById('connStatus');
+    if (connStatus) {
+        connStatus.innerText = 'Realtime Connected';
+        connStatus.style.color = '#22c55e';
     }
 }
 
 // ============================================
-// UPDATE DASHBOARD CHART (LEGACY)
-// ============================================
-function updateDashChart(temp) {
-    // Ini akan di-handle oleh loadDashChartHistory dari modules/analytics.js
-    // Tapi kita tambahkan state tempHistory untuk stabilitas
-    if (!state.tempHistory) state.tempHistory = [];
-    state.tempHistory.push(temp);
-    if (state.tempHistory.length > 20) state.tempHistory.shift();
-}
-
-// ============================================
-// UPDATE KATEGORI DARI SENSOR_HISTORY
-// ============================================
-async function updateCategoriesFromHistory() {
-    try {
-        const today = getTodayKey();
-        const suhuRef = ref(db, 'sensor_history/suhu');
-        const snapshot = await get(suhuRef);
-        const data = snapshot.val();
-
-        if (!data) {
-            console.log('⚠️ Tidak ada data history suhu, pakai current');
-            updateCategoriesFromCurrentData();
-            return;
-        }
-
-        let todayData = null;
-        let foundDate = null;
-
-        const keys = Object.keys(data);
-        console.log('📅 Tanggal tersedia di history:', keys);
-
-        for (const key of keys) {
-            if (key.includes(today) || key.includes(today.replace(/-/g, '-'))) {
-                todayData = data[key];
-                foundDate = key;
-                break;
-            }
-        }
-
-        if (!todayData && keys.length > 0) {
-            const sortedKeys = keys.sort();
-            const lastKey = sortedKeys[sortedKeys.length - 1];
-            todayData = data[lastKey];
-            foundDate = lastKey;
-            console.log('📅 Gunakan tanggal terakhir:', lastKey);
-        }
-
-        if (!todayData) {
-            console.log('⚠️ Tidak ada data history, pakai current');
-            updateCategoriesFromCurrentData();
-            return;
-        }
-
-        const values = Object.values(todayData);
-        const total = values.length;
-
-        if (total === 0) {
-            updateCategoriesFromCurrentData();
-            return;
-        }
-
-        console.log(`📊 Data history: ${total} data, dari tanggal ${foundDate}`);
-
-        const cold = values.filter(v => v < 20).length;
-        const normal = values.filter(v => v >= 20 && v < 28).length;
-        const warm = values.filter(v => v >= 28 && v < 35).length;
-        const hot = values.filter(v => v >= 35).length;
-
-        const coldPct = Math.round((cold / total) * 100);
-        const normalPct = Math.round((normal / total) * 100);
-        const warmPct = Math.round((warm / total) * 100);
-        const hotPct = Math.round((hot / total) * 100);
-
-        document.getElementById('coldBar').style.width = coldPct + '%';
-        document.getElementById('normalBar').style.width = normalPct + '%';
-        document.getElementById('warmBar').style.width = warmPct + '%';
-        document.getElementById('hotBar').style.width = hotPct + '%';
-
-        document.getElementById('coldPercent').textContent = coldPct + '%';
-        document.getElementById('normalPercent').textContent = normalPct + '%';
-        document.getElementById('warmPercent').textContent = warmPct + '%';
-        document.getElementById('hotPercent').textContent = hotPct + '%';
-
-        console.log('✅ Update kategori suhu dari history:', { cold, normal, warm, hot, total });
-
-    } catch (e) {
-        console.error('❌ Error update categories from history:', e);
-        updateCategoriesFromCurrentData();
-    }
-}
-
-// ============================================
-// UPDATE DARI DATA CURRENT (FALLBACK)
-// ============================================
-function updateCategoriesFromCurrentData() {
-    const temp = state.temperature || 29;
-    const lux = state.sensorLight || 865;
-
-    let category = '';
-    let color = '';
-    if (temp > 35) { category = '🔥 Sangat Panas';
-        color = '#ef4444'; } else if (temp > 30) { category = '🔥 Panas';
-        color = '#f59e0b'; } else if (temp > 20) { category = '🌤️ Normal';
-        color = '#22c55e'; } else { category = '❄️ Dingin';
-        color = '#3b82f6'; }
-
-    const tempStatus = document.getElementById('tempStatus');
-    if (tempStatus) {
-        tempStatus.textContent = category;
-        tempStatus.style.color = color;
-    }
-
-    const statTempStatus = document.getElementById('statTempStatus');
-    if (statTempStatus) {
-        statTempStatus.textContent = category.replace(/[🔥🌤️❄️]/g, '').trim();
-        statTempStatus.style.color = color;
-    }
-
-    let lightCategory = '';
-    let lightColor = '';
-    if (lux > 4000) { lightCategory = '☀️ Sangat Terang';
-        lightColor = '#facc15'; } else if (lux > 2000) { lightCategory = '🌤️ Terang';
-        lightColor = '#f59e0b'; } else if (lux > 500) { lightCategory = '🌥️ Sedang';
-        lightColor = '#94a3b8'; } else if (lux > 100) { lightCategory = '🌥️ Redup';
-        lightColor = '#64748b'; } else { lightCategory = '🌙 Gelap';
-        lightColor = '#3b82f6'; }
-
-    const lightStatus = document.getElementById('lightStatus');
-    if (lightStatus) {
-        lightStatus.textContent = lightCategory;
-        lightStatus.style.color = lightColor;
-    }
-
-    const statLightStatus = document.getElementById('statLightStatus');
-    if (statLightStatus) {
-        statLightStatus.textContent = lightCategory.replace(/[☀️🌤️🌥️🌙]/g, '').trim();
-        statLightStatus.style.color = lightColor;
-    }
-}
-
-// ============================================
-// UPDATE DAILY HISTORY DARI SYSTEM
+// 📊 SECTION 6: DAILY HISTORY
 // ============================================
 async function updateDailyHistory() {
     try {
         const today = getTodayKey();
-
-        const systemRef = ref(db, 'system');
-        const snapshot = await get(systemRef);
-        const system = snapshot.val();
-
+        const snap = await get(ref(db, 'system'));
+        const system = snap.val();
         if (!system) return;
 
         const accumulatedLight = system.accumulated_light || 0;
         const totalNeeded = system.total_light_needed || 12;
         const actualState = system.actual_state || false;
 
-        const dailyRef = ref(db, `daily_history/${today}`);
-        await update(dailyRef, {
+        await update(ref(db, `daily_history/${today}`), {
             growlight: accumulatedLight,
             total: totalNeeded,
             status: actualState ? 'ON' : 'OFF',
             updatedAt: Date.now()
         });
 
-        console.log('✅ Daily history updated:', { accumulatedLight, totalNeeded });
-
-        const lampOnTime = document.getElementById('lampOnTime');
-        const lampOffTime = document.getElementById('lampOffTime');
-        if (lampOnTime) lampOnTime.textContent = accumulatedLight.toFixed(1) + ' jam';
-        if (lampOffTime) lampOffTime.textContent = (24 - accumulatedLight).toFixed(1) + ' jam';
+        // Update UI
+        const onTime = document.getElementById('lampOnTime');
+        const offTime = document.getElementById('lampOffTime');
+        if (onTime) onTime.textContent = accumulatedLight.toFixed(1) + ' jam';
+        if (offTime) offTime.textContent = (24 - accumulatedLight).toFixed(1) + ' jam';
 
         const onPct = Math.min((accumulatedLight / 24) * 100, 100);
         const offPct = 100 - onPct;
-        const lampOnBar = document.getElementById('lampOnBar');
-        const lampOffBar = document.getElementById('lampOffBar');
-        if (lampOnBar) lampOnBar.style.width = onPct + '%';
-        if (lampOffBar) lampOffBar.style.width = offPct + '%';
+        const onBar = document.getElementById('lampOnBar');
+        const offBar = document.getElementById('lampOffBar');
+        if (onBar) onBar.style.width = onPct + '%';
+        if (offBar) offBar.style.width = offPct + '%';
 
-        const onPercent = document.getElementById('onPercent');
-        const offPercent = document.getElementById('offPercent');
-        if (onPercent) onPercent.textContent = 'ON: ' + Math.round(onPct) + '%';
-        if (offPercent) offPercent.textContent = 'OFF: ' + Math.round(offPct) + '%';
-
+        const onPctEl = document.getElementById('onPercent');
+        const offPctEl = document.getElementById('offPercent');
+        if (onPctEl) onPctEl.textContent = 'ON: ' + Math.round(onPct) + '%';
+        if (offPctEl) offPctEl.textContent = 'OFF: ' + Math.round(offPct) + '%';
     } catch (e) {
-        console.error('❌ Error update daily history:', e);
+        console.error('❌ updateDailyHistory error:', e);
     }
 }
 
 // ============================================
-// CEK KONEKSI
-// ============================================
-let esp32Online = false;
-let firebaseConnected = false;
-
-function cekKoneksi() {
-    try {
-        const connStatus = document.getElementById('connStatus');
-        if (connStatus) {
-            if (connStatus.innerText === 'Realtime Connected' || connStatus.innerText === 'Online') {
-                firebaseConnected = true;
-                connStatus.style.color = '#22c55e';
-            } else {
-                firebaseConnected = false;
-                connStatus.style.color = '#ef4444';
-            }
-        }
-        const lastUpdate = document.getElementById('dashLastUpdate');
-        if (lastUpdate && lastUpdate.innerText !== '--:--:--') {
-            const now = new Date();
-            const [h, m, s] = lastUpdate.innerText.split(':').map(Number);
-            const lastDate = new Date();
-            lastDate.setHours(h, m, s || 0);
-            esp32Online = (now - lastDate) / 60000 < 15;
-        } else {
-            esp32Online = false;
-        }
-        updateConnectionNotification();
-    } catch (e) {
-        console.error('❌ Error cek koneksi:', e);
-    }
-}
-
-function updateConnectionNotification() {
-    let notif = document.getElementById('connectionNotif');
-    if (!notif) {
-        notif = document.createElement('div');
-        notif.id = 'connectionNotif';
-        notif.style.cssText = `
-            position: fixed; top: 10px; right: 10px; padding: 8px 16px; border-radius: 10px;
-            font-size: 13px; font-weight: 600; z-index: 9999; transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3); pointer-events: none; display: none;
-        `;
-        document.body.appendChild(notif);
-    }
-    if (!firebaseConnected) {
-        notif.textContent = '⚠️ Firebase Disconnected';
-        notif.style.background = '#ef4444';
-        notif.style.color = '#fff';
-        notif.style.display = 'block';
-        notif.style.border = '1px solid #dc2626';
-    } else if (!esp32Online) {
-        notif.textContent = '⚠️ ESP32 Offline';
-        notif.style.background = '#f59e0b';
-        notif.style.color = '#fff';
-        notif.style.display = 'block';
-        notif.style.border = '1px solid #d97706';
-    } else {
-        notif.textContent = '✅ Sistem Online';
-        notif.style.background = '#22c55e';
-        notif.style.color = '#fff';
-        notif.style.display = 'block';
-        notif.style.border = '1px solid #16a34a';
-        setTimeout(() => {
-            notif.style.opacity = '0';
-            setTimeout(() => {
-                notif.style.display = 'none';
-                notif.style.opacity = '1';
-            }, 500);
-        }, 5000);
-    }
-}
-
-// ============================================
-// APP START
-// ============================================
-document.addEventListener("DOMContentLoaded", () => {
-    console.log('📄 DOMContentLoaded fired!');
-    try {
-        initDOM();
-        initAdminPanel();
-        initCharts();
-        initFirebase();
-        initControls();
-        initExpandChart();
-        initModeControls();
-
-        if (DOM.exportBtn && DOM.exportPeriod) {
-            DOM.exportBtn.addEventListener('click', () => exportData(DOM.exportPeriod.value));
-        }
-        if (DOM.exportPdfBtn) {
-            DOM.exportPdfBtn.addEventListener('click', exportPDF);
-        }
-
-        const analyticsDate = document.getElementById('analyticsDate');
-        const loadBtn = document.getElementById('loadHistoryDateBtn');
-        const resetBtn = document.getElementById('resetHistoryDateBtn');
-        if (analyticsDate) {
-            analyticsDate.value = new Date().toISOString().slice(0, 10);
-        }
-        if (loadBtn) {
-            loadBtn.addEventListener('click', function() {
-                const date = document.getElementById('analyticsDate').value;
-                console.log('📅 Klik Tampilkan, tanggal:', date);
-                if (date) loadChartHistoryByDate(date);
-                else showToast('⚠️ Pilih tanggal dulu!', 'warning');
-            });
-        }
-        if (resetBtn) {
-            resetBtn.addEventListener('click', function() {
-                const today = new Date().toISOString().slice(0, 10);
-                document.getElementById('analyticsDate').value = today;
-                loadChartHistory();
-                showToast('✅ Kembali ke data hari ini', 'info');
-            });
-        }
-
-        setTimeout(() => {
-            updateCategoriesFromHistory();
-            updateDailyHistory();
-        }, 1000);
-
-        loadChartHistory();
-        loadDashChartHistory();
-        loadDailyHistory();
-
-        setTimeout(() => initGauge(), 500);
-
-        updateClock();
-        setInterval(updateClock, 1000);
-
-        if (DOM.userName) {
-            DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
-        }
-
-        setupNavigation();
-        cekKoneksi();
-        setInterval(cekKoneksi, 30000);
-
-        // ⭐ UPDATE PEMENUHAN CAHAYA PERIODIK
-        setInterval(() => {
-            const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-            const display = progress > 100 ? 100 : progress;
-            
-            // Update Dashboard cards
-            const dashProgressValue = document.getElementById('dashProgressValue');
-            if (dashProgressValue) dashProgressValue.textContent = display + '%';
-            
-            const dashProgressStatus = document.getElementById('dashProgressStatus');
-            if (dashProgressStatus) {
-                dashProgressStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
-            }
-            
-            const dashSunlightHours = document.getElementById('dashSunlightHours');
-            if (dashSunlightHours) dashSunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-            
-            // Update Monitoring gauge
-            const gaugeProgress = document.getElementById('gaugeProgress');
-            if (gaugeProgress) gaugeProgress.textContent = display + '%';
-            
-            const statLightProgress = document.getElementById('statLightProgress');
-            if (statLightProgress) statLightProgress.textContent = display;
-        }, 10000);
-
-        setInterval(() => {
-            updateCategoriesFromHistory();
-            updateDailyHistory();
-        }, 30000);
-
-        console.log("🚀 App siap!");
-    } catch (e) {
-        console.error('❌ Error saat start app:', e);
-    }
-});
-
-// ============================================
-// FIREBASE LISTENERS (REVISI - FIX FLICKER + DASHBOARD ID)
-// ============================================
-function initFirebase() {
-    try {
-        if (isListenerActive) {
-            console.log('⚠️ Listener sudah aktif, skip.');
-            return;
-        }
-        isListenerActive = true;
-        console.log('🔌 Memasang Firebase listeners...');
-
-        // --- Sensor (REVISI) ---
-        unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
-            try {
-                const now = Date.now();
-                if (now - lastSensorUpdate < SENSOR_THROTTLE) return;
-                lastSensorUpdate = now;
-
-                const d = snap.val();
-                if (d) {
-                    const rawSuhu = d.suhu || 0;
-                    const rawLux = d.cahaya || 0;
-
-                    const validSuhu = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
-                    const validLux = (rawLux >= 0 && rawLux < 10000) ? rawLux : 0;
-
-                    const smoothSuhu = suhuFilter.add(validSuhu);
-                    const smoothLux = luxFilter.add(validLux);
-
-                    state.temperature = smoothSuhu;
-                    state.sensorLight = smoothLux;
-
-                    // ⭐ UPDATE DASHBOARD CARDS (BARU)
-                    updateDashboardCards(smoothSuhu, smoothLux, state.lampState);
-
-                    // ⭐ UPDATE MONITORING UI
-                    updateMonitoringUI(smoothSuhu, smoothLux, state.lampState);
-
-                    // Update elemen lain yang tidak flicker
-                    if (DOM.statLight) DOM.statLight.textContent = Math.round(smoothLux);
-                    if (DOM.statTemp) DOM.statTemp.textContent = smoothSuhu.toFixed(1);
-
-                    if (DOM.dashLastUpdate) {
-                        const time = new Date().toLocaleTimeString('id-ID');
-                        DOM.dashLastUpdate.textContent = time;
-                    }
-
-                    // Update quick stats di dashboard (legacy)
-                    updateStatusTextSmooth(smoothSuhu, smoothLux);
-
-                    // Update chart history
-                    updateDashChart(smoothSuhu);
-                }
-            } catch (e) {
-                console.error('❌ Error di listener sensor:', e);
-            }
-        }, (err) => {
-            console.error("❌ Sensor error:", err);
-            if (DOM.connStatus) {
-                DOM.connStatus.innerText = "Disconnected";
-                DOM.connStatus.style.color = "#ef4444";
-            }
-            isListenerActive = false;
-        });
-
-        // --- System ---
-        unsubSystem = onValue(ref(db, 'system'), (snap) => {
-            try {
-                const now = Date.now();
-                if (now - lastSystemUpdate < SYSTEM_THROTTLE) return;
-                lastSystemUpdate = now;
-
-                const d = snap.val();
-                if (d) {
-                    state.controlMode = d.mode || 'otomatis';
-                    
-                    // ⭐ NORMALISASI MODE (FIX "Domanis")
-                    if (!['otomatis', 'jadwal', 'manual'].includes(state.controlMode)) {
-                        state.controlMode = 'otomatis';
-                        console.log('⚠️ Mode tidak dikenal, direset ke otomatis');
-                    }
-                    
-                    state.lampState = d.actual_state || false;
-                    state.forceDayOn = d.force_day_on || false;
-                    state.jadwalStart = d.jadwal_start || 6;
-                    state.jadwalEnd = d.jadwal_end || 18;
-                    state.totalLightNeeded = d.total_light_needed || 12;
-                    state.accumulatedLight = d.accumulated_light || 0;
-                    state.lastResetDate = d.last_reset_date || '';
-                    state.alert = d.alert || '';
-
-                    const today = getTodayKey();
-                    if (state.lastResetDate !== today) {
-                        state.accumulatedLight = 0;
-                        state.lastResetDate = today;
-                    }
-
-                    // Update Dashboard Cards (refresh dengan data terbaru)
-                    updateDashboardCards(state.temperature, state.sensorLight, state.lampState);
-
-                    // Update Control
-                    const display = document.getElementById('currentModeDisplay');
-                    const displayControl = document.getElementById('currentModeDisplayControl');
-                    const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-                    if (display) display.textContent = labels[state.controlMode] || state.controlMode;
-                    if (displayControl) displayControl.textContent = labels[state.controlMode] || state.controlMode;
-
-                    // Update Control Lamp Status
-                    const statusText = state.lampState ? 'ON' : 'OFF';
-                    const statusColor = state.lampState ? '#22c55e' : '#ef4444';
-                    ['lampStateText', 'statLamp'].forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el) {
-                            el.textContent = statusText;
-                            el.style.color = statusColor;
-                        }
-                    });
-
-                    if (DOM.forceDayOn) DOM.forceDayOn.checked = state.forceDayOn;
-                    if (DOM.jadwalStart) DOM.jadwalStart.value = state.jadwalStart;
-                    if (DOM.jadwalEnd) DOM.jadwalEnd.value = state.jadwalEnd;
-                    if (DOM.totalLightNeeded) DOM.totalLightNeeded.value = state.totalLightNeeded;
-
-                    // Update dashboard latest temp
-                    const latestTemp = document.getElementById('dashLatestTemp');
-                    if (latestTemp) latestTemp.textContent = state.temperature.toFixed(1) + '°C';
-
-                    // Update progress di control
-                    const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-                    const display2 = progress > 100 ? 100 : progress;
-                    if (DOM.statLightProgress) DOM.statLightProgress.textContent = display2;
-                    if (DOM.lightProgressDisplay) DOM.lightProgressDisplay.textContent = display2 + '%';
-                    if (DOM.sunlightHours) DOM.sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-
-                    updateGauge();
-                    updateModeButtonUI(state.controlMode);
-                    updateDailyHistory();
-                }
-            } catch (e) {
-                console.error('❌ Error di listener system:', e);
-            }
-        }, (err) => {
-            console.error("❌ System error:", err);
-            isListenerActive = false;
-        });
-
-        if (DOM.connStatus) {
-            DOM.connStatus.innerText = "Realtime Connected";
-            DOM.connStatus.style.color = "#22c55e";
-        }
-
-    } catch (e) {
-        console.error('❌ Error init Firebase:', e);
-        if (DOM.connStatus) {
-            DOM.connStatus.innerText = "Error";
-            DOM.connStatus.style.color = "#ef4444";
-        }
-        isListenerActive = false;
-    }
-}
-
-// ============================================
-// UNSUBSCRIBE
-// ============================================
-function unsubscribeAll() {
-    try {
-        if (unsubSensor) { unsubSensor();
-            unsubSensor = null; }
-        if (unsubSystem) { unsubSystem();
-            unsubSystem = null; }
-        isListenerActive = false;
-        console.log('⏸️ Listener dihentikan');
-    } catch (e) {
-        console.error('❌ Error unsubscribe:', e);
-    }
-}
-
-// ============================================
-// NAVIGASI
+// 🧭 SECTION 7: NAVIGATION
 // ============================================
 function setupNavigation() {
-    try {
-        const sectionsNeedingLive = ['dashboard', 'monitoring'];
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function(e) {
-                try {
-                    e.preventDefault();
-                    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-                    this.classList.add('active');
-                    const target = this.dataset.target;
-                    document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-                    const targetSection = document.getElementById(target);
-                    if (targetSection) targetSection.classList.remove('hidden');
-                    if (sectionsNeedingLive.includes(target)) {
-                        if (!isListenerActive) initFirebase();
-                    } else {
-                        if (isListenerActive) unsubscribeAll();
-                    }
-                    if (window.innerWidth <= 768) closeMenu();
-                } catch (e) { console.error('❌ Error klik menu:', e); }
-            });
-        });
-    } catch (e) { console.error('❌ Error setup navigasi:', e); }
-}
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            this.classList.add('active');
 
-// ============================================
-// UPDATE UI TOMBOL MODE
-// ============================================
-function updateModeButtonUI(mode) {
-    try {
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.classList.remove('active-mode');
-            btn.style.background = 'rgba(255,255,255,0.05)';
-            btn.style.border = '1px solid rgba(255,255,255,0.1)';
-            btn.style.color = 'white';
-        });
-        const map = { otomatis: 'modeAutoBtn', jadwal: 'modeJadwalBtn', manual: 'modeManualBtn' };
-        const activeId = map[mode];
-        if (activeId) {
-            const btn = document.getElementById(activeId);
-            if (btn) {
-                btn.classList.add('active-mode');
-                btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
-                btn.style.border = '1px solid #22c55e';
-                btn.style.color = 'white';
-            }
-        }
-    } catch (e) { console.error('❌ Error update mode button:', e); }
-}
+            const target = this.dataset.target;
+            document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+            const section = document.getElementById(target);
+            if (section) section.classList.remove('hidden');
 
-// ============================================
-// FUNGSI SET LAMPU STATE
-// ============================================
-function setLampState(newState) {
-    console.log('🔄 setLampState:', newState);
-    set(ref(db, 'system/state'), newState)
-        .then(() => {
-            showToast(`✅ Perintah ${newState ? 'ON' : 'OFF'} dikirim`, 'success');
-        })
-        .catch(err => {
-            console.error('❌ Gagal:', err);
-            showToast('❌ Gagal: ' + err.message, 'error');
-        });
-}
-
-// ============================================
-// FUNGSI SET MODE
-// ============================================
-function setModeControl(mode) {
-    console.log('🔄 setModeControl:', mode);
-    set(ref(db, 'system/mode'), mode)
-        .then(() => {
-            state.controlMode = mode;
-            const display = document.getElementById('currentModeDisplay');
-            const displayControl = document.getElementById('currentModeDisplayControl');
-            const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-            if (display) display.textContent = labels[mode] || mode;
-            if (displayControl) displayControl.textContent = labels[mode] || mode;
-            updateModeButtonUI(mode);
-            showToast(`✅ Mode ${mode} aktif`, 'success');
-        })
-        .catch(err => {
-            console.error('❌ Gagal:', err);
-            showToast('❌ Gagal: ' + err.message, 'error');
-        });
-}
-
-// ============================================
-// CONTROLS
-// ============================================
-function initControls() {
-    try {
-        if (DOM.btnOn) {
-            DOM.btnOn.addEventListener('click', () => {
-                setLampState(true);
-            });
-        }
-        if (DOM.btnOff) {
-            DOM.btnOff.addEventListener('click', () => {
-                setLampState(false);
-            });
-        }
-        if (DOM.resetPlantBtn) {
-            DOM.resetPlantBtn.addEventListener('click', async () => {
-                if (!confirm('🔄 Reset semua data tanam?')) return;
-                try {
-                    await set(ref(db, 'system/plant_start_date'), null);
-                    state.plantStartDate = null;
-                    showToast('✅ Tanaman di-reset!', 'success');
-                } catch (e) { showToast('❌ Gagal reset: ' + e.message, 'error'); }
-            });
-        }
-    } catch (e) { console.error('❌ Error init controls:', e); }
-}
-
-// ============================================
-// MODE KONTROL
-// ============================================
-function initModeControls() {
-    try {
-        console.log('🔄 Init Mode Controls...');
-        const modeAutoBtn = document.getElementById('modeAutoBtn');
-        if (modeAutoBtn) {
-            modeAutoBtn.addEventListener('click', () => {
-                setModeControl('otomatis');
-            });
-        }
-        const modeJadwalBtn = document.getElementById('modeJadwalBtn');
-        if (modeJadwalBtn) {
-            modeJadwalBtn.addEventListener('click', () => {
-                setModeControl('jadwal');
-            });
-        }
-        const modeManualBtn = document.getElementById('modeManualBtn');
-        if (modeManualBtn) {
-            modeManualBtn.addEventListener('click', () => {
-                setModeControl('manual');
-            });
-        }
-
-        const saveLightNeededBtn = document.getElementById('saveLightNeededBtn');
-        const totalLightNeeded = document.getElementById('totalLightNeeded');
-        if (saveLightNeededBtn && totalLightNeeded) {
-            saveLightNeededBtn.addEventListener('click', function() {
-                const val = parseInt(totalLightNeeded.value);
-                if (val < 6 || val > 18) { showToast('❌ Kebutuhan cahaya harus 6-18 jam', 'error'); return; }
-                set(ref(db, 'system/total_light_needed'), val)
-                    .then(() => { state.totalLightNeeded = val;
-                        showToast('✅ Kebutuhan cahaya disimpan!', 'success'); })
-                    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-            });
-        }
-
-        const saveJadwalBtn = document.getElementById('saveJadwalBtn');
-        const jadwalStart = document.getElementById('jadwalStart');
-        const jadwalEnd = document.getElementById('jadwalEnd');
-        if (saveJadwalBtn && jadwalStart && jadwalEnd) {
-            saveJadwalBtn.addEventListener('click', function() {
-                const start = parseInt(jadwalStart.value);
-                const end = parseInt(jadwalEnd.value);
-                if (isNaN(start) || isNaN(end) || start < 0 || start > 23 || end < 0 || end > 23) {
-                    showToast('❌ Jam harus 0-23', 'error');
-                    return;
+            // Hanya keep listener untuk dashboard & monitoring
+            if (['dashboard', 'monitoring'].includes(target)) {
+                if (!isListenerActive) initFirebase();
+            } else {
+                if (isListenerActive) {
+                    // Unsubscribe tapi biarkan data terakhir tetap ada
                 }
-                set(ref(db, 'system/jadwal_start'), start);
-                set(ref(db, 'system/jadwal_end'), end)
-                    .then(() => showToast(`✅ Jadwal ${start}:00 - ${end}:00 disimpan!`, 'success'))
-                    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-            });
-        }
+            }
 
-        const forceDayOn = document.getElementById('forceDayOn');
-        if (forceDayOn) {
-            forceDayOn.addEventListener('change', function() {
-                const val = this.checked;
-                set(ref(db, 'system/force_day_on'), val)
-                    .then(() => { state.forceDayOn = val;
-                        showToast(val ? '☀️ Force Day ON aktif' : '🌙 Force Day OFF', 'info'); })
-                    .catch(err => showToast('❌ Gagal: ' + err.message, 'error'));
-            });
-        }
-        console.log('✅ Init Mode Controls Selesai');
-    } catch (e) { console.error('❌ Error init mode controls:', e); }
-}
-
-// ============================================
-// EXPAND CHART
-// ============================================
-function initExpandChart() {
-    window.toggleExpand = function(wrapperId) {
-        const wrapper = document.getElementById(wrapperId);
-        if (!wrapper) return;
-        const isExpanded = wrapper.classList.contains('expanded');
-        document.querySelectorAll('.chart-wrapper.expanded').forEach(el => {
-            if (el.id !== wrapperId) el.classList.remove('expanded');
+            if (window.innerWidth <= 768) closeMenu();
         });
-        if (isExpanded) {
-            wrapper.classList.remove('expanded');
-        } else {
-            wrapper.classList.add('expanded');
-            setTimeout(() => wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300);
-        }
-        const canvas = wrapper.querySelector('canvas');
-        if (canvas) {
-            const chart = Chart.getChart(canvas);
-            if (chart) chart.resize();
-        }
-    };
+    });
 }
 
 // ============================================
-// CLOCK
-// ============================================
-function updateClock() {
-    try {
-        const now = new Date();
-        const dateEl = document.getElementById('dateText');
-        const clockEl = document.getElementById('clockText');
-        if (dateEl) {
-            dateEl.innerText = now.toLocaleDateString('id-ID', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-        }
-        if (clockEl) {
-            clockEl.innerText = now.toLocaleTimeString('id-ID');
-        }
-    } catch (e) { console.error('❌ Error update clock:', e); }
-}
-
-// ============================================
-// SIDEBAR
+// 📱 SECTION 8: SIDEBAR
 // ============================================
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.querySelector('.sidebar');
@@ -1193,11 +759,9 @@ const overlay = document.querySelector('.mobile-overlay') || (() => {
 })();
 
 function closeMenu() {
-    try {
-        sidebar.classList.remove('active');
-        overlay.classList.remove('active');
-        document.body.style.overflow = '';
-    } catch (e) { console.error('❌ Error close menu:', e); }
+    sidebar?.classList.remove('active');
+    overlay?.classList.remove('active');
+    document.body.style.overflow = '';
 }
 
 if (menuToggle) {
@@ -1206,30 +770,107 @@ if (menuToggle) {
         overlay.classList.toggle('active');
         document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
     });
-    menuToggle.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        sidebar.classList.toggle('active');
-        overlay.classList.toggle('active');
-    }, { passive: false });
 }
-
 if (overlay) {
     overlay.addEventListener('click', closeMenu);
-    overlay.addEventListener('touchstart', (e) => { e.preventDefault();
-        closeMenu(); }, { passive: false });
 }
-
 window.addEventListener('resize', () => {
     if (window.innerWidth > 768) closeMenu();
 });
 
 // ============================================
-// DEFAULT SECTION
+// 🕐 SECTION 9: CLOCK
 // ============================================
-const defaultSection = document.getElementById('dashboard');
-if (defaultSection) {
-    document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-    defaultSection.classList.remove('hidden');
+function updateClock() {
+    const now = new Date();
+    const dateEl = document.getElementById('dateText');
+    const clockEl = document.getElementById('clockText');
+    if (dateEl) {
+        dateEl.innerText = now.toLocaleDateString('id-ID', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+    if (clockEl) {
+        clockEl.innerText = now.toLocaleTimeString('id-ID');
+    }
 }
 
-console.log('✅ app.js fully loaded!');
+// ============================================
+// 🚀 SECTION 10: APP START
+// ============================================
+document.addEventListener("DOMContentLoaded", () => {
+    console.log('📄 DOMContentLoaded fired!');
+    try {
+        // Init core
+        initDOM();
+        initAdminPanel();
+        initCharts();
+
+        // ⭐ Init Dashboard
+        Dashboard.initChart();
+        setTimeout(() => Dashboard.loadHistory(), 500);
+
+        // ⭐ Init Gauge
+        setTimeout(() => Gauge.init(), 500);
+
+        // ⭐ Init Control
+        Control.init();
+
+        // ⭐ Init Firebase
+        initFirebase();
+
+        // ⭐ Init Navigation
+        setupNavigation();
+
+        // ⭐ Init Expand Chart
+        window.toggleExpand = function(wrapperId) {
+            const wrapper = document.getElementById(wrapperId);
+            if (!wrapper) return;
+            wrapper.classList.toggle('expanded');
+            const canvas = wrapper.querySelector('canvas');
+            if (canvas) {
+                const chart = Chart.getChart(canvas);
+                if (chart) chart.resize();
+            }
+        };
+
+        // ⭐ Clock
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ⭐ User name
+        if (DOM.userName) {
+            DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
+        }
+
+        // ⭐ Periodik update
+        setInterval(() => {
+            const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+            const display = progress > 100 ? 100 : progress;
+            
+            const dashProgress = document.getElementById('dashProgressValue');
+            const gaugeProgress = document.getElementById('gaugeProgress');
+            const statProgress = document.getElementById('statLightProgress');
+            
+            if (dashProgress) dashProgress.textContent = display + '%';
+            if (gaugeProgress) gaugeProgress.textContent = display + '%';
+            if (statProgress) statProgress.textContent = display;
+        }, 10000);
+
+        // ⭐ Default section
+        const defaultSection = document.getElementById('dashboard');
+        if (defaultSection) {
+            document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+            defaultSection.classList.remove('hidden');
+        }
+
+        console.log("🚀 App siap!");
+    } catch (e) {
+        console.error('❌ Error start app:', e);
+    }
+});
+
+console.log('✅ app.js fully loaded (modular per section)!');
