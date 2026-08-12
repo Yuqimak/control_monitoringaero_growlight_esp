@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FULL FIX - CHART LOAD)
+// MAIN ENTRY – app.js (FIX DAILY HISTORY ONLY)
 // ============================================
 
 import { db } from './firebase.js';
@@ -15,7 +15,7 @@ import {
 } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
-import { ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, onValue, set, update, get, query, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 console.log('🚀 app.js loaded!');
 
@@ -83,6 +83,37 @@ const luxFilter = new SmoothingFilter(5);
 function getTodayKey() {
     const now = new Date();
     return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+}
+
+// ============================================
+// ⭐ FUNGSI PARSE TIMESTAMP DARI FIREBASE KEY (TAMBAHAN)
+// ============================================
+function parseFirebaseKeyToTimestamp(key) {
+    try {
+        // Format: "2026-8-12T14-30-45" atau "2026-08-12T14-30-45"
+        const clean = key.replace(/-000Z$/, '').replace(/Z$/, '');
+        const parts = clean.split('T');
+        if (parts.length !== 2) return 0;
+        
+        const dateParts = parts[0].split('-').map(Number);
+        const timeParts = parts[1].split('-').map(Number);
+        
+        if (dateParts.length !== 3 || timeParts.length !== 3) return 0;
+        
+        const [year, month, day] = dateParts;
+        const [hour, minute, second] = timeParts;
+        
+        // Validasi
+        if (year < 2000 || year > 2100) return 0;
+        if (month < 1 || month > 12) return 0;
+        if (day < 1 || day > 31) return 0;
+        if (hour < 0 || hour > 23) return 0;
+        if (minute < 0 || minute > 59) return 0;
+        
+        return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
+    } catch (e) {
+        return 0;
+    }
 }
 
 // ============================================
@@ -549,7 +580,7 @@ let unsubSensor = null;
 let unsubSystem = null;
 let isListenerActive = false;
 let lastSensorUpdate = 0;
-const SENSOR_THROTTLE = 10000; // ⭐ 10 DETIK (HEMAT)
+const SENSOR_THROTTLE = 10000;
 let lastSystemUpdate = 0;
 const SYSTEM_THROTTLE = 5000;
 
@@ -667,45 +698,142 @@ function initFirebase() {
 }
 
 // ============================================
-// 📊 SECTION 6: DAILY HISTORY
+// 📊 SECTION 6: DAILY HISTORY (⭐ FIXED - HITUNG ULANG)
 // ============================================
 async function updateDailyHistory() {
     try {
         const today = getTodayKey();
-        const snap = await get(ref(db, 'system'));
-        const system = snap.val();
-        if (!system) return;
-
-        const accumulatedLight = system.accumulated_light || 0;
+        console.log('📊 updateDailyHistory for:', today);
+        
+        // ⭐ Ambil data lampu dari sensor_history
+        const lampuSnap = await get(ref(db, 'sensor_history/lampu'));
+        const lampuData = lampuSnap.val() || {};
+        
+        // ⭐ Ambil data system
+        const systemSnap = await get(ref(db, 'system'));
+        const system = systemSnap.val() || {};
+        
+        // Tentukan batas hari ini (00:00)
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartTimestamp = todayStart.getTime();
+        
+        // ⭐ HITUNG ULANG AKUMULASI DARI HISTORY
+        let accumulatedLight = 0;
+        let totalPoints = 0;
+        let onPoints = 0;
+        let lastTimestamp = null;
+        let lastState = false;
+        
+        const keys = Object.keys(lampuData).sort();
+        console.log(`📊 Total data lampu di history: ${keys.length}`);
+        
+        keys.forEach((key) => {
+            const timestamp = parseFirebaseKeyToTimestamp(key);
+            if (timestamp === 0) return;
+            
+            // Hanya data hari ini
+            if (timestamp < todayStartTimestamp) return;
+            
+            const entry = lampuData[key];
+            let state = false;
+            
+            // Parse state dari berbagai format
+            if (typeof entry === 'object') {
+                state = entry.state === true || entry.state === 1 || entry.state === 'ON';
+            } else {
+                state = entry === true || entry === 1 || entry === 'ON';
+            }
+            
+            totalPoints++;
+            if (state) onPoints++;
+            
+            // Hitung durasi dari selisih timestamp
+            if (lastTimestamp !== null) {
+                const diffHours = (timestamp - lastTimestamp) / 3600000;
+                if (lastState) {
+                    accumulatedLight += diffHours;
+                }
+            }
+            
+            lastTimestamp = timestamp;
+            lastState = state;
+        });
+        
+        // ⭐ Jika tidak ada data hari ini, pakai dari system
+        if (totalPoints === 0) {
+            console.log('⚠️ Tidak ada data lampu hari ini, pakai dari system');
+            accumulatedLight = system.accumulated_light || 0;
+        } else {
+            // Tambahkan durasi dari state terakhir sampai sekarang
+            if (lastState && lastTimestamp !== null) {
+                const now = Date.now();
+                const diffHours = (now - lastTimestamp) / 3600000;
+                accumulatedLight += diffHours;
+            }
+            
+            console.log(`📊 Perhitungan: ${onPoints}/${totalPoints} data ON, total ${accumulatedLight.toFixed(2)} jam`);
+        }
+        
         const totalNeeded = system.total_light_needed || 12;
-        const actualState = system.actual_state || false;
-
-        await update(ref(db, `daily_history/${today}`), {
-            growlight: accumulatedLight,
-            total: totalNeeded,
-            status: actualState ? 'ON' : 'OFF',
+        const totalActual = 24;
+        
+        // ⭐ STATUS YANG BENAR
+        let status = '🌙 Mati';
+        let statusColor = '#64748b';
+        if (accumulatedLight >= totalNeeded) {
+            status = '✅ Cukup';
+            statusColor = '#22c55e';
+        } else if (accumulatedLight >= totalNeeded * 0.5) {
+            status = '🟡 Sedang';
+            statusColor = '#f59e0b';
+        } else if (accumulatedLight > 0) {
+            status = '🔴 Kurang';
+            statusColor = '#ef4444';
+        }
+        
+        // ⭐ SIMPAN KE DAILY HISTORY
+        const dailyRef = ref(db, `daily_history/${today}`);
+        await update(dailyRef, {
+            growlight: Math.round(accumulatedLight * 10) / 10,
+            total: totalActual,
+            status: status,
+            statusColor: statusColor,
+            totalPoints: totalPoints,
+            onPoints: onPoints,
             updatedAt: Date.now()
         });
-
-        const onTime = document.getElementById('lampOnTime');
-        const offTime = document.getElementById('lampOffTime');
-        if (onTime) onTime.textContent = accumulatedLight.toFixed(1) + ' jam';
-        if (offTime) offTime.textContent = (24 - accumulatedLight).toFixed(1) + ' jam';
-
-        const onPct = Math.min((accumulatedLight / 24) * 100, 100);
-        const offPct = 100 - onPct;
-        const onBar = document.getElementById('lampOnBar');
-        const offBar = document.getElementById('lampOffBar');
-        if (onBar) onBar.style.width = onPct + '%';
-        if (offBar) offBar.style.width = offPct + '%';
-
-        const onPctEl = document.getElementById('onPercent');
-        const offPctEl = document.getElementById('offPercent');
-        if (onPctEl) onPctEl.textContent = 'ON: ' + Math.round(onPct) + '%';
-        if (offPctEl) offPctEl.textContent = 'OFF: ' + Math.round(offPct) + '%';
+        
+        console.log(`✅ Daily history updated: ${accumulatedLight.toFixed(1)} jam, status: ${status}`);
+        
+        // ⭐ UPDATE UI
+        updateDailyHistoryUI(accumulatedLight);
+        
     } catch (e) {
         console.error('❌ updateDailyHistory error:', e);
     }
+}
+
+// ============================================
+// UPDATE UI DAILY HISTORY
+// ============================================
+function updateDailyHistoryUI(accumulatedLight) {
+    const onTime = document.getElementById('lampOnTime');
+    const offTime = document.getElementById('lampOffTime');
+    if (onTime) onTime.textContent = accumulatedLight.toFixed(1) + ' jam';
+    if (offTime) offTime.textContent = (24 - accumulatedLight).toFixed(1) + ' jam';
+    
+    const onPct = Math.min((accumulatedLight / 24) * 100, 100);
+    const offPct = 100 - onPct;
+    const onBar = document.getElementById('lampOnBar');
+    const offBar = document.getElementById('lampOffBar');
+    if (onBar) onBar.style.width = onPct + '%';
+    if (offBar) offBar.style.width = offPct + '%';
+    
+    const onPctEl = document.getElementById('onPercent');
+    const offPctEl = document.getElementById('offPercent');
+    if (onPctEl) onPctEl.textContent = 'ON: ' + Math.round(onPct) + '%';
+    if (offPctEl) offPctEl.textContent = 'OFF: ' + Math.round(offPct) + '%';
 }
 
 // ============================================
@@ -799,11 +927,11 @@ document.addEventListener("DOMContentLoaded", () => {
         initDOM();
         initAdminPanel();
         
-        // ⭐ INIT CHARTS (dari analytics.js)
+        // ⭐ INIT CHARTS
         console.log('📊 Panggil initCharts...');
         initCharts();
 
-        // ⭐ LOAD ALL HISTORY (INI YANG SELAMA INI MISSING!)
+        // ⭐ LOAD ALL HISTORY
         setTimeout(() => {
             console.log('📊 Load chart history from Firebase...');
             loadChartHistory();
@@ -875,4 +1003,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-console.log('✅ app.js fully loaded (FIXED - chart load)');
+console.log('✅ app.js fully loaded (FIXED - daily history)');
