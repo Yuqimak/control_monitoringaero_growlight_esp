@@ -1,6 +1,6 @@
 // ============================================
 // ESP32 - SIGMA GROWLIGHT (INDOOR FARMING)
-// REVISI: Tanpa lux_threshold, split path state vs actual_state
+// REVISI FINAL: Logika accumulated + Timestamp Manusia
 // ============================================
 
 #include <WiFi.h>
@@ -33,11 +33,11 @@ const char* password = "12345!@#$&";
 // KONSTANTA INTERVAL (WAKTU)
 // ============================================
 #define OVERHEAT_THRESHOLD 34.0
-#define SENSOR_INTERVAL     5000      // 5 detik  : baca sensor + kontrol
-#define CONFIG_INTERVAL     10000     // 10 detik : baca konfigurasi dari Firebase
-#define STATE_INTERVAL      10000     // 10 detik : kirim status aktual + accumulated
-#define HISTORY_INTERVAL    300000    // 5 menit  : kirim history sensor
-#define LCD_INTERVAL        10000     // 10 detik : update LCD
+#define SENSOR_INTERVAL     5000      // 5 detik
+#define CONFIG_INTERVAL     10000     // 10 detik
+#define STATE_INTERVAL      10000     // 10 detik
+#define HISTORY_INTERVAL    300000    // 5 menit
+#define LCD_INTERVAL        10000     // 10 detik
 
 // ============================================
 // OBJEK SENSOR
@@ -52,12 +52,12 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // ============================================
 float suhu = 0, hum = 0, lux = 0;
 String statusRelay = "OFF";
-bool lampState = false;           // Status relay sebenarnya
+bool lampState = false;
 float accumulatedLight = 0.0;
 float totalLightNeeded = 12.0;
 String lastResetDate = "";
-String controlMode = "otomatis";  // "manual", "jadwal", "otomatis"
-bool manualState = false;         // Perintah manual dari web (system/state)
+String controlMode = "otomatis";
+bool manualState = false;
 bool forceDayOn = false;
 int jadwalStart = 6;
 int jadwalEnd = 18;
@@ -71,9 +71,17 @@ unsigned long lastLCDUpdate = 0;
 bool lastLampState = false;
 bool lcdPage = false;
 
-// ============================================
-// FUNGSI BANTU
-// ============================================
+// ===================================
+// FUNGSI BANTU - TIMESTAMP MANUSIA
+String getHumanTimestamp(DateTime now) {
+  char buffer[25];
+  sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d",
+    now.year(), now.month(), now.day(),
+    now.hour(), now.minute(), now.second()
+  );
+  return String(buffer);
+}
+
 String getTimestamp(DateTime now) {
   String ts = String(now.year()) + "-" + String(now.month()) + "-" + String(now.day()) +
               "T" + String(now.hour()) + "-" + String(now.minute()) + "-" + String(now.second()) + "-000Z";
@@ -86,12 +94,11 @@ String getDateString(DateTime now) {
 
 // ============================================
 // BACA KONFIGURASI DARI FIREBASE (10 DETIK)
-// ============================================
 void bacaKonfigurasi() {
   HTTPClient http;
   http.setTimeout(3000);
 
-  // 1. BACA MODE (system/mode)
+  // 1. BACA MODE
   String url = String(FIREBASE_HOST) + "/system/mode.json";
   http.begin(url);
   int code = http.GET();
@@ -107,7 +114,7 @@ void bacaKonfigurasi() {
   }
   http.end();
 
-  // 2. BACA PERINTAH MANUAL (system/state) – hanya untuk mode manual
+  // 2. BACA PERINTAH MANUAL
   url = String(FIREBASE_HOST) + "/system/state.json";
   http.begin(url);
   code = http.GET();
@@ -187,14 +194,17 @@ void bacaKonfigurasi() {
 }
 
 // ============================================
-// KIRIM SENSOR (5 DETIK)
-// ============================================
+//  KIRIM SENSOR - DENGAN TIMESTAMP MANUSIA
 void kirimSensor() {
   HTTPClient http;
+  DateTime now = rtc.now();
+  String humanTime = getHumanTimestamp(now);
+  
   String sensorPayload = "{";
   sensorPayload += "\"suhu\":" + String(suhu) + ",";
+  sensorPayload += "\"kelembapan\":" + String(hum) + ",";
   sensorPayload += "\"cahaya\":" + String((int)lux) + ",";
-  sensorPayload += "\"updatedAt\":" + String(rtc.now().unixtime());
+  sensorPayload += "\"updatedAt\":\"" + humanTime + "\"";
   sensorPayload += "}";
 
   String url = String(FIREBASE_HOST) + "/sensor.json";
@@ -206,32 +216,43 @@ void kirimSensor() {
 }
 
 // ============================================
-// KIRIM STATE AKTUAL & ACCUMULATED (10 DETIK)
-// ============================================
+// KIRIM STATE - DENGAN RETRY
 void kirimState() {
   HTTPClient http;
+  bool success = false;
+  int retry = 0;
 
-  // KIRIM STATUS AKTUAL LAMPU KE "/system/actual_state" (LAPORAN)
-  String statePayload = String(lampState ? "true" : "false");
-  String url = String(FIREBASE_HOST) + "/system/actual_state.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PUT(statePayload);
-  http.end();
+  // KIRIM accumulated_light
+  while (!success && retry < 3) {
+    String url = String(FIREBASE_HOST) + "/system/accumulated_light.json";
+    http.begin(url);
+    http.setTimeout(3000);
+    http.addHeader("Content-Type", "application/json");
+    int code = http.PUT(String(accumulatedLight, 6));
+    if (code == 200) success = true;
+    http.end();
+    retry++;
+    if (!success) delay(100);
+  }
 
-  // KIRIM ACCUMULATED LIGHT
-  url = String(FIREBASE_HOST) + "/system/accumulated_light.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PUT(String(accumulatedLight, 6));
-  http.end();
+  // KIRIM actual_state
+  success = false;
+  retry = 0;
+  while (!success && retry < 3) {
+    String url = String(FIREBASE_HOST) + "/system/actual_state.json";
+    http.begin(url);
+    http.setTimeout(3000);
+    http.addHeader("Content-Type", "application/json");
+    int code = http.PUT(lampState ? "true" : "false");
+    if (code == 200) success = true;
+    http.end();
+    retry++;
+    if (!success) delay(100);
+  }
 }
 
 // ============================================
-// KIRIM HISTORY SENSOR (5 MENIT)
-// ============================================
+// KIRIM HISTORY SENSOR - DENGAN TIMESTAMP MANUSIA
 void kirimHistory() {
   HTTPClient http;
   DateTime now = rtc.now();
@@ -240,6 +261,15 @@ void kirimHistory() {
   // History suhu
   String historyPayload = "{\"" + timestamp + "\":{\"value\":" + String(suhu) + ",\"timestamp\":\"" + timestamp + "\"}}";
   String url = String(FIREBASE_HOST) + "/sensor_history/suhu.json";
+  http.begin(url);
+  http.setTimeout(2000);
+  http.addHeader("Content-Type", "application/json");
+  http.PATCH(historyPayload);
+  http.end();
+
+  // History kelembapan
+  historyPayload = "{\"" + timestamp + "\":{\"value\":" + String(hum) + ",\"timestamp\":\"" + timestamp + "\"}}";
+  url = String(FIREBASE_HOST) + "/sensor_history/kelembapan.json";
   http.begin(url);
   http.setTimeout(2000);
   http.addHeader("Content-Type", "application/json");
@@ -255,7 +285,7 @@ void kirimHistory() {
   http.PATCH(historyPayload);
   http.end();
 
-  // History lampu (state)
+  // History lampu
   historyPayload = "{\"" + timestamp + "\":{\"state\":" + String(lampState ? "true" : "false") + ",\"timestamp\":\"" + timestamp + "\"}}";
   url = String(FIREBASE_HOST) + "/sensor_history/lampu.json";
   http.begin(url);
@@ -268,21 +298,33 @@ void kirimHistory() {
 }
 
 // ============================================
-// KIRIM DAILY HISTORY (SAAT PERGANTIAN HARI)
-// ============================================
+//  KIRIM DAILY HISTORY - DENGAN TIMESTAMP MANUSIA
 void kirimDailyHistory() {
   HTTPClient http;
   DateTime now = rtc.now();
   String today = getDateString(now);
+  String humanTime = getHumanTimestamp(now);
+
+  //  HITUNG STATUS
+  String status = "🌙 Mati";
+  if (accumulatedLight >= totalLightNeeded) {
+    status = "✅ Cukup";
+  } else if (accumulatedLight >= totalLightNeeded * 0.5) {
+    status = " Sedang";
+  } else if (accumulatedLight > 0) {
+    status = " Kurang";
+  }
 
   String payload = "{";
-  payload += "\"growlight\":" + String(accumulatedLight) + ",";
-  payload += "\"total\":" + String(accumulatedLight);
+  payload += "\"growlight\":" + String(accumulatedLight, 6) + ",";
+  payload += "\"target\":" + String(totalLightNeeded) + ",";
+  payload += "\"status\":\"" + status + "\",";
+  payload += "\"updatedAt\":\"" + humanTime + "\"";
   payload += "}";
 
   String url = String(FIREBASE_HOST) + "/daily_history/" + today + ".json";
   http.begin(url);
-  http.setTimeout(2000);
+  http.setTimeout(3000);
   http.addHeader("Content-Type", "application/json");
   http.PUT(payload);
   http.end();
@@ -291,8 +333,7 @@ void kirimDailyHistory() {
 }
 
 // ============================================
-// CEK PERGANTIAN HARI (RESET ACCUMULATED)
-// ============================================
+//  CEK PERGANTIAN HARI (RESET ACCUMULATED)
 bool cekGantiHari() {
   DateTime now = rtc.now();
   String today = getDateString(now);
@@ -310,7 +351,6 @@ bool cekGantiHari() {
 
 // ============================================
 // KIRIM HISTORY LAMPU SAAT BERUBAH
-// ============================================
 void kirimHistoryLampu(bool state) {
   HTTPClient http;
   DateTime now = rtc.now();
@@ -325,10 +365,9 @@ void kirimHistoryLampu(bool state) {
 }
 
 // ============================================
-// KONTROL LAMPU (UTAMA) – DIPANGGIL 5 DETIK
-// ============================================
+//  KONTROL LAMPU - FIX
 void kontrolLampu() {
-  // Baca sensor
+  // 1. BACA SENSOR
   suhu = dht.readTemperature();
   hum = dht.readHumidity();
   lux = lightMeter.readLightLevel();
@@ -336,26 +375,25 @@ void kontrolLampu() {
   if (isnan(hum)) hum = 0;
   if (isnan(lux)) lux = 0;
 
-  // PRIORITAS 1: OVERHEAT
+  // 2. PRIORITAS: OVERHEAT
   if (suhu > OVERHEAT_THRESHOLD) {
     digitalWrite(RELAY_PIN, HIGH);
     statusRelay = "OFF";
     lampState = false;
-    // Langsung kirim state aktual (biar web tahu lampu mati karena overheat)
     kirimState();
     return;
   }
 
+  // 3. SIMPAN STATUS LAMA
+  bool prevLampState = lampState;
   DateTime now = rtc.now();
   int jam = now.hour();
 
-  // PRIORITAS 2: MODE KONTROL
+  // 4. TENTUKAN STATUS LAMPU
   if (controlMode == "manual") {
-    // Ikuti perintah dari system/state (dibaca tiap 10 detik)
     lampState = manualState;
   } 
   else if (controlMode == "jadwal") {
-    // Ikuti rentang jam
     bool isScheduled = false;
     if (jadwalStart < jadwalEnd) {
       isScheduled = (jam >= jadwalStart && jam < jadwalEnd);
@@ -364,40 +402,44 @@ void kontrolLampu() {
     }
     lampState = isScheduled;
   } 
-  else { // OTOMATIS (INDOOR FARMING)
-    bool isRestTime = (jam >= 18 || jam < 6); // Istirahat tanaman
-    
+  else { // OTOMATIS
+    bool isRestTime = (jam >= 18 || jam < 6);
     if (isRestTime) {
       lampState = false;
     } else {
       if (forceDayOn) {
         lampState = true;
       } else {
-        // Tambah akumulasi jika lampu sedang ON
-        if (lampState == true) {
-          accumulatedLight += (SENSOR_INTERVAL / 3600000.0); // 5 detik = 0.001388 jam
-          if (accumulatedLight > totalLightNeeded) accumulatedLight = totalLightNeeded;
-        }
-        // Putuskan status berikutnya
+        // LOGIKA INTI: ON jika akumulasi < target
         lampState = (accumulatedLight < totalLightNeeded);
       }
     }
   }
 
-  // EKSEKUSI RELAY (LOW = ON, HIGH = OFF karena relay aktif low)
+  // 5. HITUNG DURASI ON (SETELAH STATUS DITENTUKAN)
+  if (lampState) {
+    accumulatedLight += (SENSOR_INTERVAL / 3600000.0);
+    if (accumulatedLight > totalLightNeeded) {
+      accumulatedLight = totalLightNeeded;
+    }
+  }
+
+  // 6. EKSEKUSI RELAY
   digitalWrite(RELAY_PIN, lampState ? LOW : HIGH);
   statusRelay = lampState ? "ON" : "OFF";
 
-  // Kirim history jika status lampu berubah
-  if (lampState != lastLampState) {
+  // 7. KIRIM HISTORY JIKA STATUS BERUBAH
+  if (lampState != prevLampState) {
     kirimHistoryLampu(lampState);
-    lastLampState = lampState;
+    Serial.print("🔄 Status berubah: ");
+    Serial.println(lampState ? "ON" : "OFF");
   }
+
+  lastLampState = lampState;
 }
 
 // ============================================
-// UPDATE LCD (10 DETIK)
-// ============================================
+// UPDATE LCD
 void updateLCD() {
   DateTime now = rtc.now();
   lcd.clear();
@@ -462,7 +504,7 @@ void setup() {
   // SENSOR
   dht.begin();
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // Awal mati
+  digitalWrite(RELAY_PIN, HIGH);
 
   // RTC
   if (!rtc.begin()) {
@@ -526,14 +568,14 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // 1. BACA SENSOR & KONTROL LAMPU (5 DETIK)
   if (now - lastSensorSend > SENSOR_INTERVAL) {
     lastSensorSend = now;
-    kontrolLampu();       // Ini akan baca sensor, hitung logika, eksekusi relay
-    kirimSensor();        // Kirim data sensor ke /sensor
+    kontrolLampu();
+    kirimSensor();
 
     Serial.println("==========================");
     Serial.print("Suhu: "); Serial.print(suhu); Serial.println(" C");
+    Serial.print("Kelembapan: "); Serial.print(hum); Serial.println(" %");
     Serial.print("Lux: "); Serial.println(lux);
     Serial.print("Relay: "); Serial.println(statusRelay);
     Serial.print("Mode: "); Serial.println(controlMode);
@@ -541,33 +583,27 @@ void loop() {
     Serial.print("Kebutuhan: "); Serial.println(totalLightNeeded);
   }
 
-  // 2. BACA KONFIGURASI DARI FIREBASE (10 DETIK)
   if (now - lastConfigRead > CONFIG_INTERVAL) {
     lastConfigRead = now;
     bacaKonfigurasi();
-    Serial.println("[✓] Konfigurasi dibaca ulang");
   }
 
-  // 3. KIRIM STATUS AKTUAL + ACCUMULATED (10 DETIK)
   if (now - lastStateSend > STATE_INTERVAL) {
     lastStateSend = now;
     kirimState();
   }
 
-  // 4. KIRIM HISTORY SENSOR (5 MENIT)
   if (now - lastHistorySend > HISTORY_INTERVAL) {
     lastHistorySend = now;
     kirimHistory();
   }
 
-  // 5. CEK PERGANTIAN HARI (RESET ACCUMULATED)
   cekGantiHari();
 
-  // 6. UPDATE LCD (10 DETIK)
   if (now - lastLCDUpdate > LCD_INTERVAL) {
     lastLCDUpdate = now;
     updateLCD();
   }
 
-  delay(100); // kecil agar tidak memblokir
+  delay(100);
 }
