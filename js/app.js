@@ -83,13 +83,20 @@ function getTodayKey() {
 const Dashboard = {
     chartInstance: null,
 
-    // 1.1 Init Chart
+    // 1.1 Init Chart - FIX: Destroy existing chart
     initChart() {
         console.log('📊 Dashboard.initChart()');
         const canvas = document.getElementById('dashTempChart');
         if (!canvas) {
             console.warn('⚠️ Canvas dashTempChart tidak ditemukan');
             return;
+        }
+
+        // ⭐ FIX: Destroy chart yang sudah ada di canvas
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+            console.log('⚠️ Destroy existing chart on canvas');
+            existingChart.destroy();
         }
 
         if (this.chartInstance) {
@@ -389,6 +396,12 @@ const Gauge = {
         console.log('📊 Gauge.init()');
         const canvas = document.getElementById('gaugeChart');
         if (!canvas) return;
+
+        // FIX: Destroy existing chart
+        const existingChart = Chart.getChart(canvas);
+        if (existingChart) {
+            existingChart.destroy();
+        }
 
         if (this.instance) {
             this.instance.destroy();
@@ -731,15 +744,6 @@ function setupNavigation() {
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
             const section = document.getElementById(target);
             if (section) section.classList.remove('hidden');
-
-            // Hanya keep listener untuk dashboard & monitoring
-            if (['dashboard', 'monitoring'].includes(target)) {
-                if (!isListenerActive) initFirebase();
-            } else {
-                if (isListenerActive) {
-                    // Unsubscribe tapi biarkan data terakhir tetap ada
-                }
-            }
 
             if (window.innerWidth <= 768) closeMenu();
         });
