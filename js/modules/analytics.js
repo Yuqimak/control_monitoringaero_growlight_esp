@@ -161,15 +161,35 @@ export function initCharts() {
     console.log('✅ lampStatusChart initialized');
   }
 
-  // DASHBOARD CHART
+  // ⭐ DASHBOARD CHART
   const dEl = document.getElementById('dashTempChart');
   if (dEl) {
     const existing = Chart.getChart(dEl);
     if (existing) existing.destroy();
     dashTempChart = new Chart(dEl, {
       type: 'line',
-      data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
-      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+      data: { 
+        labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], 
+        datasets: [{ 
+          label: 'Suhu (°C)', 
+          data: dashTempData.length > 0 ? dashTempData : [0], 
+          borderColor: '#22c55e', 
+          backgroundColor: 'rgba(34,197,94,0.15)', 
+          borderWidth: 2, 
+          fill: true, 
+          tension: 0.4, 
+          pointRadius: isMobile ? 2 : 3 
+        }] 
+      },
+      options: { 
+        responsive: true, 
+        maintainAspectRatio: true, 
+        plugins: { legend: { display: false } }, 
+        scales: { 
+          x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, 
+          y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } 
+        } 
+      }
     });
     console.log('✅ dashTempChart initialized');
   }
@@ -405,7 +425,7 @@ function applyChartData(hourlyData) {
 }
 
 // ============================================
-// STATS FUNCTIONS (SAMA SEPERTI SEBELUMNYA)
+// STATS FUNCTIONS
 // ============================================
 function updateStats(data) {
   const temps = data.map(d => d.suhu).filter(v => v > 0);
@@ -593,7 +613,7 @@ function updateHistogram(data) {
 }
 
 // ============================================
-// EXPORT FUNCTIONS (SAMA)
+// EXPORT FUNCTIONS
 // ============================================
 export async function exportData(period) {
   const status = DOM.exportStatus;
@@ -691,10 +711,32 @@ export async function exportPDF() {
   }
 }
 
+// ============================================
+// ⭐ LOAD DASHBOARD CHART - FIXED (DENGAN PENGECEKAN)
+// ============================================
 export async function loadDashChartHistory() {
-  // Sama seperti sebelumnya
   console.log('📊 loadDashChartHistory dipanggil');
   try {
+    // ⭐ CEK APAKAH CHART SUDAH ADA
+    if (!dashTempChart) {
+      console.warn('⚠️ dashTempChart belum diinisialisasi, skip loadDashChartHistory');
+      return;
+    }
+
+    // ⭐ CEK APAKAH CANVAS MASIH ADA
+    const canvas = document.getElementById('dashTempChart');
+    if (!canvas) {
+      console.warn('⚠️ Canvas dashTempChart tidak ditemukan di DOM');
+      return;
+    }
+
+    // ⭐ CEK APAKAH CHART MASIH TERATTACH
+    const existingChart = Chart.getChart(canvas);
+    if (!existingChart) {
+      console.warn('⚠️ Chart pada canvas sudah di-destroy, skip');
+      return;
+    }
+
     const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
     const data = snapshot.val();
     if (!data) {
@@ -705,9 +747,11 @@ export async function loadDashChartHistory() {
       }
       return;
     }
+    
     const keys = Object.keys(data).sort();
     const labels = [];
     const values = [];
+    
     keys.forEach(key => {
       const entry = data[key];
       const suhu = entry?.value ?? entry ?? 0;
@@ -717,16 +761,23 @@ export async function loadDashChartHistory() {
         values.push(suhu);
       }
     });
+
     if (dashTempChart) {
       dashTempChart.data.labels = labels.length > 0 ? labels : ['Tidak Ada Data'];
       dashTempChart.data.datasets[0].data = values.length > 0 ? values : [0];
       dashTempChart.update();
+      console.log(`✅ Dashboard chart loaded: ${values.length} data`);
     }
-  } catch (e) { console.error('❌ Gagal load dashboard chart:', e); }
+    
+  } catch (e) {
+    console.error('❌ Gagal load dashboard chart:', e);
+  }
 }
 
+// ============================================
+// LOAD CHART HISTORY BY DATE
+// ============================================
 export async function loadChartHistoryByDate(dateStr) {
-  // Sama seperti sebelumnya
   console.log('📅 loadChartHistoryByDate:', dateStr);
   try {
     if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
@@ -773,8 +824,10 @@ export async function loadChartHistoryByDate(dateStr) {
   }
 }
 
+// ============================================
+// LOAD DAILY HISTORY
+// ============================================
 export async function loadDailyHistory() {
-  // Sama seperti sebelumnya
   console.log('📊 loadDailyHistory dipanggil');
   try {
     const snapshot = await get(ref(db, 'daily_history'));
@@ -790,17 +843,18 @@ export async function loadDailyHistory() {
     dates.forEach(date => {
       const d = data[date];
       const growlight = d.growlight || 0;
-      const total = d.total || growlight;
-      const status = total >= 12 ? '✅ Cukup' : '⚠️ Kurang';
-      const color = total >= 12 ? '#22c55e' : '#f59e0b';
+      const target = d.target || 12;
+      const status = d.status || (growlight >= target ? '✅ Cukup' : '🔴 Kurang');
+      const color = d.statusColor || (growlight >= target ? '#22c55e' : '#ef4444');
       html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
         <td style="padding:6px 8px; color:var(--text-muted);">${date}</td>
-        <td style="padding:6px 8px; color:#22c55e;">${growlight.toFixed(1)} jam</td>
-        <td style="padding:6px 8px; font-weight:600;">${total.toFixed(1)} jam</td>
+        <td style="padding:6px 8px; color:#22c55e; font-weight:600;">${growlight.toFixed(1)} jam</td>
+        <td style="padding:6px 8px; color:#f59e0b; font-weight:600;">${target.toFixed(1)} jam</td>
         <td style="padding:6px 8px; color:${color}; font-weight:600;">${status}</td>
       </tr>`;
     });
     tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
+    console.log('✅ Daily history loaded,', dates.length, 'hari');
   } catch (e) {
     console.error('❌ Gagal load daily history:', e);
   }
