@@ -8,7 +8,6 @@ import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.co
 
 console.log('📊 analytics.js loaded');
 
-// ⭐ OPTIMASI
 const MAX_POINTS = 96;
 const CACHE_DURATION = 60 * 60 * 1000;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -18,9 +17,6 @@ export let tempChart = null, lightChart = null, lampStatusChart = null;
 const dashTempLabels = [], dashTempData = [];
 export let dashTempChart = null;
 
-// ============================================
-// TOGGLE EXPAND
-// ============================================
 window.toggleExpand = function(wrapperId) {
     const wrapper = document.getElementById(wrapperId);
     if (!wrapper) return;
@@ -32,9 +28,6 @@ window.toggleExpand = function(wrapperId) {
     }
 };
 
-// ============================================
-// CHART OPTIONS
-// ============================================
 function getChartOptions() {
     const isMobile = window.innerWidth < 768;
     return {
@@ -51,9 +44,6 @@ function getChartOptions() {
     };
 }
 
-// ============================================
-// ⭐ INIT CHARTS
-// ============================================
 export function initCharts() {
     console.log('📊 initCharts');
     if (typeof Chart === 'undefined') { setTimeout(() => initCharts(), 500); return; }
@@ -61,7 +51,6 @@ export function initCharts() {
     const isMobile = window.innerWidth < 768;
     const opts = getChartOptions();
 
-    // TEMP CHART
     const tEl = document.getElementById('tempChart');
     if (tEl) {
         const existing = Chart.getChart(tEl);
@@ -76,7 +65,6 @@ export function initCharts() {
         });
     }
 
-    // LIGHT CHART
     const lEl = document.getElementById('lightChart');
     if (lEl) {
         const existing = Chart.getChart(lEl);
@@ -91,7 +79,6 @@ export function initCharts() {
         });
     }
 
-    // LAMP STATUS CHART
     const lsEl = document.getElementById('lampStatusChart');
     if (lsEl) {
         const existing = Chart.getChart(lsEl);
@@ -111,7 +98,6 @@ export function initCharts() {
         });
     }
 
-    // ⭐ DASHBOARD CHART (HANYA SATU!)
     const dEl = document.getElementById('dashTempChart');
     if (dEl) {
         const existing = Chart.getChart(dEl);
@@ -125,9 +111,6 @@ export function initCharts() {
     console.log('✅ All charts initialized');
 }
 
-// ============================================
-// ⭐ UPDATE CHARTS
-// ============================================
 let lastChartUpdate = 0;
 const CHART_THROTTLE = 5000;
 
@@ -169,9 +152,6 @@ export function updateCharts(time) {
     }
 }
 
-// ============================================
-// ⭐ LOAD HISTORY
-// ============================================
 export async function loadChartHistory() {
     console.log('📊 loadChartHistory');
     const cached = localStorage.getItem(CACHE_KEY);
@@ -228,19 +208,12 @@ export async function loadChartHistory() {
     } catch (e) { console.error('❌ loadChartHistory:', e); applyChartData([]); }
 }
 
-// ============================================
-// ⭐ LOAD DASHBOARD CHART - DENGAN RE-INIT
-// ============================================
 export async function loadDashChartHistory() {
     try {
         let chart = dashTempChart;
         const canvas = document.getElementById('dashTempChart');
-        if (!canvas) {
-            console.warn('⚠️ Canvas dashTempChart not found');
-            return;
-        }
+        if (!canvas) { console.warn('⚠️ Canvas dashTempChart not found'); return; }
 
-        // Jika chart null, re-init
         if (!chart) {
             const existing = Chart.getChart(canvas);
             if (existing) existing.destroy();
@@ -282,9 +255,6 @@ export async function loadDashChartHistory() {
     } catch (e) { console.error('❌ loadDashChartHistory:', e); }
 }
 
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
 function parseKeyToTimestamp(key) {
     try {
         const clean = key.replace(/-000Z$/, '');
@@ -353,9 +323,6 @@ function applyChartData(hourlyData) {
     updateHistogram(hourlyData);
 }
 
-// ============================================
-// STATS FUNCTIONS
-// ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
     if (temps.length) {
@@ -529,9 +496,6 @@ function updateHistogram(data) {
     });
 }
 
-// ============================================
-// EXPORT FUNCTIONS
-// ============================================
 export async function exportData(period) {
     const status = DOM.exportStatus;
     if (status) status.textContent = '⏳ Mengambil data...';
