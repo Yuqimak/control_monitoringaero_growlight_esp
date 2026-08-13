@@ -1,37 +1,34 @@
 // ============================================
-// MAIN ENTRY – app.js (SUPER CLEAN)
+// MAIN ENTRY – app.js (FIXED - PATH SECTION)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
-import { initAdminPanel } from './sections/admin.js';
 
-// ⭐ IMPORT SEMUA SECTION
+// ⭐ IMPORT SEMUA SECTION (PAKAI './section/' BUKAN './sections/')
+import { initAdminPanel } from './section/admin.js';
 import { 
     initCharts, 
     exportData, 
     exportPDF, 
     loadChartHistory, 
     loadDailyHistory 
-} from './sections/analytics.js';
-
+} from './section/analytics.js';
 import { 
     initDashboard, 
     initDashChart, 
     loadDashHistory, 
     cleanupDashboard 
-} from './sections/dashboard.js';
-
+} from './section/dashboard.js';
 import { 
     initMonitoring, 
     initGauge, 
     cleanupMonitoring 
-} from './sections/monitoring.js';
-
+} from './section/monitoring.js';
 import { 
     initControl, 
     cleanupControl 
-} from './sections/control.js';
+} from './section/control.js';
 
 console.log('🚀 app.js loaded');
 
@@ -141,20 +138,16 @@ function setupNavigation() {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // Update menu active
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             this.classList.add('active');
 
-            // Show section
             const target = this.dataset.target;
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
             const section = document.getElementById(target);
             if (section) section.classList.remove('hidden');
 
-            // Switch
             switchSection(target);
 
-            // Close mobile
             if (window.innerWidth <= 768) closeMenu();
         });
     });
@@ -223,19 +216,15 @@ window.toggleExpand = function(wrapperId) {
 document.addEventListener("DOMContentLoaded", () => {
     console.log('📄 DOMContentLoaded');
     try {
-        // ─── INIT CORE ───
         initDOM();
 
-        // ─── ADMIN MENU ───
         if (currentUser?.role === 'admin') {
             const adminMenu = document.getElementById('adminMenu');
             if (adminMenu) adminMenu.style.display = 'block';
         }
 
-        // ─── NAVIGATION ───
         setupNavigation();
 
-        // ─── DEFAULT: DASHBOARD ───
         const defaultSection = document.getElementById('dashboard');
         if (defaultSection) {
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
@@ -243,16 +232,13 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         switchSection('dashboard');
 
-        // ─── CLOCK ───
         updateClock();
         setInterval(updateClock, 1000);
 
-        // ─── USER NAME ───
         if (DOM.userName) {
             DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
         }
 
-        // ─── CONNECTION STATUS ───
         const connStatus = document.getElementById('connStatus');
         if (connStatus) {
             connStatus.innerText = '✅ Connected';
