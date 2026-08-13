@@ -2,47 +2,55 @@
 // MONITORING SECTION
 // ============================================
 
-import { state } from '../firebase.js';
+import { db, state } from '../firebase.js';
 import { ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+console.log('📊 monitoring.js loaded');
 
 let gaugeInstance = null;
 let unsubSensor = null;
 let unsubSystem = null;
 
-const Gauge = {
-    instance: null,
-    init() {
-        const canvas = document.getElementById('gaugeChart');
-        if (!canvas) return;
-        const existing = Chart.getChart(canvas);
-        if (existing) existing.destroy();
-        if (this.instance) { this.instance.destroy(); this.instance = null; }
-        const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-        const ctx = canvas.getContext('2d');
-        this.instance = new Chart(ctx, {
-            type: 'doughnut',
-            data: { datasets: [{ data: [progress, 100 - progress], backgroundColor: ['#22c55e', 'rgba(255,255,255,0.1)'], borderWidth: 0 }] },
-            options: { responsive: true, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
-        });
-    },
-    update() {
-        const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-        const display = progress > 100 ? 100 : progress;
-        const el = document.getElementById('gaugeProgress');
-        if (el) el.textContent = display + '%';
-        const sun = document.getElementById('gaugeSunlight');
-        if (sun) sun.textContent = (state.accumulatedLight || 0).toFixed(1);
-        const grow = document.getElementById('gaugeGrowlight');
-        if (grow) {
-            const val = Math.max(0, (state.totalLightNeeded || 12) - (state.accumulatedLight || 0));
-            grow.textContent = val.toFixed(1);
-        }
-        if (this.instance) {
-            this.instance.data.datasets[0].data = [display, 100 - display];
-            this.instance.update();
-        }
+function initGauge() {
+    console.log('📊 initGauge');
+    const canvas = document.getElementById('gaugeChart');
+    if (!canvas) return;
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+    if (gaugeInstance) { gaugeInstance.destroy(); gaugeInstance = null; }
+    const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+    const ctx = canvas.getContext('2d');
+    gaugeInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: { datasets: [{ data: [progress, 100 - progress], backgroundColor: ['#22c55e', 'rgba(255,255,255,0.1)'], borderWidth: 0 }] },
+        options: { responsive: true, cutout: '75%', plugins: { legend: { display: false }, tooltip: { enabled: false } } }
+    });
+}
+
+function updateGauge() {
+    const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
+    const display = progress > 100 ? 100 : progress;
+    const remaining = Math.max(0, (state.totalLightNeeded - state.accumulatedLight) || 0);
+
+    const progressEl = document.getElementById('gaugeProgress');
+    if (progressEl) progressEl.textContent = display + '%';
+    const sunEl = document.getElementById('gaugeSunlight');
+    if (sunEl) sunEl.textContent = (state.accumulatedLight || 0).toFixed(1);
+    const remEl = document.getElementById('gaugeRemaining');
+    if (remEl) remEl.textContent = remaining.toFixed(1);
+    const statusEl = document.getElementById('gaugeStatus');
+    if (statusEl) {
+        let status = '🔴 Kurang', color = '#ef4444';
+        if (display >= 100) { status = '✅ Cukup'; color = '#22c55e'; }
+        else if (display >= 50) { status = '🟡 Sedang'; color = '#f59e0b'; }
+        statusEl.textContent = status;
+        statusEl.style.color = color;
     }
-};
+    if (gaugeInstance) {
+        gaugeInstance.data.datasets[0].data = [display, 100 - display];
+        gaugeInstance.update();
+    }
+}
 
 const Monitoring = {
     lastUpdate: 0,
@@ -52,6 +60,7 @@ const Monitoring = {
         if (now - this.lastUpdate < this.throttle) return;
         this.lastUpdate = now;
         requestAnimationFrame(() => {
+            // SUHU
             const el = document.getElementById('monitorTemp');
             const status = document.getElementById('tempStatus');
             if (el) el.textContent = temp.toFixed(1);
@@ -61,6 +70,7 @@ const Monitoring = {
             else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
             if (status) { status.textContent = category; status.style.color = color; }
 
+            // KELEMBAPAN
             const humEl = document.getElementById('monitorHumidity');
             const humStatus = document.getElementById('humidityStatus');
             if (humEl) humEl.textContent = humidity.toFixed(1);
@@ -71,6 +81,7 @@ const Monitoring = {
             else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
             if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
 
+            // CAHAYA
             const lightEl = document.getElementById('monitorLight');
             const lightStatus = document.getElementById('lightStatus');
             if (lightEl) lightEl.textContent = Math.round(lux);
@@ -82,6 +93,7 @@ const Monitoring = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
+            // STATUS LAMPU
             const lampStatus = document.getElementById('monitorLampStatus');
             const lampText = document.getElementById('lampStatusText');
             const statusText = lampState ? 'ON' : 'OFF';
@@ -95,14 +107,16 @@ const Monitoring = {
 
 export function initMonitoring() {
     console.log('🌡 Monitoring init');
-    setTimeout(() => Gauge.init(), 500);
+    setTimeout(initGauge, 500);
+
     unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
         try {
             const d = snap.val();
             if (!d) return;
             Monitoring.updateUI(d.suhu || 0, d.cahaya || 0, state.lampState, d.kelembapan || 0);
-        } catch (e) { console.error('❌ Monitoring error:', e); }
+        } catch (e) { console.error('❌ Monitoring sensor error:', e); }
     });
+
     unsubSystem = onValue(ref(db, 'system'), (snap) => {
         try {
             const d = snap.val();
@@ -110,13 +124,14 @@ export function initMonitoring() {
             state.lampState = d.actual_state || false;
             state.accumulatedLight = d.accumulated_light || 0;
             state.totalLightNeeded = d.total_light_needed || 12;
-            Gauge.update();
-        } catch (e) { console.error('❌ Monitoring error:', e); }
+            updateGauge();
+        } catch (e) { console.error('❌ Monitoring system error:', e); }
     });
 }
 
 export function cleanupMonitoring() {
     if (unsubSensor) { unsubSensor(); unsubSensor = null; }
     if (unsubSystem) { unsubSystem(); unsubSystem = null; }
-    if (Gauge.instance) { Gauge.instance.destroy(); Gauge.instance = null; }
+    if (gaugeInstance) { gaugeInstance.destroy(); gaugeInstance = null; }
+    console.log('🧹 Monitoring cleaned');
 }
