@@ -6,7 +6,7 @@ import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 import { initAdminPanel } from './sections/admin.js';
 
-// ⭐ IMPORT SECTIONS
+// ⭐ IMPORT SEMUA SECTIONS
 import { 
     initCharts, 
     exportData, 
@@ -21,13 +21,17 @@ import {
     initDashboard, 
     initDashChart, 
     loadDashHistory, 
-    cleanupDashboard 
+    cleanupDashboard,
+    updateDashboardCards,
+    updateDashChart
 } from './sections/dashboard.js';
 
 import { 
     initMonitoring, 
     initGauge, 
-    cleanupMonitoring 
+    cleanupMonitoring,
+    updateMonitoringUI,
+    updateGauge
 } from './sections/monitoring.js';
 
 import { 
@@ -60,7 +64,7 @@ if (!sessionData) {
 }
 
 // ============================================
-// EXPOSE GLOBAL (Export, PDF, Logout)
+// EXPOSE GLOBAL
 // ============================================
 window.exportData = exportData;
 window.exportPDF = exportPDF;
@@ -105,11 +109,14 @@ function switchSection(sectionName) {
     switch(sectionName) {
         case 'dashboard':
             activeSections.dashboard = true;
+            // Init chart dulu
             initDashChart();
+            // Load history
             setTimeout(() => {
                 loadDashHistory();
                 loadDashChartHistory();
             }, 500);
+            // Start listener
             initDashboard();
             console.log('🏠 Dashboard activated');
             break;
@@ -152,27 +159,23 @@ function switchSection(sectionName) {
 }
 
 // ============================================
-// SETUP NAVIGATION (Menu Click)
+// SETUP NAVIGATION
 // ============================================
 function setupNavigation() {
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // Update active menu
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             this.classList.add('active');
 
-            // Show section
             const target = this.dataset.target;
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
             const section = document.getElementById(target);
             if (section) section.classList.remove('hidden');
 
-            // Switch section logic
             switchSection(target);
 
-            // Close mobile menu
             if (window.innerWidth <= 768) closeMenu();
         });
     });
@@ -226,7 +229,7 @@ function updateClock() {
 }
 
 // ============================================
-// EXPAND CHART (global)
+// EXPAND CHART
 // ============================================
 window.toggleExpand = function(wrapperId) {
     const wrapper = document.getElementById(wrapperId);
@@ -245,19 +248,17 @@ window.toggleExpand = function(wrapperId) {
 document.addEventListener("DOMContentLoaded", () => {
     console.log('📄 App starting...');
     try {
-        // ─── INIT CORE ───
         initDOM();
         
-        // ─── ADMIN MENU VISIBILITY ───
+        // Admin menu
         if (currentUser?.role === 'admin') {
             const adminMenu = document.getElementById('adminMenu');
             if (adminMenu) adminMenu.style.display = 'block';
         }
 
-        // ─── NAVIGATION ───
         setupNavigation();
 
-        // ─── DEFAULT SECTION: DASHBOARD ───
+        // DEFAULT: DASHBOARD
         const defaultSection = document.getElementById('dashboard');
         if (defaultSection) {
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
@@ -265,34 +266,21 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         switchSection('dashboard');
 
-        // ─── CLOCK ───
+        // Clock
         updateClock();
         setInterval(updateClock, 1000);
 
-        // ─── USER NAME ───
+        // User name
         if (DOM.userName) {
             DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
         }
 
-        // ─── CONNECTION STATUS ───
+        // Connection status
         const connStatus = document.getElementById('connStatus');
         if (connStatus) {
             connStatus.innerText = 'Realtime Connected';
             connStatus.style.color = '#22c55e';
         }
-
-        // ─── PERIODIK UPDATE ───
-        setInterval(() => {
-            // Update progress di dashboard (jika ada)
-            const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-            const display = progress > 100 ? 100 : progress;
-            const dashProgress = document.getElementById('dashProgressValue');
-            const gaugeProgress = document.getElementById('gaugeProgress');
-            const statProgress = document.getElementById('statLightProgress');
-            if (dashProgress) dashProgress.textContent = display + '%';
-            if (gaugeProgress) gaugeProgress.textContent = display + '%';
-            if (statProgress) statProgress.textContent = display;
-        }, 10000);
 
         console.log("🚀 App ready!");
     } catch (e) {
@@ -300,4 +288,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-console.log('✅ app.js loaded (routing only)');
+console.log('✅ app.js loaded');
