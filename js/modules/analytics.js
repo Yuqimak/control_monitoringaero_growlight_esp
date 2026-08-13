@@ -712,31 +712,39 @@ export async function exportPDF() {
 }
 
 // ============================================
-// ⭐ LOAD DASHBOARD CHART - FIXED (DENGAN PENGECEKAN)
+// ⭐ LOAD DASHBOARD CHART - DENGAN PENGECEKAN GANDA
 // ============================================
 export async function loadDashChartHistory() {
   console.log('📊 loadDashChartHistory dipanggil');
   try {
-    // ⭐ CEK APAKAH CHART SUDAH ADA
+    // ⭐ CEK 1: Apakah dashTempChart ada?
     if (!dashTempChart) {
-      console.warn('⚠️ dashTempChart belum diinisialisasi, skip loadDashChartHistory');
+      console.warn('⚠️ dashTempChart belum diinisialisasi, skip');
       return;
     }
 
-    // ⭐ CEK APAKAH CANVAS MASIH ADA
+    // ⭐ CEK 2: Apakah canvas masih ada di DOM?
     const canvas = document.getElementById('dashTempChart');
     if (!canvas) {
-      console.warn('⚠️ Canvas dashTempChart tidak ditemukan di DOM');
+      console.warn('⚠️ Canvas dashTempChart tidak ditemukan di DOM, skip');
       return;
     }
 
-    // ⭐ CEK APAKAH CHART MASIH TERATTACH
+    // ⭐ CEK 3: Apakah chart masih terikat dengan canvas?
+    // Chart.getChart(canvas) akan return null jika chart sudah di-destroy
     const existingChart = Chart.getChart(canvas);
     if (!existingChart) {
       console.warn('⚠️ Chart pada canvas sudah di-destroy, skip');
       return;
     }
 
+    // ⭐ CEK 4: Apakah chart masih dalam kondisi valid (tidak null)
+    if (!existingChart.data || !existingChart.data.datasets) {
+      console.warn('⚠️ Chart data tidak valid, skip');
+      return;
+    }
+
+    // Ambil data dari Firebase
     const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
     const data = snapshot.val();
     if (!data) {
