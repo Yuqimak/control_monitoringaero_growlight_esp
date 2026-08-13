@@ -1,93 +1,222 @@
 // ============================================
-// DASHBOARD SECTION
+// MAIN ENTRY – app.js (SECTION VERSION - FULL)
 // ============================================
 
-import { db, state } from './js/firebase.js';  
-import { ref, onValue, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { db, state } from './firebase.js';
+import { currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 
-const Dashboard = {
-    updateCards(temp, lux, lampState, humidity) {
-        requestAnimationFrame(() => {
-            const tempVal = document.getElementById('dashTempValue');
-            const tempStatus = document.getElementById('dashTempStatus');
-            if (tempVal) tempVal.textContent = temp.toFixed(1);
-            let category = '🌤️ Normal', color = '#22c55e';
-            if (temp > 35) { category = '🔥 Sangat Panas'; color = '#ef4444'; }
-            else if (temp > 30) { category = '🔥 Panas'; color = '#f59e0b'; }
-            else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
-            if (tempStatus) { tempStatus.textContent = category; tempStatus.style.color = color; }
+// IMPORT SECTION
+import { initDashboard, cleanupDashboard } from './section/dashboard.js';
+import { initMonitoring, cleanupMonitoring } from './section/monitoring.js';
+import { initControl, cleanupControl } from './section/control.js';
+import { initCharts, loadChartHistory, loadDailyHistory, exportData, exportPDF } from './section/analytics.js';
+import { initAdminPanel } from './section/admin.js';
 
-            const humVal = document.getElementById('dashHumidityValue');
-            const humStatus = document.getElementById('dashHumidityStatus');
-            if (humVal) humVal.textContent = humidity.toFixed(1);
-            let humCategory = '🌤️ Normal', humColor = '#22c55e';
-            if (humidity > 80) { humCategory = '💧 Sangat Lembab'; humColor = '#3b82f6'; }
-            else if (humidity > 70) { humCategory = '💧 Lembab'; humColor = '#60a5fa'; }
-            else if (humidity < 40) { humCategory = '🔥 Kering'; humColor = '#f59e0b'; }
-            else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
-            if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
+console.log('🚀 app.js loaded');
 
-            const lightVal = document.getElementById('dashLightValue');
-            const lightStatus = document.getElementById('dashLightStatus');
-            if (lightVal) lightVal.textContent = Math.round(lux);
-            let lCat = '🌤️ Sedang', lColor = '#94a3b8';
-            if (lux > 4000) { lCat = '☀️ Sangat Terang'; lColor = '#facc15'; }
-            else if (lux > 2000) { lCat = '🌤️ Terang'; lColor = '#f59e0b'; }
-            else if (lux > 500) { lCat = '🌥️ Sedang'; lColor = '#94a3b8'; }
-            else if (lux > 100) { lCat = '🌥️ Redup'; lColor = '#64748b'; }
-            else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
-            if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
+// ============================================
+// SESSION CHECK
+// ============================================
+const sessionData = localStorage.getItem('iot_user');
+if (!sessionData) {
+    window.location.href = 'login.html';
+} else {
+    try {
+        const user = JSON.parse(sessionData);
+        setUser(user);
+        console.log('👤 Login:', user.nama);
+        const loginTime = user.loginTime || 0;
+        if (Date.now() - loginTime > 8 * 60 * 60 * 1000) {
+            localStorage.removeItem('iot_user');
+            window.location.href = 'login.html';
+        }
+    } catch (e) {
+        localStorage.removeItem('iot_user');
+        window.location.href = 'login.html';
+    }
+}
 
-            const lampDuration = document.getElementById('dashLampDuration');
-            const lampText = document.getElementById('dashLampStatusText');
-            const accumulatedLight = state.accumulatedLight || 0;
-            if (lampDuration) lampDuration.textContent = accumulatedLight.toFixed(1);
-            const statusText = lampState ? 'ON' : 'OFF';
-            const statusColor = lampState ? '#22c55e' : '#ef4444';
-            const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
-            if (lampText) { lampText.textContent = statusLabel; lampText.style.color = statusColor; }
+// ============================================
+// EXPOSE GLOBAL
+// ============================================
+window.exportData = exportData;
+window.exportPDF = exportPDF;
 
-            const modeDisplay = document.getElementById('dashModeDisplay');
-            if (modeDisplay) {
-                const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
-                modeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
-            }
-
-            const connStatus = document.getElementById('dashConnStatus');
-            if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
-            const lastUpdate = document.getElementById('dashLastUpdate');
-            if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
-            const latestTemp = document.getElementById('dashLatestTemp');
-            if (latestTemp) latestTemp.textContent = temp.toFixed(1) + '°C';
-        });
+window.logout = function() {
+    if (confirm('Yakin mau logout?')) {
+        localStorage.removeItem('iot_user');
+        window.location.href = 'login.html';
     }
 };
 
-let unsubSensor = null;
-let unsubSystem = null;
+// ============================================
+// SECTIONS TRACKER
+// ============================================
+const activeSections = {
+    dashboard: false,
+    monitoring: false,
+    analytics: false,
+    control: false,
+    admin: false
+};
 
-export function initDashboard() {
-    console.log('🏠 Dashboard init');
-    unsubSensor = onValue(ref(db, 'sensor'), (snap) => {
-        try {
-            const d = snap.val();
-            if (!d) return;
-            Dashboard.updateCards(d.suhu || 0, d.cahaya || 0, state.lampState, d.kelembapan || 0);
-        } catch (e) { console.error('❌ Dashboard error:', e); }
-    });
-    unsubSystem = onValue(ref(db, 'system'), (snap) => {
-        try {
-            const d = snap.val();
-            if (!d) return;
-            state.lampState = d.actual_state || false;
-            state.accumulatedLight = d.accumulated_light || 0;
-            state.controlMode = d.mode || 'otomatis';
-            state.totalLightNeeded = d.total_light_needed || 12;
-        } catch (e) { console.error('❌ Dashboard error:', e); }
+// ============================================
+// SWITCH SECTION
+// ============================================
+function switchSection(sectionName) {
+    // CLEANUP ALL
+    if (activeSections.dashboard) { cleanupDashboard(); activeSections.dashboard = false; }
+    if (activeSections.monitoring) { cleanupMonitoring(); activeSections.monitoring = false; }
+    if (activeSections.control) { cleanupControl(); activeSections.control = false; }
+
+    // INIT SELECTED
+    switch(sectionName) {
+        case 'dashboard':
+            activeSections.dashboard = true;
+            initDashboard();
+            console.log('🏠 Dashboard activated');
+            break;
+        case 'monitoring':
+            activeSections.monitoring = true;
+            initMonitoring();
+            console.log('🌡 Monitoring activated');
+            break;
+        case 'analytics':
+            activeSections.analytics = true;
+            initCharts();
+            setTimeout(() => { loadChartHistory(); loadDailyHistory(); }, 500);
+            console.log('📊 Analytics activated');
+            break;
+        case 'control':
+            activeSections.control = true;
+            initControl();
+            console.log('🎛 Control activated');
+            break;
+        case 'admin':
+            activeSections.admin = true;
+            initAdminPanel();
+            console.log('👑 Admin activated');
+            break;
+        default: break;
+    }
+}
+
+// ============================================
+// NAVIGATION
+// ============================================
+function setupNavigation() {
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            this.classList.add('active');
+            const target = this.dataset.target;
+            document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+            const section = document.getElementById(target);
+            if (section) section.classList.remove('hidden');
+            switchSection(target);
+            if (window.innerWidth <= 768) closeMenu();
+        });
     });
 }
 
-export function cleanupDashboard() {
-    if (unsubSensor) { unsubSensor(); unsubSensor = null; }
-    if (unsubSystem) { unsubSystem(); unsubSystem = null; }
+// ============================================
+// SIDEBAR
+// ============================================
+const menuToggle = document.getElementById('menuToggle');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('mobileOverlay');
+
+function closeMenu() {
+    sidebar?.classList.remove('active');
+    overlay?.classList.remove('active');
+    document.body.style.overflow = '';
 }
+
+if (menuToggle) {
+    menuToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+        document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : '';
+    });
+}
+if (overlay) {
+    overlay.addEventListener('click', closeMenu);
+}
+window.addEventListener('resize', () => { if (window.innerWidth > 768) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+
+// ============================================
+// CLOCK
+// ============================================
+function updateClock() {
+    const now = new Date();
+    const dateEl = document.getElementById('dateText');
+    const clockEl = document.getElementById('clockText');
+    if (dateEl) {
+        dateEl.innerText = now.toLocaleDateString('id-ID', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+    }
+    if (clockEl) {
+        clockEl.innerText = now.toLocaleTimeString('id-ID');
+    }
+}
+
+// ============================================
+// EXPAND CHART
+// ============================================
+window.toggleExpand = function(wrapperId) {
+    const wrapper = document.getElementById(wrapperId);
+    if (!wrapper) return;
+    wrapper.classList.toggle('expanded');
+    const canvas = wrapper.querySelector('canvas');
+    if (canvas) {
+        const chart = Chart.getChart(canvas);
+        if (chart) chart.resize();
+    }
+};
+
+// ============================================
+// 🚀 APP START
+// ============================================
+document.addEventListener("DOMContentLoaded", () => {
+    console.log('📄 App starting...');
+    try {
+        initDOM();
+
+        if (currentUser?.role === 'admin') {
+            const adminMenu = document.getElementById('adminMenu');
+            if (adminMenu) adminMenu.style.display = 'block';
+        }
+
+        setupNavigation();
+
+        // DEFAULT: DASHBOARD
+        const defaultSection = document.getElementById('dashboard');
+        if (defaultSection) {
+            document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+            defaultSection.classList.remove('hidden');
+        }
+        switchSection('dashboard');
+
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        if (DOM.userName) {
+            DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
+        }
+
+        const connStatus = document.getElementById('connStatus');
+        if (connStatus) {
+            connStatus.innerText = '✅ Connected';
+            connStatus.style.color = '#22c55e';
+        }
+
+        console.log("🚀 App ready!");
+    } catch (e) {
+        console.error('❌ Error start app:', e);
+    }
+});
+
+console.log('✅ app.js loaded (section version)');
