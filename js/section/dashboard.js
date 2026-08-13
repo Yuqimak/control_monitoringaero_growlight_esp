@@ -18,7 +18,7 @@ const DashboardState = {
 };
 
 // ============================================
-// 1. PARSE TIMESTAMP (FIREBASE KEY)
+// 1. PARSE TIMESTAMP
 // ============================================
 function parseKeyToTimestamp(key) {
     try {
@@ -31,7 +31,7 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// 2. INIT CHART (2 LINE: SUHU + KELEMBAPAN)
+// 2. INIT CHART (2 LINE)
 // ============================================
 export function initDashChart() {
     console.log('📊 initDashChart');
@@ -42,10 +42,7 @@ export function initDashChart() {
     }
 
     const existing = Chart.getChart(canvas);
-    if (existing) {
-        console.log('⚠️ Destroy existing chart');
-        existing.destroy();
-    }
+    if (existing) existing.destroy();
     if (DashboardState.chartInstance) {
         DashboardState.chartInstance.destroy();
         DashboardState.chartInstance = null;
@@ -66,8 +63,7 @@ export function initDashChart() {
                     fill: true,
                     tension: 0.3,
                     pointRadius: 2,
-                    pointBackgroundColor: '#22c55e',
-                    yAxisID: 'y'
+                    pointBackgroundColor: '#22c55e'
                 },
                 {
                     label: 'Kelembapan (%)',
@@ -78,8 +74,7 @@ export function initDashChart() {
                     fill: true,
                     tension: 0.3,
                     pointRadius: 2,
-                    pointBackgroundColor: '#3b82f6',
-                    yAxisID: 'y'
+                    pointBackgroundColor: '#3b82f6'
                 }
             ]
         },
@@ -87,9 +82,7 @@ export function initDashChart() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { 
-                    display: false 
-                },
+                legend: { display: false },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
@@ -105,19 +98,12 @@ export function initDashChart() {
             scales: {
                 x: {
                     display: true,
-                    ticks: { 
-                        color: 'rgba(255,255,255,0.5)', 
-                        maxTicksLimit: 10, 
-                        font: { size: 9 } 
-                    },
+                    ticks: { color: 'rgba(255,255,255,0.5)', maxTicksLimit: 10, font: { size: 9 } },
                     grid: { color: 'rgba(255,255,255,0.05)' }
                 },
                 y: {
                     display: true,
-                    ticks: { 
-                        color: 'rgba(255,255,255,0.5)', 
-                        font: { size: 9 } 
-                    },
+                    ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 9 } },
                     grid: { color: 'rgba(255,255,255,0.05)' },
                     min: 0,
                     max: 100
@@ -130,7 +116,7 @@ export function initDashChart() {
 }
 
 // ============================================
-// 3. UPDATE CHART (SUHU + KELEMBAPAN)
+// 3. UPDATE CHART
 // ============================================
 export function updateDashChart(temp, humidity, timestamp) {
     if (!DashboardState.chartInstance) {
@@ -144,15 +130,10 @@ export function updateDashChart(temp, humidity, timestamp) {
     });
 
     const chart = DashboardState.chartInstance;
-    
-    // Update labels
     chart.data.labels.push(time);
-    
-    // Update data
     chart.data.datasets[0].data.push(Math.round(temp * 10) / 10);
     chart.data.datasets[1].data.push(Math.round(humidity * 10) / 10);
 
-    // Batasi 15 data
     if (chart.data.labels.length > 15) {
         chart.data.labels.shift();
         chart.data.datasets[0].data.shift();
@@ -186,11 +167,11 @@ function updateStability(data) {
 }
 
 // ============================================
-// 5. UPDATE CARDS (3 CARD)
+// 5. UPDATE CARDS
 // ============================================
 export function updateDashboardCards(temp, lux, lampState, humidity) {
     requestAnimationFrame(() => {
-        // ─── CARD 1: SUHU + KELEMBAPAN (GABUNG) ───
+        // ─── CARD 1: SUHU + KELEMBAPAN ───
         const tempVal = document.getElementById('dashTempValue');
         const tempStatus = document.getElementById('dashTempStatus');
         if (tempVal) tempVal.textContent = temp.toFixed(1);
@@ -212,7 +193,7 @@ export function updateDashboardCards(temp, lux, lampState, humidity) {
         else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
         if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
 
-        // ─── CARD 2: INTENSITAS CAHAYA ───
+        // ─── CARD 2: CAHAYA ───
         const lightVal = document.getElementById('dashLightValue');
         const lightStatus = document.getElementById('dashLightStatus');
         if (lightVal) lightVal.textContent = Math.round(lux);
@@ -225,7 +206,7 @@ export function updateDashboardCards(temp, lux, lampState, humidity) {
         else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
         if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-        // ─── CARD 3: WAKTU OPERASIONAL (Durasi + Status ON/OFF) ───
+        // ─── CARD 3: WAKTU OPERASIONAL ───
         const lampDuration = document.getElementById('dashLampDuration');
         const lampText = document.getElementById('dashLampStatusText');
         const accumulatedLight = state.accumulatedLight || 0;
@@ -245,10 +226,7 @@ export function updateDashboardCards(temp, lux, lampState, humidity) {
 
         // ─── STATUS SISTEM ───
         const connStatus = document.getElementById('dashConnStatus');
-        if (connStatus) { 
-            connStatus.textContent = '● Online'; 
-            connStatus.className = 'status-badge online'; 
-        }
+        if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
 
         const lastUpdate = document.getElementById('dashLastUpdate');
         if (lastUpdate) {
@@ -263,7 +241,7 @@ export function updateDashboardCards(temp, lux, lampState, humidity) {
 }
 
 // ============================================
-// 6. LOAD HISTORY (UNTUK CHART)
+// 6. LOAD HISTORY
 // ============================================
 export async function loadDashHistory() {
     try {
@@ -305,7 +283,7 @@ export async function loadDashHistory() {
             DashboardState.chartInstance.data.datasets[1].data = hums;
             DashboardState.chartInstance.update();
             updateStability(temps);
-            console.log(`✅ Dashboard chart loaded: ${labels.length} data (${temps.length} temp, ${hums.length} hum)`);
+            console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
         }
     } catch (e) {
         console.error('❌ loadDashHistory error:', e);
@@ -313,14 +291,21 @@ export async function loadDashHistory() {
 }
 
 // ============================================
-// 7. LOAD DASHBOARD CHART HISTORY (DARI ANALYTICS.JS)
+// 7. LOAD DASHBOARD CHART HISTORY
 // ============================================
 export async function loadDashChartHistory() {
     try {
-        console.log('📊 loadDashChartHistory (dashboard)');
-        const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
-        const data = snapshot.val();
-        if (!data) {
+        console.log('📊 loadDashChartHistory');
+        const [suhuSnap, humSnap] = await Promise.all([
+            get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15))),
+            get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(15)))
+        ]);
+
+        const suhuData = suhuSnap.val() || {};
+        const humData = humSnap.val() || {};
+
+        const keys = Object.keys(suhuData).sort();
+        if (keys.length === 0) {
             if (DashboardState.chartInstance) {
                 DashboardState.chartInstance.data.labels = ['Tidak Ada Data'];
                 DashboardState.chartInstance.data.datasets[0].data = [0];
@@ -329,18 +314,13 @@ export async function loadDashChartHistory() {
             }
             return;
         }
-        
-        const keys = Object.keys(data).sort();
+
         const labels = [];
         const temps = [];
         const hums = [];
 
-        // Ambil juga data kelembapan
-        const humSnap = await get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(15)));
-        const humData = humSnap.val() || {};
-
         keys.forEach(key => {
-            const entry = data[key];
+            const entry = suhuData[key];
             const humEntry = humData[key];
             const suhu = entry?.value ?? entry ?? 0;
             const hum = humEntry?.value ?? humEntry ?? 0;
@@ -366,7 +346,7 @@ export async function loadDashChartHistory() {
 }
 
 // ============================================
-// 8. INIT DASHBOARD (LISTENER)
+// 8. INIT DASHBOARD
 // ============================================
 let unsubSensor = null;
 let unsubSystem = null;
@@ -385,13 +365,9 @@ export function initDashboard() {
             const hum = d.kelembapan || 0;
             const timestamp = d.timestamp || Date.now();
 
-            // Update cards
             updateDashboardCards(suhu, lux, state.lampState, hum);
-
-            // Update chart (2 line)
             updateDashChart(suhu, hum, timestamp);
 
-            // Update status sistem - last update
             const lastUpdate = document.getElementById('dashLastUpdate');
             if (lastUpdate) {
                 lastUpdate.textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
@@ -410,14 +386,12 @@ export function initDashboard() {
             const d = snap.val();
             if (!d) return;
 
-            // Update state
             state.lampState = d.actual_state || false;
             state.accumulatedLight = d.accumulated_light || 0;
             state.controlMode = d.mode || 'otomatis';
             state.totalLightNeeded = d.total_light_needed || 12;
 
-            // Update cards (refresh dengan data terbaru)
-            // Ambil data sensor terakhir dari DOM
+            // Refresh cards
             const tempEl = document.getElementById('dashTempValue');
             const lightEl = document.getElementById('dashLightValue');
             const humEl = document.getElementById('dashHumidityValue');
@@ -428,13 +402,11 @@ export function initDashboard() {
 
             updateDashboardCards(temp, lux, state.lampState, hum);
 
-            // Update durasi saja
             const lampDuration = document.getElementById('dashLampDuration');
             if (lampDuration) {
                 lampDuration.textContent = (state.accumulatedLight || 0).toFixed(1);
             }
 
-            // Update mode
             const modeDisplay = document.getElementById('dashModeDisplay');
             if (modeDisplay) {
                 const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
@@ -455,14 +427,8 @@ export function initDashboard() {
 // 9. CLEANUP
 // ============================================
 export function cleanupDashboard() {
-    if (unsubSensor) { 
-        unsubSensor(); 
-        unsubSensor = null; 
-    }
-    if (unsubSystem) { 
-        unsubSystem(); 
-        unsubSystem = null; 
-    }
+    if (unsubSensor) { unsubSensor(); unsubSensor = null; }
+    if (unsubSystem) { unsubSystem(); unsubSystem = null; }
     if (DashboardState.chartInstance) {
         DashboardState.chartInstance.destroy();
         DashboardState.chartInstance = null;
