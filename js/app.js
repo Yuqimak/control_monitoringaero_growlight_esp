@@ -2,7 +2,7 @@
 // DASHBOARD SECTION
 // ============================================
 
-import { state } from '../firebase.js';
+import { db, state } from './js/firebase.js';  
 import { ref, onValue, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 const Dashboard = {
