@@ -1,37 +1,31 @@
 // ============================================
-// MAIN ENTRY – app.js (ROUTING ONLY)
+// MAIN ENTRY – app.js (SUPER CLEAN)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 import { initAdminPanel } from './sections/admin.js';
 
-// ⭐ IMPORT SEMUA SECTIONS
+// ⭐ IMPORT SEMUA SECTION
 import { 
     initCharts, 
     exportData, 
     exportPDF, 
     loadChartHistory, 
-    loadChartHistoryByDate, 
-    loadDailyHistory,
-    loadDashChartHistory 
+    loadDailyHistory 
 } from './sections/analytics.js';
 
 import { 
     initDashboard, 
     initDashChart, 
     loadDashHistory, 
-    cleanupDashboard,
-    updateDashboardCards,
-    updateDashChart
+    cleanupDashboard 
 } from './sections/dashboard.js';
 
 import { 
     initMonitoring, 
     initGauge, 
-    cleanupMonitoring,
-    updateMonitoringUI,
-    updateGauge
+    cleanupMonitoring 
 } from './sections/monitoring.js';
 
 import { 
@@ -88,101 +82,86 @@ const activeSections = {
 };
 
 // ============================================
-// NAVIGATION - SWITCH SECTION
+// SWITCH SECTION
 // ============================================
 function switchSection(sectionName) {
-    // ─── CLEANUP ALL SECTIONS ───
-    if (activeSections.dashboard) { 
-        cleanupDashboard(); 
-        activeSections.dashboard = false; 
-    }
-    if (activeSections.monitoring) { 
-        cleanupMonitoring(); 
-        activeSections.monitoring = false; 
-    }
-    if (activeSections.control) { 
-        cleanupControl(); 
-        activeSections.control = false; 
-    }
+    console.log('🔄 Switch to:', sectionName);
 
-    // ─── INIT SELECTED SECTION ───
+    // CLEANUP SEMUA
+    if (activeSections.dashboard) { cleanupDashboard(); activeSections.dashboard = false; }
+    if (activeSections.monitoring) { cleanupMonitoring(); activeSections.monitoring = false; }
+    if (activeSections.control) { cleanupControl(); activeSections.control = false; }
+
+    // INIT SECTION
     switch(sectionName) {
         case 'dashboard':
             activeSections.dashboard = true;
-            // Init chart dulu
+            console.log('🏠 Starting Dashboard...');
             initDashChart();
-            // Load history
-            setTimeout(() => {
-                loadDashHistory();
-                loadDashChartHistory();
-            }, 500);
-            // Start listener
+            setTimeout(() => { loadDashHistory(); }, 500);
             initDashboard();
-            console.log('🏠 Dashboard activated');
             break;
 
         case 'monitoring':
             activeSections.monitoring = true;
-            setTimeout(() => {
-                initGauge();
-            }, 500);
+            console.log('🌡 Starting Monitoring...');
+            setTimeout(() => { initGauge(); }, 500);
             initMonitoring();
-            console.log('🌡 Monitoring activated');
             break;
 
         case 'analytics':
             activeSections.analytics = true;
+            console.log('📊 Starting Analytics...');
             initCharts();
-            setTimeout(() => {
-                loadChartHistory();
-                loadDailyHistory();
-                loadDashChartHistory();
-            }, 500);
-            console.log('📊 Analytics activated');
+            setTimeout(() => { loadChartHistory(); loadDailyHistory(); }, 500);
             break;
 
         case 'control':
             activeSections.control = true;
+            console.log('🎛 Starting Control...');
             initControl();
-            console.log('🎛 Control activated');
             break;
 
         case 'admin':
             activeSections.admin = true;
+            console.log('👑 Starting Admin...');
             initAdminPanel();
-            console.log('👑 Admin activated');
             break;
 
         default:
-            break;
+            console.warn('⚠️ Unknown section:', sectionName);
     }
 }
 
 // ============================================
-// SETUP NAVIGATION
+// NAVIGATION
 // ============================================
 function setupNavigation() {
     document.querySelectorAll('.menu-item').forEach(item => {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             
+            // Update menu active
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             this.classList.add('active');
 
+            // Show section
             const target = this.dataset.target;
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
             const section = document.getElementById(target);
             if (section) section.classList.remove('hidden');
 
+            // Switch
             switchSection(target);
 
+            // Close mobile
             if (window.innerWidth <= 768) closeMenu();
         });
     });
 }
 
 // ============================================
-// SIDEBAR (MOBILE)
+// SIDEBAR
 // ============================================
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.getElementById('sidebar');
@@ -204,12 +183,8 @@ if (menuToggle) {
 if (overlay) {
     overlay.addEventListener('click', closeMenu);
 }
-window.addEventListener('resize', () => { 
-    if (window.innerWidth > 768) closeMenu(); 
-});
-document.addEventListener('keydown', (e) => { 
-    if (e.key === 'Escape') closeMenu(); 
-});
+window.addEventListener('resize', () => { if (window.innerWidth > 768) closeMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
 // ============================================
 // CLOCK
@@ -246,19 +221,21 @@ window.toggleExpand = function(wrapperId) {
 // 🚀 APP START
 // ============================================
 document.addEventListener("DOMContentLoaded", () => {
-    console.log('📄 App starting...');
+    console.log('📄 DOMContentLoaded');
     try {
+        // ─── INIT CORE ───
         initDOM();
-        
-        // Admin menu
+
+        // ─── ADMIN MENU ───
         if (currentUser?.role === 'admin') {
             const adminMenu = document.getElementById('adminMenu');
             if (adminMenu) adminMenu.style.display = 'block';
         }
 
+        // ─── NAVIGATION ───
         setupNavigation();
 
-        // DEFAULT: DASHBOARD
+        // ─── DEFAULT: DASHBOARD ───
         const defaultSection = document.getElementById('dashboard');
         if (defaultSection) {
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
@@ -266,25 +243,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         switchSection('dashboard');
 
-        // Clock
+        // ─── CLOCK ───
         updateClock();
         setInterval(updateClock, 1000);
 
-        // User name
+        // ─── USER NAME ───
         if (DOM.userName) {
             DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
         }
 
-        // Connection status
+        // ─── CONNECTION STATUS ───
         const connStatus = document.getElementById('connStatus');
         if (connStatus) {
-            connStatus.innerText = 'Realtime Connected';
+            connStatus.innerText = '✅ Connected';
             connStatus.style.color = '#22c55e';
         }
 
-        console.log("🚀 App ready!");
+        console.log("🚀 APP READY!");
     } catch (e) {
-        console.error('❌ Error start app:', e);
+        console.error('❌ ERROR:', e);
     }
 });
 
