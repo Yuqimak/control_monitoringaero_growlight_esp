@@ -1,11 +1,12 @@
 // ============================================
-// MAIN ENTRY – app.js (SECTION VERSION - FULL)
+// MAIN ENTRY – app.js (SECTION VERSION)
 // ============================================
 
+// ✅ PATH BENAR: firebase.js selevel dengan app.js
 import { db, state } from './firebase.js';
 import { currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 
-// IMPORT SECTION
+// ✅ PATH BENAR: section ada di folder section/
 import { initDashboard, cleanupDashboard } from './section/dashboard.js';
 import { initMonitoring, cleanupMonitoring } from './section/monitoring.js';
 import { initControl, cleanupControl } from './section/control.js';
@@ -64,12 +65,10 @@ const activeSections = {
 // SWITCH SECTION
 // ============================================
 function switchSection(sectionName) {
-    // CLEANUP ALL
     if (activeSections.dashboard) { cleanupDashboard(); activeSections.dashboard = false; }
     if (activeSections.monitoring) { cleanupMonitoring(); activeSections.monitoring = false; }
     if (activeSections.control) { cleanupControl(); activeSections.control = false; }
 
-    // INIT SELECTED
     switch(sectionName) {
         case 'dashboard':
             activeSections.dashboard = true;
@@ -192,7 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         setupNavigation();
 
-        // DEFAULT: DASHBOARD
         const defaultSection = document.getElementById('dashboard');
         if (defaultSection) {
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
@@ -219,4 +217,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-console.log('✅ app.js loaded (section version)');
+console.log('✅ app.js loaded');
