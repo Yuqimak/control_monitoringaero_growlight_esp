@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FIX DAILY HISTORY ONLY)
+// MAIN ENTRY – app.js (FIX DAILY HISTORY - PRIORITAS SYSTEM)
 // ============================================
 
 import { db } from './firebase.js';
@@ -86,30 +86,23 @@ function getTodayKey() {
 }
 
 // ============================================
-// ⭐ FUNGSI PARSE TIMESTAMP DARI FIREBASE KEY (TAMBAHAN)
+// ⭐ PARSE TIMESTAMP DARI FIREBASE KEY (UNTUK FALLBACK)
 // ============================================
 function parseFirebaseKeyToTimestamp(key) {
     try {
-        // Format: "2026-8-12T14-30-45" atau "2026-08-12T14-30-45"
         const clean = key.replace(/-000Z$/, '').replace(/Z$/, '');
         const parts = clean.split('T');
         if (parts.length !== 2) return 0;
-        
         const dateParts = parts[0].split('-').map(Number);
         const timeParts = parts[1].split('-').map(Number);
-        
         if (dateParts.length !== 3 || timeParts.length !== 3) return 0;
-        
         const [year, month, day] = dateParts;
         const [hour, minute, second] = timeParts;
-        
-        // Validasi
         if (year < 2000 || year > 2100) return 0;
         if (month < 1 || month > 12) return 0;
         if (day < 1 || day > 31) return 0;
         if (hour < 0 || hour > 23) return 0;
         if (minute < 0 || minute > 59) return 0;
-        
         return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
     } catch (e) {
         return 0;
@@ -651,6 +644,7 @@ function initFirebase() {
                 state.jadwalStart = d.jadwal_start || 6;
                 state.jadwalEnd = d.jadwal_end || 18;
                 state.totalLightNeeded = d.total_light_needed || 12;
+                // ⭐ PRIORITASKAN accumulated_light dari system
                 state.accumulatedLight = d.accumulated_light || 0;
                 state.lastResetDate = d.last_reset_date || '';
 
@@ -680,6 +674,7 @@ function initFirebase() {
                 if (lightProgress) lightProgress.textContent = display + '%';
                 if (sunlight) sunlight.textContent = (state.accumulatedLight || 0).toFixed(1);
 
+                // ⭐ UPDATE DAILY HISTORY (dengan prioritas system)
                 updateDailyHistory();
             }
         } catch (e) {
@@ -698,119 +693,106 @@ function initFirebase() {
 }
 
 // ============================================
-// 📊 SECTION 6: DAILY HISTORY (⭐ FIXED - HITUNG ULANG)
+// 📊 SECTION 6: DAILY HISTORY (⭐ PRIORITAS SYSTEM)
 // ============================================
 async function updateDailyHistory() {
     try {
         const today = getTodayKey();
         console.log('📊 updateDailyHistory for:', today);
         
-        // ⭐ Ambil data lampu dari sensor_history
-        const lampuSnap = await get(ref(db, 'sensor_history/lampu'));
-        const lampuData = lampuSnap.val() || {};
-        
-        // ⭐ Ambil data system
+        // ⭐ 1. BACA DARI SYSTEM (SUMBER UTAMA)
         const systemSnap = await get(ref(db, 'system'));
         const system = systemSnap.val() || {};
-        
-        // Tentukan batas hari ini (00:00)
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayStartTimestamp = todayStart.getTime();
-        
-        // ⭐ HITUNG ULANG AKUMULASI DARI HISTORY
-        let accumulatedLight = 0;
-        let totalPoints = 0;
-        let onPoints = 0;
-        let lastTimestamp = null;
-        let lastState = false;
-        
-        const keys = Object.keys(lampuData).sort();
-        console.log(`📊 Total data lampu di history: ${keys.length}`);
-        
-        keys.forEach((key) => {
-            const timestamp = parseFirebaseKeyToTimestamp(key);
-            if (timestamp === 0) return;
-            
-            // Hanya data hari ini
-            if (timestamp < todayStartTimestamp) return;
-            
-            const entry = lampuData[key];
-            let state = false;
-            
-            // Parse state dari berbagai format
-            if (typeof entry === 'object') {
-                state = entry.state === true || entry.state === 1 || entry.state === 'ON';
-            } else {
-                state = entry === true || entry === 1 || entry === 'ON';
-            }
-            
-            totalPoints++;
-            if (state) onPoints++;
-            
-            // Hitung durasi dari selisih timestamp
-            if (lastTimestamp !== null) {
-                const diffHours = (timestamp - lastTimestamp) / 3600000;
-                if (lastState) {
-                    accumulatedLight += diffHours;
-                }
-            }
-            
-            lastTimestamp = timestamp;
-            lastState = state;
-        });
-        
-        // ⭐ Jika tidak ada data hari ini, pakai dari system
-        if (totalPoints === 0) {
-            console.log('⚠️ Tidak ada data lampu hari ini, pakai dari system');
-            accumulatedLight = system.accumulated_light || 0;
+        let accumulatedLight = system.accumulated_light || 0;
+        const target = system.total_light_needed || 12;
+        const actualState = system.actual_state || false;
+
+        // ⭐ 2. JIKA SYSTEM > 0, PAKAI LANGSUNG (TIDAK PERLU HITUNG ULANG)
+        if (accumulatedLight > 0) {
+            console.log(`📊 Pakai dari system: ${accumulatedLight.toFixed(2)} jam`);
         } else {
-            // Tambahkan durasi dari state terakhir sampai sekarang
-            if (lastState && lastTimestamp !== null) {
-                const now = Date.now();
-                const diffHours = (now - lastTimestamp) / 3600000;
-                accumulatedLight += diffHours;
-            }
-            
-            console.log(`📊 Perhitungan: ${onPoints}/${totalPoints} data ON, total ${accumulatedLight.toFixed(2)} jam`);
+            // ⭐ 3. FALLBACK: HITUNG ULANG DARI HISTORY (JIKA SYSTEM 0)
+            console.log('⚠️ system.accumulated_light = 0, hitung ulang dari history...');
+            accumulatedLight = await hitungDariHistory();
         }
-        
-        const totalNeeded = system.total_light_needed || 12;
-        const totalActual = 24;
-        
-        // ⭐ STATUS YANG BENAR
+
+        // ⭐ 4. STATUS
         let status = '🌙 Mati';
         let statusColor = '#64748b';
-        if (accumulatedLight >= totalNeeded) {
+        if (accumulatedLight >= target) {
             status = '✅ Cukup';
             statusColor = '#22c55e';
-        } else if (accumulatedLight >= totalNeeded * 0.5) {
+        } else if (accumulatedLight >= target * 0.5) {
             status = '🟡 Sedang';
             statusColor = '#f59e0b';
         } else if (accumulatedLight > 0) {
             status = '🔴 Kurang';
             statusColor = '#ef4444';
         }
-        
-        // ⭐ SIMPAN KE DAILY HISTORY
-        const dailyRef = ref(db, `daily_history/${today}`);
-        await update(dailyRef, {
-            growlight: Math.round(accumulatedLight * 10) / 10,
-            total: totalActual,
+
+        // ⭐ 5. SIMPAN KE DAILY HISTORY
+        const finalLight = Math.round(accumulatedLight * 10) / 10;
+        await update(ref(db, `daily_history/${today}`), {
+            growlight: finalLight,
+            target: target,
             status: status,
             statusColor: statusColor,
-            totalPoints: totalPoints,
-            onPoints: onPoints,
-            updatedAt: Date.now()
+            actualState: actualState,
+            updatedAt: new Date().toLocaleString('id-ID')
         });
-        
-        console.log(`✅ Daily history updated: ${accumulatedLight.toFixed(1)} jam, status: ${status}`);
-        
-        // ⭐ UPDATE UI
+
+        console.log(`✅ Daily history updated: ${finalLight} jam, status: ${status}`);
         updateDailyHistoryUI(accumulatedLight);
-        
+
     } catch (e) {
         console.error('❌ updateDailyHistory error:', e);
+    }
+}
+
+// ============================================
+// ⭐ HITUNG ULANG DARI SENSOR_HISTORY (FALLBACK)
+// ============================================
+async function hitungDariHistory() {
+    try {
+        const lampuSnap = await get(ref(db, 'sensor_history/lampu'));
+        const lampuData = lampuSnap.val() || {};
+        
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayStartTimestamp = todayStart.getTime();
+        
+        let accumulatedLight = 0;
+        let lastTimestamp = null;
+        let lastState = false;
+        let dataCount = 0;
+        
+        const keys = Object.keys(lampuData).sort();
+        keys.forEach(key => {
+            const timestamp = parseFirebaseKeyToTimestamp(key);
+            if (timestamp === 0 || timestamp < todayStartTimestamp) return;
+            
+            dataCount++;
+            const entry = lampuData[key];
+            const state = typeof entry === 'object' ? 
+                (entry.state === true || entry.state === 1 || entry.state === 'ON') : 
+                (entry === true || entry === 1 || entry === 'ON');
+            
+            if (lastTimestamp !== null && lastState) {
+                accumulatedLight += (timestamp - lastTimestamp) / 3600000;
+            }
+            lastTimestamp = timestamp;
+            lastState = state;
+        });
+        
+        if (lastState && lastTimestamp !== null) {
+            accumulatedLight += (Date.now() - lastTimestamp) / 3600000;
+        }
+        
+        console.log(`📊 Hitung dari history: ${dataCount} data, total ${accumulatedLight.toFixed(2)} jam`);
+        return accumulatedLight;
+    } catch (e) {
+        console.error('❌ hitungDariHistory error:', e);
+        return 0;
     }
 }
 
@@ -1003,4 +985,4 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
-console.log('✅ app.js fully loaded (FIXED - daily history)');
+console.log('✅ app.js fully loaded (FIXED - prioritas system)');
