@@ -1,5 +1,5 @@
 // ============================================
-// MAIN ENTRY – app.js (FIXED - NO CHART DUPLICATION)
+// MAIN ENTRY – app.js (FULLY INTEGRATED)
 // ============================================
 
 import { db } from './firebase.js';
@@ -76,6 +76,7 @@ class SmoothingFilter {
 
 const suhuFilter = new SmoothingFilter(5);
 const luxFilter = new SmoothingFilter(5);
+const humFilter = new SmoothingFilter(5);
 
 // ============================================
 // FUNGSI BANTU
@@ -110,9 +111,9 @@ function parseFirebaseKeyToTimestamp(key) {
 // 🔵 DASHBOARD
 // ============================================
 const Dashboard = {
-    updateCards(temp, lux, lampState) {
+    updateCards(temp, lux, lampState, humidity) {
         requestAnimationFrame(() => {
-            // Suhu
+            // 1. SUHU
             const tempVal = document.getElementById('dashTempValue');
             const tempStatus = document.getElementById('dashTempStatus');
             if (tempVal) tempVal.textContent = temp.toFixed(1);
@@ -122,7 +123,18 @@ const Dashboard = {
             else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
             if (tempStatus) { tempStatus.textContent = category; tempStatus.style.color = color; }
 
-            // Cahaya
+            // 2. KELEMBAPAN
+            const humVal = document.getElementById('dashHumidityValue');
+            const humStatus = document.getElementById('dashHumidityStatus');
+            if (humVal) humVal.textContent = humidity.toFixed(1);
+            let humCategory = '🌤️ Normal', humColor = '#22c55e';
+            if (humidity > 80) { humCategory = '💧 Sangat Lembab'; humColor = '#3b82f6'; }
+            else if (humidity > 70) { humCategory = '💧 Lembab'; humColor = '#60a5fa'; }
+            else if (humidity < 40) { humCategory = '🔥 Kering'; humColor = '#f59e0b'; }
+            else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
+            if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
+
+            // 3. CAHAYA
             const lightVal = document.getElementById('dashLightValue');
             const lightStatus = document.getElementById('dashLightStatus');
             if (lightVal) lightVal.textContent = Math.round(lux);
@@ -134,33 +146,24 @@ const Dashboard = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // Status Lampu
-            const lampStatus = document.getElementById('dashLampStatus');
+            // 4. WAKTU OPERASIONAL LAMPU
+            const lampDuration = document.getElementById('dashLampDuration');
             const lampText = document.getElementById('dashLampStatusText');
+            const accumulatedLight = state.accumulatedLight || 0;
+            if (lampDuration) lampDuration.textContent = accumulatedLight.toFixed(1);
             const statusText = lampState ? 'ON' : 'OFF';
             const statusColor = lampState ? '#22c55e' : '#ef4444';
             const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
-            if (lampStatus) { lampStatus.textContent = statusText; lampStatus.style.color = statusColor; }
             if (lampText) { lampText.textContent = statusLabel; lampText.style.color = statusColor; }
 
-            // Pemenuhan Cahaya
-            const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
-            const display = progress > 100 ? 100 : progress;
-            const progVal = document.getElementById('dashProgressValue');
-            const progStatus = document.getElementById('dashProgressStatus');
-            const sunHours = document.getElementById('dashSunlightHours');
-            if (progVal) progVal.textContent = display + '%';
-            if (progStatus) progStatus.textContent = `📊 ${(state.accumulatedLight || 0).toFixed(1)} dari ${state.totalLightNeeded || 12} jam`;
-            if (sunHours) sunHours.textContent = (state.accumulatedLight || 0).toFixed(1);
-
-            // Mode
+            // 5. MODE KONTROL
             const modeDisplay = document.getElementById('dashModeDisplay');
             if (modeDisplay) {
                 const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
                 modeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
             }
 
-            // Status Sistem
+            // 6. STATUS SISTEM
             const connStatus = document.getElementById('dashConnStatus');
             if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
 
@@ -180,12 +183,13 @@ const Monitoring = {
     lastUpdate: 0,
     throttle: 500,
 
-    updateUI(temp, lux, lampState) {
+    updateUI(temp, lux, lampState, humidity) {
         const now = Date.now();
         if (now - this.lastUpdate < this.throttle) return;
         this.lastUpdate = now;
 
         requestAnimationFrame(() => {
+            // SUHU
             const el = document.getElementById('monitorTemp');
             const status = document.getElementById('tempStatus');
             if (el) el.textContent = temp.toFixed(1);
@@ -195,6 +199,18 @@ const Monitoring = {
             else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
             if (status) { status.textContent = category; status.style.color = color; }
 
+            // KELEMBAPAN
+            const humEl = document.getElementById('monitorHumidity');
+            const humStatus = document.getElementById('humidityStatus');
+            if (humEl) humEl.textContent = humidity.toFixed(1);
+            let humCategory = '🌤️ Normal', humColor = '#22c55e';
+            if (humidity > 80) { humCategory = '💧 Sangat Lembab'; humColor = '#3b82f6'; }
+            else if (humidity > 70) { humCategory = '💧 Lembab'; humColor = '#60a5fa'; }
+            else if (humidity < 40) { humCategory = '🔥 Kering'; humColor = '#f59e0b'; }
+            else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
+            if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
+
+            // CAHAYA
             const lightEl = document.getElementById('monitorLight');
             const lightStatus = document.getElementById('lightStatus');
             if (lightEl) lightEl.textContent = Math.round(lux);
@@ -206,6 +222,7 @@ const Monitoring = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
+            // STATUS LAMPU
             const lampStatus = document.getElementById('monitorLampStatus');
             const lampText = document.getElementById('lampStatusText');
             const statusText = lampState ? 'ON' : 'OFF';
@@ -393,19 +410,29 @@ function initFirebase() {
             if (d) {
                 const rawSuhu = d.suhu || 0;
                 const rawLux = d.cahaya || 0;
+                const rawHum = d.kelembapan || 0;
+                
                 const validSuhu = (rawSuhu > 0 && rawSuhu < 60) ? rawSuhu : 25;
                 const validLux = (rawLux >= 0 && rawLux < 10000) ? rawLux : 0;
+                const validHum = (rawHum >= 0 && rawHum <= 100) ? rawHum : 50;
+                
                 const smoothSuhu = suhuFilter.add(validSuhu);
                 const smoothLux = luxFilter.add(validLux);
+                const smoothHum = humFilter.add(validHum);
+                
                 state.temperature = smoothSuhu;
                 state.sensorLight = smoothLux;
-                Dashboard.updateCards(smoothSuhu, smoothLux, state.lampState);
-                Monitoring.updateUI(smoothSuhu, smoothLux, state.lampState);
+                state.humidity = smoothHum;
+                
+                Dashboard.updateCards(smoothSuhu, smoothLux, state.lampState, smoothHum);
+                Monitoring.updateUI(smoothSuhu, smoothLux, state.lampState, smoothHum);
                 Monitoring.updateQuickStats(smoothSuhu, smoothLux);
+                
                 const statTemp = document.getElementById('statTemp');
                 const statLight = document.getElementById('statLight');
                 if (statTemp) statTemp.textContent = smoothSuhu.toFixed(1);
                 if (statLight) statLight.textContent = Math.round(smoothLux);
+                
                 const lastUpdate = document.getElementById('dashLastUpdate');
                 if (lastUpdate) lastUpdate.textContent = new Date().toLocaleTimeString('id-ID', { hour12: false });
             }
@@ -428,20 +455,24 @@ function initFirebase() {
                 state.totalLightNeeded = d.total_light_needed || 12;
                 state.accumulatedLight = d.accumulated_light || 0;
                 state.lastResetDate = d.last_reset_date || '';
+                
                 const today = getTodayKey();
                 if (state.lastResetDate !== today) {
                     state.accumulatedLight = 0;
                     state.lastResetDate = today;
                 }
-                Dashboard.updateCards(state.temperature, state.sensorLight, state.lampState);
+                
+                Dashboard.updateCards(state.temperature, state.sensorLight, state.lampState, state.humidity);
                 Gauge.update();
                 Control.updateUI(state.controlMode);
+                
                 const statusText = state.lampState ? 'ON' : 'OFF';
                 const statusColor = state.lampState ? '#22c55e' : '#ef4444';
                 ['lampStateText', 'statLamp'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) { el.textContent = statusText; el.style.color = statusColor; }
                 });
+                
                 const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
                 const display = progress > 100 ? 100 : progress;
                 const statProgress = document.getElementById('statLightProgress');
@@ -450,6 +481,7 @@ function initFirebase() {
                 if (statProgress) statProgress.textContent = display;
                 if (lightProgress) lightProgress.textContent = display + '%';
                 if (sunlight) sunlight.textContent = (state.accumulatedLight || 0).toFixed(1);
+                
                 updateDailyHistory();
             }
         } catch (e) { console.error('❌ System error:', e); }
@@ -589,33 +621,19 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
         initDOM();
         initAdminPanel();
-        
-        // ⭐ Init charts (ONLY from analytics.js - NO DUPLICATION!)
         initCharts();
 
-        // ⭐ Load all history
         setTimeout(() => {
             loadChartHistory();
             loadDailyHistory();
-            // ⭐ Load dashboard chart with extra delay
-            setTimeout(() => {
-                loadDashChartHistory();
-            }, 800);
+            setTimeout(() => { loadDashChartHistory(); }, 800);
         }, 500);
 
-        // ⭐ Gauge
         setTimeout(() => Gauge.init(), 600);
-
-        // ⭐ Control
         Control.init();
-        
-        // ⭐ Firebase
         initFirebase();
-        
-        // ⭐ Navigation
         setupNavigation();
 
-        // ⭐ Expand Chart
         window.toggleExpand = function(wrapperId) {
             const wrapper = document.getElementById(wrapperId);
             if (!wrapper) return;
@@ -627,16 +645,13 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         };
 
-        // ⭐ Clock
         updateClock();
         setInterval(updateClock, 1000);
 
-        // ⭐ User name
         if (DOM.userName) {
             DOM.userName.textContent = `👋 ${currentUser?.nama || 'User'}`;
         }
 
-        // ⭐ Periodik update
         setInterval(() => {
             const progress = Math.min(100, Math.round((state.accumulatedLight / state.totalLightNeeded) * 100));
             const display = progress > 100 ? 100 : progress;
@@ -648,7 +663,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (statProgress) statProgress.textContent = display;
         }, 10000);
 
-        // ⭐ Default section
         const defaultSection = document.getElementById('dashboard');
         if (defaultSection) {
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
