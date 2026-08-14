@@ -20,6 +20,11 @@ export let tempChart = null, lightChart = null, lampStatusChart = null;
 const dashLabels = [], dashTempData = [], dashHumData = [];
 export let dashChart = null;
 
+// --- Throttle Dashboard Chart ---
+let lastDashUpdateTime = 0;
+const DASH_CHART_INTERVAL = 60000; // 1 menit
+let isFirstDashUpdate = true; // ⭐ FLAG UNTUK UPDATE PERTAMA
+
 // ============================================
 // TOGGLE EXPAND (UTILITY)
 // ============================================
@@ -70,11 +75,11 @@ function initDashChart() {
     dashChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: dashLabels,
+            labels: dashLabels.length > 0 ? dashLabels : ['Menunggu Data...'],
             datasets: [
                 {
                     label: 'Suhu (°C)',
-                    data: dashTempData,
+                    data: dashTempData.length > 0 ? dashTempData : [0],
                     borderColor: '#22c55e',
                     backgroundColor: 'rgba(34,197,94,0.1)',
                     borderWidth: 2,
@@ -85,7 +90,7 @@ function initDashChart() {
                 },
                 {
                     label: 'Kelembapan (%)',
-                    data: dashHumData,
+                    data: dashHumData.length > 0 ? dashHumData : [0],
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59,130,246,0.1)',
                     borderWidth: 2,
@@ -134,23 +139,24 @@ function initDashChart() {
 }
 
 // ============================================
-// ⭐ UPDATE DASHBOARD CHART (SAMPLE PER MENIT)
+// ⭐ UPDATE DASHBOARD CHART (FIRST UPDATE LANGSUNG)
 // ============================================
-let lastDashUpdateTime = 0;
-const DASH_CHART_INTERVAL = 60000; // 1 menit
-
 export function updateDashboardChart(temp, humidity, timestamp) {
     if (!dashChart) {
         initDashChart();
         if (!dashChart) return;
     }
 
-    // ⭐ CEK APAKAH SUDAH 1 MENIT
     const now = Date.now();
-    if (now - lastDashUpdateTime < DASH_CHART_INTERVAL) {
-        return; // Skip update, masih kurang dari 1 menit
+
+    // ⭐ UPDATE PERTAMA KALI LANGSUNG, SETELAHNYA THROTTLE 1 MENIT
+    if (!isFirstDashUpdate) {
+        if (now - lastDashUpdateTime < DASH_CHART_INTERVAL) {
+            return; // Skip update, masih kurang dari 1 menit
+        }
     }
     lastDashUpdateTime = now;
+    isFirstDashUpdate = false;
 
     const time = new Date(timestamp || Date.now()).toLocaleTimeString('id-ID', {
         hour: '2-digit',
@@ -203,7 +209,7 @@ export async function loadDashHistory() {
         console.log('📊 loadDashHistory');
         if (!dashChart) initDashChart();
 
-        // ⭐ AMBIL 30 DATA, NANTI DI-SAMPLE PER 2 = 15 DATA (PER MENIT)
+        // Ambil 30 data, nanti di-sample per 2 = 15 data
         const [suhuSnap, humSnap] = await Promise.all([
             get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(30))),
             get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(30)))
@@ -213,9 +219,12 @@ export async function loadDashHistory() {
         const humData = humSnap.val() || {};
 
         const keys = Object.keys(suhuData).sort();
-        if (keys.length === 0) return;
+        if (keys.length === 0) {
+            console.log('⚠️ Tidak ada data history untuk dashboard');
+            return;
+        }
 
-        // ⭐ SAMPLE PER 2 DATA = PER MENIT (karena history simpan per 30 detik)
+        // Sample per 2 data = per menit
         const sampledKeys = [];
         for (let i = 0; i < keys.length; i += 2) {
             sampledKeys.push(keys[i]);
@@ -248,7 +257,7 @@ export async function loadDashHistory() {
             dashChart.data.datasets[1].data = hums;
             dashChart.update();
             updateDashStability(temps);
-            console.log(`✅ Dashboard chart loaded: ${labels.length} data (sample per menit)`);
+            console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
         }
     } catch (e) {
         console.error('❌ loadDashHistory error:', e);
@@ -256,10 +265,9 @@ export async function loadDashHistory() {
 }
 
 // ============================================
-// ⭐ LOAD DASHBOARD CHART HISTORY (UNUK KEKOMATIBELAN)
+// ⭐ LOAD DASHBOARD CHART HISTORY (UNTUK KOMPATIBEL)
 // ============================================
 export async function loadDashChartHistory() {
-    // Fungsi ini disimpan untuk kompatibilitas, tapi tidak digunakan
     console.log('📊 loadDashChartHistory (redirect ke loadDashHistory)');
     await loadDashHistory();
 }
@@ -321,7 +329,6 @@ export function initCharts() {
         });
     }
 
-    // ⭐ HAPUS BAGIAN dashTempChart KARENA SUDAH PAKAI dashEnvChart
     console.log('✅ All charts initialized');
 }
 
