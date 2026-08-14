@@ -11,7 +11,8 @@ import {
     loadChartHistory, 
     loadChartHistoryByDate, 
     loadDailyHistory,
-    loadDashChartHistory 
+    loadDashHistory,        // ⭐ TAMBAHKAN INI
+    updateDashboardChart    // ⭐ TAMBAHKAN INI
 } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
@@ -108,22 +109,22 @@ function parseFirebaseKeyToTimestamp(key) {
 }
 
 // ============================================
-// 🔵 DASHBOARD (REVISI - 3 CARD + CHART 2 LINE)
+// 🔵 DASHBOARD
 // ============================================
 const Dashboard = {
-    // ⭐ UPDATE CARDS - 3 CARD (GABUNG)
     updateCards(temp, lux, lampState, humidity) {
         requestAnimationFrame(() => {
-            // ─── CARD 1: SUHU + KELEMBAPAN (GABUNG) ───
+            // 1. SUHU
             const tempVal = document.getElementById('dashTempValue');
             const tempStatus = document.getElementById('dashTempStatus');
             if (tempVal) tempVal.textContent = temp.toFixed(1);
-            let tempCategory = '🌤️ Normal', tempColor = '#22c55e';
-            if (temp > 35) { tempCategory = '🔥 Sangat Panas'; tempColor = '#ef4444'; }
-            else if (temp > 30) { tempCategory = '🔥 Panas'; tempColor = '#f59e0b'; }
-            else if (temp < 20) { tempCategory = '❄️ Dingin'; tempColor = '#3b82f6'; }
-            if (tempStatus) { tempStatus.textContent = tempCategory; tempStatus.style.color = tempColor; }
+            let category = '🌤️ Normal', color = '#22c55e';
+            if (temp > 35) { category = '🔥 Sangat Panas'; color = '#ef4444'; }
+            else if (temp > 30) { category = '🔥 Panas'; color = '#f59e0b'; }
+            else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
+            if (tempStatus) { tempStatus.textContent = category; tempStatus.style.color = color; }
 
+            // 2. KELEMBAPAN
             const humVal = document.getElementById('dashHumidityValue');
             const humStatus = document.getElementById('dashHumidityStatus');
             if (humVal) humVal.textContent = humidity.toFixed(1);
@@ -134,7 +135,7 @@ const Dashboard = {
             else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
             if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
 
-            // ─── CARD 2: CAHAYA ───
+            // 3. CAHAYA
             const lightVal = document.getElementById('dashLightValue');
             const lightStatus = document.getElementById('dashLightStatus');
             if (lightVal) lightVal.textContent = Math.round(lux);
@@ -146,24 +147,24 @@ const Dashboard = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // ─── CARD 3: WAKTU OPERASIONAL + STATUS (GABUNG) ───
+            // 4. WAKTU OPERASIONAL LAMPU
             const lampDuration = document.getElementById('dashLampDuration');
             const lampText = document.getElementById('dashLampStatusText');
             const accumulatedLight = state.accumulatedLight || 0;
             if (lampDuration) lampDuration.textContent = accumulatedLight.toFixed(1);
-            
-            const statusText = lampState ? '💡 ON' : '⛔ Mati';
+            const statusText = lampState ? 'ON' : 'OFF';
             const statusColor = lampState ? '#22c55e' : '#ef4444';
-            if (lampText) { lampText.textContent = statusText; lampText.style.color = statusColor; }
+            const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
+            if (lampText) { lampText.textContent = statusLabel; lampText.style.color = statusColor; }
 
-            // ─── MODE KONTROL ───
+            // 5. MODE KONTROL
             const modeDisplay = document.getElementById('dashModeDisplay');
             if (modeDisplay) {
                 const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
                 modeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
             }
 
-            // ─── STATUS SISTEM ───
+            // 6. STATUS SISTEM
             const connStatus = document.getElementById('dashConnStatus');
             if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
 
@@ -172,10 +173,6 @@ const Dashboard = {
 
             const latestTemp = document.getElementById('dashLatestTemp');
             if (latestTemp) latestTemp.textContent = temp.toFixed(1) + '°C';
-
-            // ─── GROWLIGHT HOURS ───
-            const sunlightHours = document.getElementById('dashSunlightHours');
-            if (sunlightHours) sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
         });
     }
 };
@@ -432,6 +429,9 @@ function initFirebase() {
                 Monitoring.updateUI(smoothSuhu, smoothLux, state.lampState, smoothHum);
                 Monitoring.updateQuickStats(smoothSuhu, smoothLux);
                 
+                // ⭐ UPDATE DASHBOARD CHART (2 LINE)
+                updateDashboardChart(smoothSuhu, smoothHum, d.timestamp || Date.now());
+                
                 const statTemp = document.getElementById('statTemp');
                 const statLight = document.getElementById('statLight');
                 if (statTemp) statTemp.textContent = smoothSuhu.toFixed(1);
@@ -627,10 +627,14 @@ document.addEventListener("DOMContentLoaded", () => {
         initAdminPanel();
         initCharts();
 
+        // ⭐ LOAD DASHBOARD CHART HISTORY
+        setTimeout(() => {
+            loadDashHistory();
+        }, 500);
+
         setTimeout(() => {
             loadChartHistory();
             loadDailyHistory();
-            setTimeout(() => { loadDashChartHistory(); }, 800);
         }, 500);
 
         setTimeout(() => Gauge.init(), 600);
