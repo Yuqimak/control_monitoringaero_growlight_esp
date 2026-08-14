@@ -1657,4 +1657,113 @@ input[type="checkbox"] {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(34,197,94,0.5);
 }
- 
+ /* ============================================
+   BOTTOM NAVIGATION - MOBILE
+   ============================================ */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: none;
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border);
+    padding: 4px 0 env(safe-area-inset-bottom);
+    z-index: 1000;
+    justify-content: space-around;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4px 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 10px;
+    cursor: pointer;
+    transition: var(--transition);
+    flex: 1;
+    min-height: 48px;
+    touch-action: manipulation;
+}
+
+.nav-item .nav-icon {
+    font-size: 22px;
+    margin-bottom: 2px;
+    transition: transform 0.2s ease;
+}
+
+.nav-item .nav-label {
+    font-size: 9px;
+    font-weight: 500;
+}
+
+.nav-item.active {
+    color: var(--green);
+}
+
+.nav-item.active .nav-icon {
+    transform: scale(1.1);
+}
+
+.nav-item:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   RESPONSIVE - MOBILE
+   ============================================ */
+@media (max-width: 768px) {
+    /* Sembunyikan sidebar, tampilkan bottom nav */
+    .sidebar {
+        display: none !important;
+    }
+    
+    .bottom-nav {
+        display: flex !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+        padding-bottom: 70px !important; /* Ruang untuk bottom nav */
+    }
+    
+    /* Topbar lebih ringkas */
+    .topbar {
+        padding: 10px 0 !important;
+    }
+    .topbar-right .status-card {
+        display: none !important;
+    }
+    
+    /* Dashboard grid 1 kolom */
+    .monitor-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .dashboard-main-grid {
+        grid-template-columns: 1fr !important;
+    }
+    .dashboard-main-grid .monitor-card {
+        grid-column: span 1 !important;
+    }
+    
+    /* Status Sistem grid 1 kolom */
+    .monitor-card > div[style*="display:grid"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ============================================
+   DESKTOP - SIDEBAR AKTIF
+   ============================================ */
+@media (min-width: 769px) {
+    .bottom-nav {
+        display: none !important;
+    }
+    .sidebar {
+        display: flex !important;
+    }
+}
