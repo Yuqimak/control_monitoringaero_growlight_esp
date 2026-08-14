@@ -12,11 +12,17 @@ const MAX_POINTS = 96;
 const CACHE_DURATION = 60 * 60 * 1000;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
 
+// --- Chart Utama Analytics ---
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
 export let tempChart = null, lightChart = null, lampStatusChart = null;
-const dashTempLabels = [], dashTempData = [];
-export let dashTempChart = null;
 
+// --- Chart Dashboard (2 LINE) ---
+const dashLabels = [], dashTempData = [], dashHumData = [];
+export let dashChart = null;
+
+// ============================================
+// TOGGLE EXPAND (UTILITY)
+// ============================================
 window.toggleExpand = function(wrapperId) {
     const wrapper = document.getElementById(wrapperId);
     if (!wrapper) return;
@@ -28,6 +34,9 @@ window.toggleExpand = function(wrapperId) {
     }
 };
 
+// ============================================
+// CHART OPTIONS
+// ============================================
 function getChartOptions() {
     const isMobile = window.innerWidth < 768;
     return {
@@ -44,6 +53,192 @@ function getChartOptions() {
     };
 }
 
+// ============================================
+// ⭐ INIT DASHBOARD CHART (2 LINE)
+// ============================================
+function initDashChart() {
+    const canvas = document.getElementById('dashEnvChart');
+    if (!canvas) {
+        console.warn('⚠️ Canvas dashEnvChart tidak ditemukan!');
+        return;
+    }
+
+    const existing = Chart.getChart(canvas);
+    if (existing) existing.destroy();
+
+    const ctx = canvas.getContext('2d');
+    dashChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dashLabels,
+            datasets: [
+                {
+                    label: 'Suhu (°C)',
+                    data: dashTempData,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34,197,94,0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    pointBackgroundColor: '#22c55e'
+                },
+                {
+                    label: 'Kelembapan (%)',
+                    data: dashHumData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 2,
+                    pointBackgroundColor: '#3b82f6'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(ctx) {
+                            const label = ctx.dataset.label || '';
+                            const value = ctx.parsed.y;
+                            return label + ': ' + value.toFixed(1) + (label.includes('Suhu') ? '°C' : '%');
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: { color: 'rgba(255,255,255,0.5)', maxTicksLimit: 10, font: { size: 9 } },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                    display: true,
+                    ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 9 } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    min: 0,
+                    max: 100
+                }
+            },
+            animation: { duration: 300 }
+        }
+    });
+    console.log('✅ Dashboard chart (dashEnvChart) initialized');
+}
+
+// ============================================
+// ⭐ UPDATE DASHBOARD CHART (2 LINE)
+// ============================================
+function updateDashChart(temp, humidity, timestamp) {
+    if (!dashChart) {
+        initDashChart();
+        if (!dashChart) return;
+    }
+
+    const time = new Date(timestamp || Date.now()).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    dashLabels.push(time);
+    dashTempData.push(Math.round(temp * 10) / 10);
+    dashHumData.push(Math.round(humidity * 10) / 10);
+
+    if (dashLabels.length > 15) {
+        dashLabels.shift();
+        dashTempData.shift();
+        dashHumData.shift();
+    }
+
+    dashChart.update('none');
+    updateDashStability(dashTempData);
+}
+
+// ============================================
+// ⭐ UPDATE STABILITY (DASHBOARD)
+// ============================================
+function updateDashStability(data) {
+    const el = document.getElementById('chartStatus');
+    if (!el || data.length < 5) return;
+
+    const avg = data.reduce((a, b) => a + b, 0) / data.length;
+    const variance = data.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / data.length;
+
+    if (variance < 1) {
+        el.textContent = '🟢 Stabil';
+        el.style.color = '#22c55e';
+    } else if (variance < 5) {
+        el.textContent = '🟡 Fluktuatif';
+        el.style.color = '#f59e0b';
+    } else {
+        el.textContent = '🔴 Tidak Stabil';
+        el.style.color = '#ef4444';
+    }
+}
+
+// ============================================
+// ⭐ LOAD HISTORY FOR DASHBOARD CHART
+// ============================================
+export async function loadDashHistory() {
+    try {
+        console.log('📊 loadDashHistory');
+        if (!dashChart) initDashChart();
+
+        const [suhuSnap, humSnap] = await Promise.all([
+            get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15))),
+            get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(15)))
+        ]);
+
+        const suhuData = suhuSnap.val() || {};
+        const humData = humSnap.val() || {};
+
+        const keys = Object.keys(suhuData).sort();
+        if (keys.length === 0) return;
+
+        const labels = [], temps = [], hums = [];
+        keys.forEach(key => {
+            const entry = suhuData[key];
+            const humEntry = humData[key];
+            const suhu = entry?.value ?? entry ?? 0;
+            const hum = humEntry?.value ?? humEntry ?? 0;
+            if (suhu > 0) {
+                const date = new Date(parseKeyToTimestamp(key));
+                labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+                temps.push(Math.round(suhu * 10) / 10);
+                hums.push(Math.round(hum * 10) / 10);
+            }
+        });
+
+        if (dashChart && labels.length > 0) {
+            dashChart.data.labels = labels;
+            dashChart.data.datasets[0].data = temps;
+            dashChart.data.datasets[1].data = hums;
+            dashChart.update();
+            updateDashStability(temps);
+            console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
+        }
+    } catch (e) {
+        console.error('❌ loadDashHistory error:', e);
+    }
+}
+
+// ============================================
+// ⭐ EXPOSE UNTUK APP.JS
+// ============================================
+export function updateDashboardChart(temp, humidity, timestamp) {
+    updateDashChart(temp, humidity, timestamp);
+}
+
+// ============================================
+// INIT CHARTS (ANALYTICS)
+// ============================================
 export function initCharts() {
     console.log('📊 initCharts');
     if (typeof Chart === 'undefined') { setTimeout(() => initCharts(), 500); return; }
@@ -98,19 +293,16 @@ export function initCharts() {
         });
     }
 
-    const dEl = document.getElementById('dashTempChart');
-    if (dEl) {
-        const existing = Chart.getChart(dEl);
-        if (existing) existing.destroy();
-        dashTempChart = new Chart(dEl, {
-            type: 'line',
-            data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
-            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
-        });
-    }
+    // ⭐ HAPUS BAGIAN dashTempChart KARENA SUDAH PAKAI dashEnvChart
+    // const dEl = document.getElementById('dashTempChart'); // DIHAPUS!
+    // if (dEl) { ... } // DIHAPUS!
+
     console.log('✅ All charts initialized');
 }
 
+// ============================================
+// UPDATE CHARTS (ANALYTICS)
+// ============================================
 let lastChartUpdate = 0;
 const CHART_THROTTLE = 5000;
 
@@ -144,14 +336,11 @@ export function updateCharts(time) {
         }
         lampStatusChart.update('none');
     }
-    if (dashTempChart && dashTempChart.data) {
-        dashTempLabels.push(time);
-        dashTempData.push(temp);
-        if (dashTempLabels.length > 15) { dashTempLabels.shift(); dashTempData.shift(); }
-        dashTempChart.update('none');
-    }
 }
 
+// ============================================
+// LOAD CHART HISTORY (ANALYTICS)
+// ============================================
 export async function loadChartHistory() {
     console.log('📊 loadChartHistory');
     const cached = localStorage.getItem(CACHE_KEY);
@@ -208,53 +397,18 @@ export async function loadChartHistory() {
     } catch (e) { console.error('❌ loadChartHistory:', e); applyChartData([]); }
 }
 
+// ============================================
+// LOAD DASHBOARD CHART HISTORY (UNUK KEKOMATIBELAN)
+// ============================================
 export async function loadDashChartHistory() {
-    try {
-        let chart = dashTempChart;
-        const canvas = document.getElementById('dashTempChart');
-        if (!canvas) { console.warn('⚠️ Canvas dashTempChart not found'); return; }
-
-        if (!chart) {
-            const existing = Chart.getChart(canvas);
-            if (existing) existing.destroy();
-            const ctx = canvas.getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: ['-'], datasets: [{ label: 'Suhu (°C)', data: [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
-                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: 5 } }, y: { display: true, ticks: { color: '#94a3b8' } } } }
-            });
-            dashTempChart = chart;
-        }
-
-        if (!chart || !chart.data || !chart.data.datasets) return;
-
-        const snapshot = await get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15)));
-        const data = snapshot.val();
-        if (!data) {
-            chart.data.labels = ['Tidak Ada Data'];
-            chart.data.datasets[0].data = [0];
-            chart.update();
-            return;
-        }
-
-        const keys = Object.keys(data).sort();
-        const labels = [], values = [];
-        keys.forEach(key => {
-            const entry = data[key];
-            const suhu = entry?.value ?? entry ?? 0;
-            if (suhu > 0) {
-                const date = new Date(parseKeyToTimestamp(key));
-                labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
-                values.push(suhu);
-            }
-        });
-
-        chart.data.labels = labels.length > 0 ? labels : ['Tidak Ada Data'];
-        chart.data.datasets[0].data = values.length > 0 ? values : [0];
-        chart.update();
-    } catch (e) { console.error('❌ loadDashChartHistory:', e); }
+    // Fungsi ini disimpan untuk kompatibilitas, tapi tidak digunakan
+    console.log('📊 loadDashChartHistory (redirect ke loadDashHistory)');
+    await loadDashHistory();
 }
 
+// ============================================
+// HELPER FUNCTIONS
+// ============================================
 function parseKeyToTimestamp(key) {
     try {
         const clean = key.replace(/-000Z$/, '');
@@ -323,6 +477,9 @@ function applyChartData(hourlyData) {
     updateHistogram(hourlyData);
 }
 
+// ============================================
+// STATS FUNCTIONS (TIDAK DIUBAH)
+// ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
     if (temps.length) {
@@ -496,6 +653,9 @@ function updateHistogram(data) {
     });
 }
 
+// ============================================
+// EXPORT FUNCTIONS (TIDAK DIUBAH)
+// ============================================
 export async function exportData(period) {
     const status = DOM.exportStatus;
     if (status) status.textContent = '⏳ Mengambil data...';
