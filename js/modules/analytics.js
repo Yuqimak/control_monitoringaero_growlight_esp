@@ -134,23 +134,35 @@ function initDashChart() {
 }
 
 // ============================================
-// ⭐ UPDATE DASHBOARD CHART (2 LINE)
+// ⭐ UPDATE DASHBOARD CHART (SAMPLE PER MENIT)
 // ============================================
-function updateDashChart(temp, humidity, timestamp) {
+let lastDashUpdateTime = 0;
+const DASH_CHART_INTERVAL = 60000; // 1 menit
+
+export function updateDashboardChart(temp, humidity, timestamp) {
     if (!dashChart) {
         initDashChart();
         if (!dashChart) return;
     }
+
+    // ⭐ CEK APAKAH SUDAH 1 MENIT
+    const now = Date.now();
+    if (now - lastDashUpdateTime < DASH_CHART_INTERVAL) {
+        return; // Skip update, masih kurang dari 1 menit
+    }
+    lastDashUpdateTime = now;
 
     const time = new Date(timestamp || Date.now()).toLocaleTimeString('id-ID', {
         hour: '2-digit',
         minute: '2-digit'
     });
 
+    // Tambah data baru
     dashLabels.push(time);
     dashTempData.push(Math.round(temp * 10) / 10);
     dashHumData.push(Math.round(humidity * 10) / 10);
 
+    // Batasi 15 data
     if (dashLabels.length > 15) {
         dashLabels.shift();
         dashTempData.shift();
@@ -191,9 +203,10 @@ export async function loadDashHistory() {
         console.log('📊 loadDashHistory');
         if (!dashChart) initDashChart();
 
+        // ⭐ AMBIL 30 DATA, NANTI DI-SAMPLE PER 2 = 15 DATA (PER MENIT)
         const [suhuSnap, humSnap] = await Promise.all([
-            get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(15))),
-            get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(15)))
+            get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(30))),
+            get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(30)))
         ]);
 
         const suhuData = suhuSnap.val() || {};
@@ -202,8 +215,14 @@ export async function loadDashHistory() {
         const keys = Object.keys(suhuData).sort();
         if (keys.length === 0) return;
 
+        // ⭐ SAMPLE PER 2 DATA = PER MENIT (karena history simpan per 30 detik)
+        const sampledKeys = [];
+        for (let i = 0; i < keys.length; i += 2) {
+            sampledKeys.push(keys[i]);
+        }
+
         const labels = [], temps = [], hums = [];
-        keys.forEach(key => {
+        sampledKeys.forEach(key => {
             const entry = suhuData[key];
             const humEntry = humData[key];
             const suhu = entry?.value ?? entry ?? 0;
@@ -216,13 +235,20 @@ export async function loadDashHistory() {
             }
         });
 
+        // Batasi 15 data terakhir
+        if (labels.length > 15) {
+            labels.splice(0, labels.length - 15);
+            temps.splice(0, temps.length - 15);
+            hums.splice(0, hums.length - 15);
+        }
+
         if (dashChart && labels.length > 0) {
             dashChart.data.labels = labels;
             dashChart.data.datasets[0].data = temps;
             dashChart.data.datasets[1].data = hums;
             dashChart.update();
             updateDashStability(temps);
-            console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
+            console.log(`✅ Dashboard chart loaded: ${labels.length} data (sample per menit)`);
         }
     } catch (e) {
         console.error('❌ loadDashHistory error:', e);
@@ -230,10 +256,12 @@ export async function loadDashHistory() {
 }
 
 // ============================================
-// ⭐ EXPOSE UNTUK APP.JS
+// ⭐ LOAD DASHBOARD CHART HISTORY (UNUK KEKOMATIBELAN)
 // ============================================
-export function updateDashboardChart(temp, humidity, timestamp) {
-    updateDashChart(temp, humidity, timestamp);
+export async function loadDashChartHistory() {
+    // Fungsi ini disimpan untuk kompatibilitas, tapi tidak digunakan
+    console.log('📊 loadDashChartHistory (redirect ke loadDashHistory)');
+    await loadDashHistory();
 }
 
 // ============================================
@@ -294,14 +322,11 @@ export function initCharts() {
     }
 
     // ⭐ HAPUS BAGIAN dashTempChart KARENA SUDAH PAKAI dashEnvChart
-    // const dEl = document.getElementById('dashTempChart'); // DIHAPUS!
-    // if (dEl) { ... } // DIHAPUS!
-
     console.log('✅ All charts initialized');
 }
 
 // ============================================
-// UPDATE CHARTS (ANALYTICS)
+// UPDATE CHARTS (ANALYTICS - TETAP 5 DETIK)
 // ============================================
 let lastChartUpdate = 0;
 const CHART_THROTTLE = 5000;
@@ -398,15 +423,6 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD DASHBOARD CHART HISTORY (UNUK KEKOMATIBELAN)
-// ============================================
-export async function loadDashChartHistory() {
-    // Fungsi ini disimpan untuk kompatibilitas, tapi tidak digunakan
-    console.log('📊 loadDashChartHistory (redirect ke loadDashHistory)');
-    await loadDashHistory();
-}
-
-// ============================================
 // HELPER FUNCTIONS
 // ============================================
 function parseKeyToTimestamp(key) {
@@ -478,7 +494,7 @@ function applyChartData(hourlyData) {
 }
 
 // ============================================
-// STATS FUNCTIONS (TIDAK DIUBAH)
+// STATS FUNCTIONS
 // ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
@@ -654,7 +670,7 @@ function updateHistogram(data) {
 }
 
 // ============================================
-// EXPORT FUNCTIONS (TIDAK DIUBAH)
+// EXPORT FUNCTIONS
 // ============================================
 export async function exportData(period) {
     const status = DOM.exportStatus;
