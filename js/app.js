@@ -108,22 +108,22 @@ function parseFirebaseKeyToTimestamp(key) {
 }
 
 // ============================================
-// 🔵 DASHBOARD
+// 🔵 DASHBOARD (REVISI - 3 CARD + CHART 2 LINE)
 // ============================================
 const Dashboard = {
+    // ⭐ UPDATE CARDS - 3 CARD (GABUNG)
     updateCards(temp, lux, lampState, humidity) {
         requestAnimationFrame(() => {
-            // 1. SUHU
+            // ─── CARD 1: SUHU + KELEMBAPAN (GABUNG) ───
             const tempVal = document.getElementById('dashTempValue');
             const tempStatus = document.getElementById('dashTempStatus');
             if (tempVal) tempVal.textContent = temp.toFixed(1);
-            let category = '🌤️ Normal', color = '#22c55e';
-            if (temp > 35) { category = '🔥 Sangat Panas'; color = '#ef4444'; }
-            else if (temp > 30) { category = '🔥 Panas'; color = '#f59e0b'; }
-            else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
-            if (tempStatus) { tempStatus.textContent = category; tempStatus.style.color = color; }
+            let tempCategory = '🌤️ Normal', tempColor = '#22c55e';
+            if (temp > 35) { tempCategory = '🔥 Sangat Panas'; tempColor = '#ef4444'; }
+            else if (temp > 30) { tempCategory = '🔥 Panas'; tempColor = '#f59e0b'; }
+            else if (temp < 20) { tempCategory = '❄️ Dingin'; tempColor = '#3b82f6'; }
+            if (tempStatus) { tempStatus.textContent = tempCategory; tempStatus.style.color = tempColor; }
 
-            // 2. KELEMBAPAN
             const humVal = document.getElementById('dashHumidityValue');
             const humStatus = document.getElementById('dashHumidityStatus');
             if (humVal) humVal.textContent = humidity.toFixed(1);
@@ -134,7 +134,7 @@ const Dashboard = {
             else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
             if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
 
-            // 3. CAHAYA
+            // ─── CARD 2: CAHAYA ───
             const lightVal = document.getElementById('dashLightValue');
             const lightStatus = document.getElementById('dashLightStatus');
             if (lightVal) lightVal.textContent = Math.round(lux);
@@ -146,24 +146,24 @@ const Dashboard = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // 4. WAKTU OPERASIONAL LAMPU
+            // ─── CARD 3: WAKTU OPERASIONAL + STATUS (GABUNG) ───
             const lampDuration = document.getElementById('dashLampDuration');
             const lampText = document.getElementById('dashLampStatusText');
             const accumulatedLight = state.accumulatedLight || 0;
             if (lampDuration) lampDuration.textContent = accumulatedLight.toFixed(1);
-            const statusText = lampState ? 'ON' : 'OFF';
+            
+            const statusText = lampState ? '💡 ON' : '⛔ Mati';
             const statusColor = lampState ? '#22c55e' : '#ef4444';
-            const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
-            if (lampText) { lampText.textContent = statusLabel; lampText.style.color = statusColor; }
+            if (lampText) { lampText.textContent = statusText; lampText.style.color = statusColor; }
 
-            // 5. MODE KONTROL
+            // ─── MODE KONTROL ───
             const modeDisplay = document.getElementById('dashModeDisplay');
             if (modeDisplay) {
                 const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
                 modeDisplay.textContent = labels[state.controlMode] || '🤖 Otomatis';
             }
 
-            // 6. STATUS SISTEM
+            // ─── STATUS SISTEM ───
             const connStatus = document.getElementById('dashConnStatus');
             if (connStatus) { connStatus.textContent = '● Online'; connStatus.className = 'status-badge online'; }
 
@@ -172,6 +172,10 @@ const Dashboard = {
 
             const latestTemp = document.getElementById('dashLatestTemp');
             if (latestTemp) latestTemp.textContent = temp.toFixed(1) + '°C';
+
+            // ─── GROWLIGHT HOURS ───
+            const sunlightHours = document.getElementById('dashSunlightHours');
+            if (sunlightHours) sunlightHours.textContent = (state.accumulatedLight || 0).toFixed(1);
         });
     }
 };
