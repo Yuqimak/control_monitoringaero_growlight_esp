@@ -23,10 +23,10 @@ export let dashChart = null;
 // --- Throttle Dashboard Chart ---
 let lastDashUpdateTime = 0;
 const DASH_CHART_INTERVAL = 60000; // 1 menit
-let isFirstDashUpdate = true; // ⭐ FLAG UNTUK UPDATE PERTAMA
+let isFirstDashUpdate = true;
 
 // ============================================
-// TOGGLE EXPAND (UTILITY)
+// TOGGLE EXPAND
 // ============================================
 window.toggleExpand = function(wrapperId) {
     const wrapper = document.getElementById(wrapperId);
@@ -59,7 +59,7 @@ function getChartOptions() {
 }
 
 // ============================================
-// ⭐ INIT DASHBOARD CHART (2 LINE)
+// ⭐ INIT DASHBOARD CHART (DENGAN DATA REALTIME FALLBACK)
 // ============================================
 function initDashChart() {
     const canvas = document.getElementById('dashEnvChart');
@@ -149,10 +149,10 @@ export function updateDashboardChart(temp, humidity, timestamp) {
 
     const now = Date.now();
 
-    // ⭐ UPDATE PERTAMA KALI LANGSUNG, SETELAHNYA THROTTLE 1 MENIT
+    // First update langsung, selanjutnya throttle 1 menit
     if (!isFirstDashUpdate) {
         if (now - lastDashUpdateTime < DASH_CHART_INTERVAL) {
-            return; // Skip update, masih kurang dari 1 menit
+            return;
         }
     }
     lastDashUpdateTime = now;
@@ -163,12 +163,10 @@ export function updateDashboardChart(temp, humidity, timestamp) {
         minute: '2-digit'
     });
 
-    // Tambah data baru
     dashLabels.push(time);
     dashTempData.push(Math.round(temp * 10) / 10);
     dashHumData.push(Math.round(humidity * 10) / 10);
 
-    // Batasi 15 data
     if (dashLabels.length > 15) {
         dashLabels.shift();
         dashTempData.shift();
@@ -180,7 +178,7 @@ export function updateDashboardChart(temp, humidity, timestamp) {
 }
 
 // ============================================
-// ⭐ UPDATE STABILITY (DASHBOARD)
+// ⭐ UPDATE STABILITY
 // ============================================
 function updateDashStability(data) {
     const el = document.getElementById('chartStatus');
@@ -202,14 +200,16 @@ function updateDashStability(data) {
 }
 
 // ============================================
-// ⭐ LOAD HISTORY FOR DASHBOARD CHART
+// ⭐ LOAD HISTORY + FALLBACK KE REALTIME SENSOR
 // ============================================
 export async function loadDashHistory() {
     try {
         console.log('📊 loadDashHistory');
         if (!dashChart) initDashChart();
 
-        // Ambil 30 data, nanti di-sample per 2 = 15 data
+        // 1. COBA AMBIL DARI HISTORY
+        let labels = [], temps = [], hums = [];
+
         const [suhuSnap, humSnap] = await Promise.all([
             get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(30))),
             get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(30)))
@@ -219,30 +219,47 @@ export async function loadDashHistory() {
         const humData = humSnap.val() || {};
 
         const keys = Object.keys(suhuData).sort();
-        if (keys.length === 0) {
-            console.log('⚠️ Tidak ada data history untuk dashboard');
-            return;
+
+        if (keys.length > 0) {
+            // Sample per 2 data = per menit
+            const sampledKeys = [];
+            for (let i = 0; i < keys.length; i += 2) {
+                sampledKeys.push(keys[i]);
+            }
+
+            sampledKeys.forEach(key => {
+                const entry = suhuData[key];
+                const humEntry = humData[key];
+                const suhu = entry?.value ?? entry ?? 0;
+                const hum = humEntry?.value ?? humEntry ?? 0;
+                if (suhu > 0) {
+                    const date = new Date(parseKeyToTimestamp(key));
+                    labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+                    temps.push(Math.round(suhu * 10) / 10);
+                    hums.push(Math.round(hum * 10) / 10);
+                }
+            });
         }
 
-        // Sample per 2 data = per menit
-        const sampledKeys = [];
-        for (let i = 0; i < keys.length; i += 2) {
-            sampledKeys.push(keys[i]);
-        }
-
-        const labels = [], temps = [], hums = [];
-        sampledKeys.forEach(key => {
-            const entry = suhuData[key];
-            const humEntry = humData[key];
-            const suhu = entry?.value ?? entry ?? 0;
-            const hum = humEntry?.value ?? humEntry ?? 0;
-            if (suhu > 0) {
-                const date = new Date(parseKeyToTimestamp(key));
-                labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+        // 2. ⭐ FALLBACK: KALAU TIDAK ADA DATA HISTORY, AMBIL DARI SENSOR (REALTIME)
+        if (labels.length === 0) {
+            console.log('⚠️ Tidak ada history, ambil dari sensor realtime...');
+            const sensorSnap = await get(ref(db, 'sensor'));
+            const sensorData = sensorSnap.val();
+            if (sensorData) {
+                const suhu = sensorData.suhu || 0;
+                const hum = sensorData.kelembapan || 0;
+                const timestamp = sensorData.timestamp || Date.now();
+                const time = new Date(timestamp).toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                labels.push(time);
                 temps.push(Math.round(suhu * 10) / 10);
                 hums.push(Math.round(hum * 10) / 10);
+                console.log('✅ Fallback data dari sensor:', { suhu, hum });
             }
-        });
+        }
 
         // Batasi 15 data terakhir
         if (labels.length > 15) {
@@ -251,6 +268,7 @@ export async function loadDashHistory() {
             hums.splice(0, hums.length - 15);
         }
 
+        // ⭐ UPDATE CHART
         if (dashChart && labels.length > 0) {
             dashChart.data.labels = labels;
             dashChart.data.datasets[0].data = temps;
@@ -258,6 +276,8 @@ export async function loadDashHistory() {
             dashChart.update();
             updateDashStability(temps);
             console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
+        } else {
+            console.warn('⚠️ Tidak ada data sama sekali untuk dashboard chart');
         }
     } catch (e) {
         console.error('❌ loadDashHistory error:', e);
@@ -265,7 +285,7 @@ export async function loadDashHistory() {
 }
 
 // ============================================
-// ⭐ LOAD DASHBOARD CHART HISTORY (UNTUK KOMPATIBEL)
+// ⭐ LOAD DASHBOARD CHART HISTORY (KOMPATIBEL)
 // ============================================
 export async function loadDashChartHistory() {
     console.log('📊 loadDashChartHistory (redirect ke loadDashHistory)');
@@ -501,7 +521,7 @@ function applyChartData(hourlyData) {
 }
 
 // ============================================
-// STATS FUNCTIONS
+// STATS FUNCTIONS (TIDAK DIUBAH)
 // ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
