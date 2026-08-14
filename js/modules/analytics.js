@@ -59,7 +59,7 @@ function getChartOptions() {
 }
 
 // ============================================
-// ⭐ INIT DASHBOARD CHART (DENGAN DATA REALTIME FALLBACK)
+// ⭐ INIT DASHBOARD CHART
 // ============================================
 function initDashChart() {
     const canvas = document.getElementById('dashEnvChart');
@@ -139,7 +139,7 @@ function initDashChart() {
 }
 
 // ============================================
-// ⭐ UPDATE DASHBOARD CHART (FIRST UPDATE LANGSUNG)
+// ⭐ UPDATE DASHBOARD CHART (1 MENIT + FIRST UPDATE)
 // ============================================
 export function updateDashboardChart(temp, humidity, timestamp) {
     if (!dashChart) {
@@ -149,7 +149,7 @@ export function updateDashboardChart(temp, humidity, timestamp) {
 
     const now = Date.now();
 
-    // First update langsung, selanjutnya throttle 1 menit
+    // ⭐ UPDATE PERTAMA KALI LANGSUNG, SETELAHNYA THROTTLE 1 MENIT
     if (!isFirstDashUpdate) {
         if (now - lastDashUpdateTime < DASH_CHART_INTERVAL) {
             return;
@@ -163,10 +163,12 @@ export function updateDashboardChart(temp, humidity, timestamp) {
         minute: '2-digit'
     });
 
+    // Tambah data baru
     dashLabels.push(time);
     dashTempData.push(Math.round(temp * 10) / 10);
     dashHumData.push(Math.round(humidity * 10) / 10);
 
+    // Batasi 15 data
     if (dashLabels.length > 15) {
         dashLabels.shift();
         dashTempData.shift();
@@ -200,16 +202,16 @@ function updateDashStability(data) {
 }
 
 // ============================================
-// ⭐ LOAD HISTORY + FALLBACK KE REALTIME SENSOR
+// ⭐ LOAD HISTORY + FALLBACK KE SENSOR (LANGSUNG MUNCUL!)
 // ============================================
 export async function loadDashHistory() {
     try {
         console.log('📊 loadDashHistory');
         if (!dashChart) initDashChart();
 
-        // 1. COBA AMBIL DARI HISTORY
         let labels = [], temps = [], hums = [];
 
+        // ⭐ 1. AMBIL 30 DATA DARI HISTORY
         const [suhuSnap, humSnap] = await Promise.all([
             get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(30))),
             get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(30)))
@@ -241,7 +243,7 @@ export async function loadDashHistory() {
             });
         }
 
-        // 2. ⭐ FALLBACK: KALAU TIDAK ADA DATA HISTORY, AMBIL DARI SENSOR (REALTIME)
+        // ⭐ 2. FALLBACK: KALAU TIDAK ADA DATA HISTORY, AMBIL DARI SENSOR
         if (labels.length === 0) {
             console.log('⚠️ Tidak ada history, ambil dari sensor realtime...');
             const sensorSnap = await get(ref(db, 'sensor'));
@@ -261,14 +263,7 @@ export async function loadDashHistory() {
             }
         }
 
-        // Batasi 15 data terakhir
-        if (labels.length > 15) {
-            labels.splice(0, labels.length - 15);
-            temps.splice(0, temps.length - 15);
-            hums.splice(0, hums.length - 15);
-        }
-
-        // ⭐ UPDATE CHART
+        // ⭐ 3. UPDATE CHART LANGSUNG!
         if (dashChart && labels.length > 0) {
             dashChart.data.labels = labels;
             dashChart.data.datasets[0].data = temps;
@@ -521,7 +516,7 @@ function applyChartData(hourlyData) {
 }
 
 // ============================================
-// STATS FUNCTIONS (TIDAK DIUBAH)
+// STATS FUNCTIONS
 // ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
