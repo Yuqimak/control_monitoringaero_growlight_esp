@@ -12,18 +12,10 @@ const MAX_POINTS = 96;
 const CACHE_DURATION = 60 * 60 * 1000;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
 
-// --- Chart Utama Analytics ---
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
 export let tempChart = null, lightChart = null, lampStatusChart = null;
-
-// --- Chart Dashboard (2 LINE) ---
-const dashLabels = [], dashTempData = [], dashHumData = [];
-export let dashChart = null;
-
-// --- Throttle Dashboard Chart ---
-let lastDashUpdateTime = 0;
-const DASH_CHART_INTERVAL = 60000; // 1 menit
-let isFirstDashUpdate = true;
+const dashTempLabels = [], dashTempData = [];
+export let dashTempChart = null;
 
 // ============================================
 // TOGGLE EXPAND
@@ -59,236 +51,7 @@ function getChartOptions() {
 }
 
 // ============================================
-// ⭐ INIT DASHBOARD CHART
-// ============================================
-function initDashChart() {
-    const canvas = document.getElementById('dashEnvChart');
-    if (!canvas) {
-        console.warn('⚠️ Canvas dashEnvChart tidak ditemukan!');
-        return;
-    }
-
-    const existing = Chart.getChart(canvas);
-    if (existing) existing.destroy();
-
-    const ctx = canvas.getContext('2d');
-    dashChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: dashLabels.length > 0 ? dashLabels : ['Menunggu Data...'],
-            datasets: [
-                {
-                    label: 'Suhu (°C)',
-                    data: dashTempData.length > 0 ? dashTempData : [0],
-                    borderColor: '#22c55e',
-                    backgroundColor: 'rgba(34,197,94,0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 2,
-                    pointBackgroundColor: '#22c55e'
-                },
-                {
-                    label: 'Kelembapan (%)',
-                    data: dashHumData.length > 0 ? dashHumData : [0],
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59,130,246,0.1)',
-                    borderWidth: 2,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 2,
-                    pointBackgroundColor: '#3b82f6'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        label: function(ctx) {
-                            const label = ctx.dataset.label || '';
-                            const value = ctx.parsed.y;
-                            return label + ': ' + value.toFixed(1) + (label.includes('Suhu') ? '°C' : '%');
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    display: true,
-                    ticks: { color: 'rgba(255,255,255,0.5)', maxTicksLimit: 10, font: { size: 9 } },
-                    grid: { color: 'rgba(255,255,255,0.05)' }
-                },
-                y: {
-                    display: true,
-                    ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 9 } },
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    min: 0,
-                    max: 100
-                }
-            },
-            animation: { duration: 300 }
-        }
-    });
-    console.log('✅ Dashboard chart (dashEnvChart) initialized');
-}
-
-// ============================================
-// ⭐ UPDATE DASHBOARD CHART (1 MENIT + FIRST UPDATE)
-// ============================================
-export function updateDashboardChart(temp, humidity, timestamp) {
-    if (!dashChart) {
-        initDashChart();
-        if (!dashChart) return;
-    }
-
-    const now = Date.now();
-
-    // ⭐ UPDATE PERTAMA KALI LANGSUNG, SETELAHNYA THROTTLE 1 MENIT
-    if (!isFirstDashUpdate) {
-        if (now - lastDashUpdateTime < DASH_CHART_INTERVAL) {
-            return;
-        }
-    }
-    lastDashUpdateTime = now;
-    isFirstDashUpdate = false;
-
-    const time = new Date(timestamp || Date.now()).toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-
-    // Tambah data baru
-    dashLabels.push(time);
-    dashTempData.push(Math.round(temp * 10) / 10);
-    dashHumData.push(Math.round(humidity * 10) / 10);
-
-    // Batasi 15 data
-    if (dashLabels.length > 15) {
-        dashLabels.shift();
-        dashTempData.shift();
-        dashHumData.shift();
-    }
-
-    dashChart.update('none');
-    updateDashStability(dashTempData);
-}
-
-// ============================================
-// ⭐ UPDATE STABILITY
-// ============================================
-function updateDashStability(data) {
-    const el = document.getElementById('chartStatus');
-    if (!el || data.length < 5) return;
-
-    const avg = data.reduce((a, b) => a + b, 0) / data.length;
-    const variance = data.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / data.length;
-
-    if (variance < 1) {
-        el.textContent = '🟢 Stabil';
-        el.style.color = '#22c55e';
-    } else if (variance < 5) {
-        el.textContent = '🟡 Fluktuatif';
-        el.style.color = '#f59e0b';
-    } else {
-        el.textContent = '🔴 Tidak Stabil';
-        el.style.color = '#ef4444';
-    }
-}
-
-// ============================================
-// ⭐ LOAD HISTORY + FALLBACK KE SENSOR (LANGSUNG MUNCUL!)
-// ============================================
-export async function loadDashHistory() {
-    try {
-        console.log('📊 loadDashHistory');
-        if (!dashChart) initDashChart();
-
-        let labels = [], temps = [], hums = [];
-
-        // ⭐ 1. AMBIL 30 DATA DARI HISTORY
-        const [suhuSnap, humSnap] = await Promise.all([
-            get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(30))),
-            get(query(ref(db, 'sensor_history/kelembapan'), orderByKey(), limitToLast(30)))
-        ]);
-
-        const suhuData = suhuSnap.val() || {};
-        const humData = humSnap.val() || {};
-
-        const keys = Object.keys(suhuData).sort();
-
-        if (keys.length > 0) {
-            // Sample per 2 data = per menit
-            const sampledKeys = [];
-            for (let i = 0; i < keys.length; i += 2) {
-                sampledKeys.push(keys[i]);
-            }
-
-            sampledKeys.forEach(key => {
-                const entry = suhuData[key];
-                const humEntry = humData[key];
-                const suhu = entry?.value ?? entry ?? 0;
-                const hum = humEntry?.value ?? humEntry ?? 0;
-                if (suhu > 0) {
-                    const date = new Date(parseKeyToTimestamp(key));
-                    labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
-                    temps.push(Math.round(suhu * 10) / 10);
-                    hums.push(Math.round(hum * 10) / 10);
-                }
-            });
-        }
-
-        // ⭐ 2. FALLBACK: KALAU TIDAK ADA DATA HISTORY, AMBIL DARI SENSOR
-        if (labels.length === 0) {
-            console.log('⚠️ Tidak ada history, ambil dari sensor realtime...');
-            const sensorSnap = await get(ref(db, 'sensor'));
-            const sensorData = sensorSnap.val();
-            if (sensorData) {
-                const suhu = sensorData.suhu || 0;
-                const hum = sensorData.kelembapan || 0;
-                const timestamp = sensorData.timestamp || Date.now();
-                const time = new Date(timestamp).toLocaleTimeString('id-ID', {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                labels.push(time);
-                temps.push(Math.round(suhu * 10) / 10);
-                hums.push(Math.round(hum * 10) / 10);
-                console.log('✅ Fallback data dari sensor:', { suhu, hum });
-            }
-        }
-
-        // ⭐ 3. UPDATE CHART LANGSUNG!
-        if (dashChart && labels.length > 0) {
-            dashChart.data.labels = labels;
-            dashChart.data.datasets[0].data = temps;
-            dashChart.data.datasets[1].data = hums;
-            dashChart.update();
-            updateDashStability(temps);
-            console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
-        } else {
-            console.warn('⚠️ Tidak ada data sama sekali untuk dashboard chart');
-        }
-    } catch (e) {
-        console.error('❌ loadDashHistory error:', e);
-    }
-}
-
-// ============================================
-// ⭐ LOAD DASHBOARD CHART HISTORY (KOMPATIBEL)
-// ============================================
-export async function loadDashChartHistory() {
-    console.log('📊 loadDashChartHistory (redirect ke loadDashHistory)');
-    await loadDashHistory();
-}
-
-// ============================================
-// INIT CHARTS (ANALYTICS)
+// INIT CHARTS
 // ============================================
 export function initCharts() {
     console.log('📊 initCharts');
@@ -297,6 +60,7 @@ export function initCharts() {
     const isMobile = window.innerWidth < 768;
     const opts = getChartOptions();
 
+    // TEMP CHART
     const tEl = document.getElementById('tempChart');
     if (tEl) {
         const existing = Chart.getChart(tEl);
@@ -311,6 +75,7 @@ export function initCharts() {
         });
     }
 
+    // LIGHT CHART
     const lEl = document.getElementById('lightChart');
     if (lEl) {
         const existing = Chart.getChart(lEl);
@@ -325,6 +90,7 @@ export function initCharts() {
         });
     }
 
+    // LAMP STATUS CHART
     const lsEl = document.getElementById('lampStatusChart');
     if (lsEl) {
         const existing = Chart.getChart(lsEl);
@@ -344,11 +110,22 @@ export function initCharts() {
         });
     }
 
+    // DASHBOARD CHART
+    const dEl = document.getElementById('dashTempChart');
+    if (dEl) {
+        const existing = Chart.getChart(dEl);
+        if (existing) existing.destroy();
+        dashTempChart = new Chart(dEl, {
+            type: 'line',
+            data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
+        });
+    }
     console.log('✅ All charts initialized');
 }
 
 // ============================================
-// UPDATE CHARTS (ANALYTICS - TETAP 5 DETIK)
+// UPDATE CHARTS (ANALYTICS)
 // ============================================
 let lastChartUpdate = 0;
 const CHART_THROTTLE = 5000;
@@ -383,19 +160,48 @@ export function updateCharts(time) {
         }
         lampStatusChart.update('none');
     }
+    if (dashTempChart && dashTempChart.data) {
+        dashTempLabels.push(time);
+        dashTempData.push(temp);
+        if (dashTempLabels.length > 15) { dashTempLabels.shift(); dashTempData.shift(); }
+        dashTempChart.update('none');
+    }
+}
+
+// ============================================
+// PARSE TIMESTAMP
+// ============================================
+function parseKeyToTimestamp(key) {
+    try {
+        const clean = key.replace(/-000Z$/, '').replace(/Z$/, '');
+        const parts = clean.split('T');
+        if (parts.length !== 2) return 0;
+        const dateParts = parts[0].split('-').map(Number);
+        const timeParts = parts[1].split('-').map(Number);
+        if (dateParts.length !== 3 || timeParts.length !== 3) return 0;
+        const [year, month, day] = dateParts;
+        const [hour, minute, second] = timeParts;
+        if (year < 2000 || year > 2100) return 0;
+        if (month < 1 || month > 12) return 0;
+        if (day < 1 || day > 31) return 0;
+        if (hour < 0 || hour > 23) return 0;
+        if (minute < 0 || minute > 59) return 0;
+        return new Date(year, month - 1, day, hour, minute, second || 0).getTime();
+    } catch (e) { return 0; }
 }
 
 // ============================================
 // LOAD CHART HISTORY (ANALYTICS)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory');
+    console.log('📊 loadChartHistory - STRUKTUR FLEKSIBEL');
     const cached = localStorage.getItem(CACHE_KEY);
     if (cached) {
         try {
             const parsed = JSON.parse(cached);
             if (Date.now() - parsed.timestamp < CACHE_DURATION) {
                 if (parsed.data && parsed.data.length > 0) {
+                    console.log('📦 Pakai cache');
                     applyChartData(parsed.data);
                     return;
                 }
@@ -404,59 +210,190 @@ export async function loadChartHistory() {
     }
 
     try {
-        const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
-            get(query(ref(db, 'sensor_history/suhu'), orderByKey(), limitToLast(100))),
-            get(query(ref(db, 'sensor_history/cahaya'), orderByKey(), limitToLast(100))),
-            get(query(ref(db, 'sensor_history/lampu'), orderByKey(), limitToLast(100)))
-        ]);
+        // ⭐ BACA ROOT SENSOR_HISTORY
+        const snapshot = await get(ref(db, 'sensor_history'));
+        const historyData = snapshot.val();
 
-        const suhuData = suhuSnap.val() || {};
-        const cahayaData = cahayaSnap.val() || {};
-        const lampuData = lampuSnap.val() || {};
+        if (!historyData) {
+            console.log('⚠️ Tidak ada data history');
+            applyChartData([]);
+            return;
+        }
 
-        const allKeys = Object.keys(suhuData).sort();
-        if (allKeys.length === 0) { applyChartData([]); return; }
+        // ⭐ FILTER KEY TIMESTAMP
+        const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
+        console.log(`📊 Total data: ${keys.length}`);
 
-        const rawData = allKeys.map(key => {
-            const suhuEntry = suhuData[key];
-            const cahayaEntry = cahayaData[key];
-            const lampuEntry = lampuData[key];
-            let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
-            let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
-            let lampu = 0;
-            if (lampuEntry !== undefined && lampuEntry !== null) {
-                if (typeof lampuEntry === 'object') {
-                    lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
-                } else {
-                    lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
+        if (keys.length === 0) {
+            applyChartData([]);
+            return;
+        }
+
+        // ⭐ AMBIL 100 DATA TERAKHIR
+        const last100Keys = keys.slice(-100);
+        const rawData = [];
+
+        last100Keys.forEach(key => {
+            const entry = historyData[key];
+            let suhu = 0, cahaya = 0, lampu = 0;
+
+            // ⭐ EKSTRAK DARI SUB-NODE
+            if (entry.suhu) {
+                suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                        break;
+                    }
                 }
             }
+
+            if (entry.cahaya) {
+                cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+            }
+
+            if (entry.lampu) {
+                lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+            }
+
             const timestamp = parseKeyToTimestamp(key);
-            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
+            if (timestamp > 0) {
+                rawData.push({ key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp });
+            }
         });
 
-        const validData = rawData.filter(d => d.timestamp > 0);
-        if (validData.length === 0) { applyChartData([]); return; }
+        const validData = rawData.filter(d => d.timestamp > 0 && d.suhu > 0);
+        console.log(`📊 Data valid: ${validData.length}`);
+
+        if (validData.length === 0) {
+            applyChartData([]);
+            return;
+        }
 
         const chartData = reduceToHourly(validData, 24);
         localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: chartData }));
         applyChartData(chartData);
-    } catch (e) { console.error('❌ loadChartHistory:', e); applyChartData([]); }
+        console.log(`✅ Analytics chart loaded: ${chartData.length} data`);
+    } catch (e) {
+        console.error('❌ loadChartHistory error:', e);
+        applyChartData([]);
+    }
 }
 
 // ============================================
-// HELPER FUNCTIONS
+// LOAD DASHBOARD CHART HISTORY (FLEKSIBEL)
 // ============================================
-function parseKeyToTimestamp(key) {
+export async function loadDashChartHistory() {
     try {
-        const clean = key.replace(/-000Z$/, '');
-        const [datePart, timePart] = clean.split('T');
-        const [year, month, day] = datePart.split('-').map(Number);
-        const [hour, minute, second] = timePart.split('-').map(Number);
-        return new Date(year, month - 1, day, hour, minute, second).getTime();
-    } catch (e) { return 0; }
+        console.log('📊 loadDashChartHistory - STRUKTUR FLEKSIBEL');
+        let chart = dashTempChart;
+        const canvas = document.getElementById('dashTempChart');
+        if (!canvas) { console.warn('⚠️ Canvas not found'); return; }
+
+        if (!chart) {
+            const existing = Chart.getChart(canvas);
+            if (existing) existing.destroy();
+            const ctx = canvas.getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: ['-'], datasets: [{ label: 'Suhu (°C)', data: [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: 5 } }, y: { display: true, ticks: { color: '#94a3b8' } } } }
+            });
+            dashTempChart = chart;
+        }
+
+        if (!chart || !chart.data || !chart.data.datasets) return;
+
+        // ⭐ BACA ROOT SENSOR_HISTORY
+        const snapshot = await get(ref(db, 'sensor_history'));
+        const historyData = snapshot.val();
+
+        let labels = [], values = [];
+
+        if (historyData) {
+            // ⭐ FILTER KEY TIMESTAMP
+            const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
+            console.log(`📊 Total data: ${keys.length}`);
+
+            // ⭐ AMBIL 15 DATA TERAKHIR
+            const last15Keys = keys.slice(-15);
+
+            last15Keys.forEach(key => {
+                const entry = historyData[key];
+                let suhu = 0;
+
+                // ⭐ EKSTRAK SUHU
+                if (entry.suhu) {
+                    suhu = entry.suhu.value ?? entry.suhu ?? 0;
+                } else {
+                    for (const subKey of Object.keys(entry)) {
+                        const subNode = entry[subKey];
+                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                            if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                            break;
+                        }
+                    }
+                }
+
+                if (suhu > 0) {
+                    const date = new Date(parseKeyToTimestamp(key));
+                    labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+                    values.push(suhu);
+                }
+            });
+        }
+
+        // ⭐ FALLBACK KE SENSOR
+        if (labels.length === 0) {
+            console.log('⚠️ Tidak ada data valid, ambil dari sensor...');
+            const sensorSnap = await get(ref(db, 'sensor'));
+            const sensorData = sensorSnap.val();
+            if (sensorData) {
+                const suhu = sensorData.suhu || 0;
+                const timestamp = sensorData.timestamp || Date.now();
+                if (suhu > 0) {
+                    const time = new Date(timestamp).toLocaleTimeString('id-ID', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    labels.push(time);
+                    values.push(suhu);
+                    console.log(`✅ Data dari sensor: ${suhu}°C`);
+                }
+            }
+        }
+
+        if (labels.length === 0) {
+            chart.data.labels = ['Tidak Ada Data'];
+            chart.data.datasets[0].data = [0];
+            chart.update();
+            return;
+        }
+
+        if (labels.length > 15) {
+            labels.splice(0, labels.length - 15);
+            values.splice(0, values.length - 15);
+        }
+
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.update();
+        console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
+    } catch (e) {
+        console.error('❌ loadDashChartHistory error:', e);
+        if (dashTempChart) {
+            dashTempChart.data.labels = ['Error Load Data'];
+            dashTempChart.data.datasets[0].data = [0];
+            dashTempChart.update();
+        }
+    }
 }
 
+// ============================================
+// REDUCE TO HOURLY
+// ============================================
 function reduceToHourly(data, totalPoints) {
     if (data.length === 0) return [];
     data.sort((a, b) => a.timestamp - b.timestamp);
@@ -476,6 +413,9 @@ function reduceToHourly(data, totalPoints) {
     return result;
 }
 
+// ============================================
+// APPLY CHART DATA
+// ============================================
 function applyChartData(hourlyData) {
     tempLabels.length = 0; tempData.length = 0; lightLabels.length = 0; sensorData.length = 0;
     if (lampStatusChart) { lampStatusChart.data.labels = []; lampStatusChart.data.datasets[0].data = []; }
@@ -794,41 +734,42 @@ export async function loadChartHistoryByDate(dateStr) {
     console.log('📅 loadChartHistoryByDate:', dateStr);
     try {
         if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
-        const [suhuSnap, cahayaSnap, lampuSnap] = await Promise.all([
-            get(ref(db, 'sensor_history/suhu')),
-            get(ref(db, 'sensor_history/cahaya')),
-            get(ref(db, 'sensor_history/lampu'))
-        ]);
-        const suhuData = suhuSnap.val() || {};
-        const cahayaData = cahayaSnap.val() || {};
-        const lampuData = lampuSnap.val() || {};
-        const allKeys = Object.keys(suhuData).sort();
-        const filteredKeys = allKeys.filter(key => {
-            const ts = parseKeyToTimestamp(key);
-            if (ts === 0) return false;
-            return new Date(ts).toISOString().slice(0, 10) === dateStr;
-        });
-        if (filteredKeys.length === 0) {
+        // ⭐ BACA ROOT SENSOR_HISTORY
+        const snapshot = await get(ref(db, 'sensor_history'));
+        const historyData = snapshot.val();
+        if (!historyData) {
             showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
             return;
         }
-        const rawData = filteredKeys.map(key => {
-            const suhuEntry = suhuData[key];
-            const cahayaEntry = cahayaData[key];
-            const lampuEntry = lampuData[key];
-            let suhu = suhuEntry?.value ?? suhuEntry ?? 0;
-            let cahaya = cahayaEntry?.value ?? cahayaEntry ?? 0;
-            let lampu = 0;
-            if (lampuEntry !== undefined && lampuEntry !== null) {
-                if (typeof lampuEntry === 'object') {
-                    lampu = (lampuEntry.state === true || lampuEntry.state === 1 || lampuEntry.state === 'ON') ? 1 : 0;
-                } else {
-                    lampu = (lampuEntry === true || lampuEntry === 1 || lampuEntry === 'ON') ? 1 : 0;
+
+        const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
+        if (keys.length === 0) {
+            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
+            return;
+        }
+
+        const rawData = keys.map(key => {
+            const entry = historyData[key];
+            let suhu = 0, cahaya = 0, lampu = 0;
+
+            if (entry.suhu) {
+                suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                        break;
+                    }
                 }
             }
+            if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+            if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+
             const timestamp = parseKeyToTimestamp(key);
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
         });
+
         applyChartData(rawData);
         showToast(`✅ Menampilkan data ${dateStr} (${rawData.length} titik)`, 'success');
     } catch (e) {
