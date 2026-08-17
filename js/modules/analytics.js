@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: VERSION HEMAT BANDWIDTH (FIXED)
+// ANALYTICS: VERSION HEMAT BANDWIDTH (FINAL)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIXED VERSION)');
+console.log('📊 analytics.js loaded (FINAL VERSION)');
 
 const MAX_POINTS = 96;
 const CACHE_DURATION = 60 * 60 * 1000;
@@ -820,4 +820,39 @@ export async function loadDailyHistory() {
     } catch (e) { console.error('❌ loadDailyHistory:', e); }
 }
 
-console.log('✅ analytics.js loaded (FIXED VERSION)');
+// ============================================
+// ⭐ FUNGSI LOAD DASHBOARD (DIPANGGIL APP.JS)
+// ============================================
+export async function loadDashboard() {
+    console.log('📊 loadDashboard - mulai');
+    try {
+        // Ambil data terbaru dari sensor
+        const snapshot = await get(ref(db, 'sensor'));
+        const data = snapshot.val();
+        
+        if (data) {
+            // Update elemen dashboard dengan data terbaru
+            const suhu = data.suhu || 0;
+            const kelembapan = data.kelembapan || 0;
+            const cahaya = data.cahaya || 0;
+            const lampu = data.lampu || false;
+            
+            // Update DOM dashboard (sesuai ID di HTML lu)
+            const tempEl = document.getElementById('suhuDisplay');
+            const humidEl = document.getElementById('kelembapanDisplay');
+            const lightEl = document.getElementById('cahayaDisplay');
+            const statusEl = document.getElementById('lampStatus');
+            
+            if (tempEl) tempEl.textContent = suhu + '°C';
+            if (humidEl) humidEl.textContent = kelembapan + '%';
+            if (lightEl) lightEl.textContent = cahaya + ' lux';
+            if (statusEl) statusEl.textContent = lampu ? 'ON' : 'OFF';
+            
+            console.log('✅ Dashboard updated');
+        }
+    } catch (e) {
+        console.error('❌ loadDashboard error:', e);
+    }
+}
+
+console.log('✅ analytics.js loaded (FINAL VERSION)');
