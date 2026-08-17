@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: VERSION HEMAT BANDWIDTH (FINAL)
+// ANALYTICS: VERSION HEMAT BANDWIDTH (FINAL + FIX)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FINAL VERSION)');
+console.log('📊 analytics.js loaded (FINAL + FIX)');
 
 const MAX_POINTS = 96;
 const CACHE_DURATION = 60 * 60 * 1000;
@@ -855,4 +855,209 @@ export async function loadDashboard() {
     }
 }
 
-console.log('✅ analytics.js loaded (FINAL VERSION)');
+// ============================================
+// ⭐ FUNGSI UNTUK APP.JS (loadDashHistory & updateDashboardChart)
+// ============================================
+
+// 1. loadDashHistory - buat dashboard chart history
+export async function loadDashHistory() {
+    console.log('📊 loadDashHistory - mulai');
+    try {
+        // Ambil data terakhir dari sensor_history
+        const snapshot = await get(ref(db, 'sensor_history'));
+        const historyData = snapshot.val();
+        
+        if (!historyData) {
+            console.log('⚠️ Tidak ada data history untuk dashboard');
+            return;
+        }
+
+        // Filter key timestamp
+        const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
+        console.log(`📊 Dashboard total data: ${keys.length}`);
+
+        if (keys.length === 0) return;
+
+        // Ambil 15 data terakhir
+        const last15Keys = keys.slice(-15);
+        const labels = [];
+        const suhuData = [];
+        const humData = [];
+
+        last15Keys.forEach(key => {
+            const entry = historyData[key];
+            let suhu = 0, hum = 0;
+
+            // Ekstrak suhu
+            if (entry.suhu) {
+                suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                        break;
+                    }
+                }
+            }
+
+            // Ekstrak kelembapan
+            if (entry.kelembapan) {
+                hum = entry.kelembapan.value ?? entry.kelembapan ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!hum) hum = parseFloat(subNode.value) || 0;
+                        break;
+                    }
+                }
+            }
+
+            const timestamp = parseKeyToTimestamp(key);
+            if (timestamp > 0 && suhu > 0) {
+                const date = new Date(timestamp);
+                labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+                suhuData.push(suhu);
+                humData.push(hum > 0 ? hum : null);
+            }
+        });
+
+        if (labels.length === 0) {
+            console.log('⚠️ Tidak ada data valid untuk dashboard');
+            return;
+        }
+
+        // Update dashboard chart (dashTempChart)
+        if (dashTempChart) {
+            dashTempChart.data.labels = labels;
+            dashTempChart.data.datasets = [
+                {
+                    label: 'Suhu (°C)',
+                    data: suhuData,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34,197,94,0.15)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#22c55e',
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Kelembapan (%)',
+                    data: humData,
+                    borderColor: '#38bdf8',
+                    backgroundColor: 'rgba(56,189,248,0.15)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#38bdf8',
+                    yAxisID: 'y1'
+                }
+            ];
+            dashTempChart.options = {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        labels: { color: '#cbd5e1', font: { size: 10 } }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null && context.parsed.y !== undefined) {
+                                    label += context.parsed.y.toFixed(1);
+                                    if (context.dataset.label.includes('Suhu')) {
+                                        label += '°C';
+                                    } else if (context.dataset.label.includes('Kelembapan')) {
+                                        label += '%';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#94a3b8', maxTicksLimit: 10, font: { size: 9 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' }
+                    },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        ticks: { color: '#22c55e', font: { size: 9 } },
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        title: {
+                            display: true,
+                            text: 'Suhu (°C)',
+                            color: '#22c55e',
+                            font: { size: 9 }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        ticks: { color: '#38bdf8', font: { size: 9 } },
+                        grid: { drawOnChartArea: false },
+                        title: {
+                            display: true,
+                            text: 'Kelembapan (%)',
+                            color: '#38bdf8',
+                            font: { size: 9 }
+                        }
+                    }
+                }
+            };
+            dashTempChart.update();
+            console.log(`✅ Dashboard chart updated: ${labels.length} data`);
+        }
+    } catch (e) {
+        console.error('❌ loadDashHistory error:', e);
+    }
+}
+
+// 2. updateDashboardChart - update chart realtime
+export function updateDashboardChart(suhu, hum, timestamp) {
+    try {
+        if (!dashTempChart) return;
+        
+        const labels = dashTempChart.data.labels || [];
+        const suhuData = dashTempChart.data.datasets?.[0]?.data || [];
+        const humData = dashTempChart.data.datasets?.[1]?.data || [];
+        
+        const time = new Date(timestamp).toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        // Push data baru
+        labels.push(time);
+        suhuData.push(suhu);
+        humData.push(hum);
+        
+        // Keep max 15 data
+        if (labels.length > 15) {
+            labels.shift();
+            suhuData.shift();
+            humData.shift();
+        }
+        
+        dashTempChart.data.labels = labels;
+        dashTempChart.data.datasets[0].data = suhuData;
+        dashTempChart.data.datasets[1].data = humData;
+        dashTempChart.update('none');
+    } catch (e) {
+        // Silent fail untuk update realtime
+    }
+}
+
+console.log('✅ analytics.js loaded (FINAL + FIX)');
