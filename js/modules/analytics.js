@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: VERSION HEMAT BANDWIDTH
+// ANALYTICS: VERSION HEMAT BANDWIDTH (FIXED)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded');
+console.log('📊 analytics.js loaded (FIXED VERSION)');
 
 const MAX_POINTS = 96;
 const CACHE_DURATION = 60 * 60 * 1000;
@@ -414,9 +414,11 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// APPLY CHART DATA
+// APPLY CHART DATA (EXPORTED)
 // ============================================
-function applyChartData(hourlyData) {
+export function applyChartData(hourlyData) {
+    console.log(`📊 applyChartData: ${hourlyData?.length || 0} data`);
+    
     tempLabels.length = 0; tempData.length = 0; lightLabels.length = 0; sensorData.length = 0;
     if (lampStatusChart) { lampStatusChart.data.labels = []; lampStatusChart.data.datasets[0].data = []; }
 
@@ -453,6 +455,17 @@ function applyChartData(hourlyData) {
     updateTrend(hourlyData);
     updateHeatmap(hourlyData);
     updateHistogram(hourlyData);
+}
+
+// ============================================
+// UPDATE ALL CHARTS
+// ============================================
+export function updateAllCharts() {
+    console.log('🔄 updateAllCharts');
+    if (tempChart) tempChart.update();
+    if (lightChart) lightChart.update();
+    if (lampStatusChart) lampStatusChart.update();
+    if (dashTempChart) dashTempChart.update();
 }
 
 // ============================================
@@ -807,4 +820,4 @@ export async function loadDailyHistory() {
     } catch (e) { console.error('❌ loadDailyHistory:', e); }
 }
 
-console.log('✅ analytics.js loaded');
+console.log('✅ analytics.js loaded (FIXED VERSION)');
