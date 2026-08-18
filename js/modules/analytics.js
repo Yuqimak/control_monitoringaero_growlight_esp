@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: 1 DATA PER JAM (HEMAT BANDWIDTH) + FORCE UPDATE
+// ANALYTICS: 1 DATA PER JAM (24 DATA TERAKHIR) + TREN DINAMIS
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (1 DATA PER JAM + FORCE UPDATE)');
+console.log('📊 analytics.js loaded (FINAL STABLE)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -53,7 +53,7 @@ function getChartOptions() {
 // INIT CHARTS
 // ============================================
 export function initCharts() {
-    console.log('📊 initCharts - FORCE RECREATE');
+    console.log('📊 initCharts');
     if (typeof Chart === 'undefined') { setTimeout(() => initCharts(), 500); return; }
 
     const isMobile = window.innerWidth < 768;
@@ -72,9 +72,6 @@ export function initCharts() {
             },
             options: opts
         });
-        console.log('✅ tempChart recreated');
-    } else {
-        console.warn('⚠️ Element #tempChart not found!');
     }
 
     // LIGHT CHART
@@ -90,9 +87,6 @@ export function initCharts() {
             },
             options: opts
         });
-        console.log('✅ lightChart recreated');
-    } else {
-        console.warn('⚠️ Element #lightChart not found!');
     }
 
     // LAMP STATUS CHART
@@ -113,9 +107,6 @@ export function initCharts() {
                 }
             }
         });
-        console.log('✅ lampStatusChart recreated');
-    } else {
-        console.warn('⚠️ Element #lampStatusChart not found!');
     }
 
     // DASHBOARD CHART
@@ -128,9 +119,6 @@ export function initCharts() {
             data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
         });
-        console.log('✅ dashTempChart recreated');
-    } else {
-        console.warn('⚠️ Element #dashTempChart not found!');
     }
     console.log('✅ All charts initialized');
 }
@@ -202,10 +190,10 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// LOAD CHART HISTORY (1 DATA PER JAM - HEMAT BANDWIDTH)
+// LOAD CHART HISTORY (24 DATA TERAKHIR - 1 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - 1 DATA PER JAM (HEMAT BANDWIDTH)');
+    console.log('📊 loadChartHistory - 24 DATA TERAKHIR (1 HARI)');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -244,8 +232,10 @@ export async function loadChartHistory() {
             return;
         }
 
-        // Ambil 100 data terakhir dari hasil filter
-        const lastKeys = hourlyKeys.slice(-100);
+        // ⭐ AMBIL 24 DATA TERAKHIR
+        const lastKeys = hourlyKeys.slice(-24);
+        console.log(`📊 Data yang dipakai: ${lastKeys.length} (24 jam terakhir)`);
+
         const rawData = [];
 
         lastKeys.forEach(key => {
@@ -287,7 +277,7 @@ export async function loadChartHistory() {
         }
 
         applyChartData(validData);
-        console.log(`✅ Analytics chart loaded: ${validData.length} data (per jam)`);
+        console.log(`✅ Analytics chart loaded: ${validData.length} data (24 jam terakhir)`);
     } catch (e) {
         console.error('❌ loadChartHistory error:', e);
         applyChartData([]);
@@ -513,17 +503,14 @@ export function applyChartData(hourlyData) {
         }
     });
 
-    console.log('📊 tempLabels:', tempLabels.slice(0, 5));
-    console.log('📊 tempData:', tempData.slice(0, 5));
+    console.log('📊 tempLabels (5 data pertama):', tempLabels.slice(0, 5));
+    console.log('📊 tempData (5 data pertama):', tempData.slice(0, 5));
 
-    // ⭐ FORCE UPDATE
     if (tempChart) {
         tempChart.data.labels = tempLabels;
         tempChart.data.datasets[0].data = tempData;
         tempChart.update();
         console.log('✅ tempChart updated');
-    } else {
-        console.warn('⚠️ tempChart is null!');
     }
     
     if (lightChart) {
@@ -531,15 +518,11 @@ export function applyChartData(hourlyData) {
         lightChart.data.datasets[0].data = sensorData;
         lightChart.update();
         console.log('✅ lightChart updated');
-    } else {
-        console.warn('⚠️ lightChart is null!');
     }
     
     if (lampStatusChart) {
         lampStatusChart.update();
         console.log('✅ lampStatusChart updated');
-    } else {
-        console.warn('⚠️ lampStatusChart is null!');
     }
 
     updateStats(hourlyData);
@@ -562,7 +545,7 @@ export function updateAllCharts() {
 }
 
 // ============================================
-// STATS FUNCTIONS (SAMA KAYAK SEBELUMNYA, TETAP)
+// STATS FUNCTIONS
 // ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
@@ -647,53 +630,65 @@ function updateLampStats(data) {
     if (offBar) offBar.style.width = offP + '%';
 }
 
+// ============================================
+// TREN 7 HARI (AMBIL DARI DATA TERAKHIR DI DB)
+// ============================================
 function updateTrend(data) {
     const container = document.getElementById('trendContainer');
     if (!container) return;
+    
     const days = {};
     data.forEach(d => {
         const day = new Date(d.timestamp).toISOString().slice(0, 10);
         if (!days[day]) days[day] = [];
         days[day].push(d.suhu);
     });
-    const now = new Date();
+    
+    const sortedDays = Object.keys(days).sort().reverse();
+    const last7Days = sortedDays.slice(0, 7).reverse();
+    
     let html = '';
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        const key = d.toISOString().slice(0, 10);
-        const vals = days[key] || [];
+    last7Days.forEach(day => {
+        const vals = days[day] || [];
         const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '--';
         const color = avg > 30 ? '#ef4444' : avg > 25 ? '#f59e0b' : avg > 20 ? '#22c55e' : '#3b82f6';
         html += `<div style="text-align:center;background:rgba(255,255,255,.04);padding:8px;border-radius:8px;">
-            <div style="font-size:11px;color:var(--text-muted);">${key.slice(5)}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${day.slice(5)}</div>
             <div style="font-size:16px;font-weight:600;color:${color};">${avg}°</div>
         </div>`;
-    }
+    });
     container.innerHTML = html;
 }
 
+// ============================================
+// HEATMAP 7 HARI (AMBIL DARI DATA TERAKHIR DI DB)
+// ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
     if (!table) return;
-    const now = new Date();
-    const days = [];
-    for (let i = 6; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        days.push(d.toISOString().slice(0, 10));
-    }
+    
+    const days = {};
+    data.forEach(d => {
+        const day = new Date(d.timestamp).toISOString().slice(0, 10);
+        if (!days[day]) days[day] = [];
+        days[day].push({ hour: new Date(d.timestamp).getHours(), suhu: d.suhu });
+    });
+    
+    const sortedDays = Object.keys(days).sort().reverse();
+    const last7Days = sortedDays.slice(0, 7).reverse();
+    
     const ranges = [0, 6, 12, 18, 24];
     let html = '<thead><tr><th></th>';
     for (let i = 0; i < 4; i++) html += `<th style="font-size:10px;color:var(--text-muted);">${ranges[i]}-${ranges[i+1]}</th>`;
     html += '</tr></thead><tbody>';
-    days.forEach(day => {
+    
+    last7Days.forEach(day => {
         html += `<tr><td style="font-size:11px;color:var(--text-muted);">${day.slice(5)}</td>`;
         for (let i = 0; i < 4; i++) {
-            const vals = data.filter(d => {
-                const dt = new Date(d.timestamp);
-                return dt.toISOString().slice(0, 10) === day && dt.getHours() >= ranges[i] && dt.getHours() < ranges[i + 1];
-            }).map(d => d.suhu).filter(v => v > 0);
+            const vals = (days[day] || [])
+                .filter(d => d.hour >= ranges[i] && d.hour < ranges[i + 1])
+                .map(d => d.suhu)
+                .filter(v => v > 0);
             const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '-';
             let bg = 'rgba(100,116,139,0.2)', tc = '#94a3b8';
             if (avg !== '-') {
@@ -710,6 +705,9 @@ function updateHeatmap(data) {
     table.innerHTML = html;
 }
 
+// ============================================
+// HISTOGRAM
+// ============================================
 function updateHistogram(data) {
     const canvas = document.getElementById('histogramChart');
     if (!canvas) return;
@@ -1098,4 +1096,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (1 DATA PER JAM + FORCE UPDATE)');
+console.log('✅ analytics.js loaded (FINAL STABLE)');
