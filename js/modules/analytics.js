@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE FINAL (GRAFIK 24 DATA, TREN SEMUA DATA)
+// ANALYTICS: FINAL FIX (HEATMAP & TREN PAKE SEMUA DATA)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FINAL)');
+console.log('📊 analytics.js loaded (FINAL FIX)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -59,7 +59,6 @@ export function initCharts() {
     const isMobile = window.innerWidth < 768;
     const opts = getChartOptions();
 
-    // TEMP CHART
     const tEl = document.getElementById('tempChart');
     if (tEl) {
         const existing = Chart.getChart(tEl);
@@ -74,7 +73,6 @@ export function initCharts() {
         });
     }
 
-    // LIGHT CHART
     const lEl = document.getElementById('lightChart');
     if (lEl) {
         const existing = Chart.getChart(lEl);
@@ -89,7 +87,6 @@ export function initCharts() {
         });
     }
 
-    // LAMP STATUS CHART
     const lsEl = document.getElementById('lampStatusChart');
     if (lsEl) {
         const existing = Chart.getChart(lsEl);
@@ -109,7 +106,6 @@ export function initCharts() {
         });
     }
 
-    // DASHBOARD CHART
     const dEl = document.getElementById('dashTempChart');
     if (dEl) {
         const existing = Chart.getChart(dEl);
@@ -190,10 +186,10 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// LOAD CHART HISTORY (GRAFIK 24 DATA, TREN SEMUA DATA)
+// LOAD CHART HISTORY (FINAL FIX)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN SEMUA DATA');
+    console.log('📊 loadChartHistory - FINAL FIX');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -215,7 +211,7 @@ export async function loadChartHistory() {
             return;
         }
 
-        // ⭐ AMBIL 1 DATA PER JAM (hanya yang menit = 00)
+        // AMBIL 1 DATA PER JAM (hanya yang menit = 00)
         const hourlyKeys = keys.filter(key => {
             const parts = key.split('T');
             if (parts.length !== 2) return false;
@@ -232,7 +228,7 @@ export async function loadChartHistory() {
             return;
         }
 
-        // ⭐ BUAT SEMUA DATA PER JAM (UNTUK TREN & HEATMAP)
+        // BUAT SEMUA DATA PER JAM (UNTUK TREN & HEATMAP)
         const allHourlyData = [];
         hourlyKeys.forEach(key => {
             const entry = historyData[key];
@@ -264,14 +260,19 @@ export async function loadChartHistory() {
             }
         });
 
-        // ⭐ AMBIL 24 DATA TERAKHIR UNTUK GRAFIK
+        console.log(`📊 allHourlyData length: ${allHourlyData.length}`);
+
+        // AMBIL 24 DATA TERAKHIR UNTUK GRAFIK
         const last24Data = allHourlyData.slice(-24);
         console.log(`📊 Data untuk grafik: ${last24Data.length} (24 jam terakhir)`);
         console.log(`📊 Data untuk tren: ${allHourlyData.length} (semua data per jam)`);
 
-        // ⭐ APPLY CHART DATA (GRAFIK PAKE 24 DATA, TREN PAKE SEMUA DATA)
-        applyChartData(last24Data, allHourlyData);
-        console.log(`✅ Analytics chart loaded: ${last24Data.length} data (grafik), ${allHourlyData.length} data (tren)`);
+        // KALO allHourlyData KOSONG, PAKE last24Data
+        const trendData = allHourlyData.length > 0 ? allHourlyData : last24Data;
+
+        // APPLY CHART DATA (GRAFIK PAKE 24 DATA, TREN PAKE SEMUA DATA)
+        applyChartData(last24Data, trendData);
+        console.log(`✅ Analytics chart loaded: ${last24Data.length} data (grafik), ${trendData.length} data (tren)`);
     } catch (e) {
         console.error('❌ loadChartHistory error:', e);
         applyChartData([]);
@@ -279,7 +280,7 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (1 DATA PER JAM)
+// LOAD CHART HISTORY BY DATE
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
     console.log('📅 loadChartHistoryByDate:', dateStr);
@@ -466,12 +467,9 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// APPLY CHART DATA (GRAFIK PAKE CHARTDATA, TREN PAKE TRENDDATA)
+// APPLY CHART DATA (FINAL FIX)
 // ============================================
 export function applyChartData(chartData, trendData = null) {
-    // ⭐ chartData = 24 data untuk grafik
-    // ⭐ trendData = semua data per jam untuk tren & heatmap (kalo gak ada, pake chartData)
-    
     const dataForTrend = trendData || chartData;
     
     console.log(`📊 applyChartData: ${chartData?.length || 0} data (grafik), ${dataForTrend?.length || 0} data (tren)`);
@@ -525,7 +523,7 @@ export function applyChartData(chartData, trendData = null) {
         console.log('✅ lampStatusChart updated');
     }
 
-    // ⭐ TREN, HEATMAP, HISTOGRAM PAKE dataForTrend (SEMUA DATA PER JAM)
+    // TREN, HEATMAP, HISTOGRAM PAKE dataForTrend (SEMUA DATA PER JAM)
     updateStats(dataForTrend);
     updateCategoryStats(dataForTrend);
     updateLampStats(dataForTrend);
@@ -632,7 +630,7 @@ function updateLampStats(data) {
 }
 
 // ============================================
-// TREN 7 HARI (PAKE DATA YANG DITERIMA)
+// TREN 7 HARI
 // ============================================
 function updateTrend(data) {
     const container = document.getElementById('trendContainer');
@@ -662,7 +660,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (PAKE DATA YANG DITERIMA)
+// HEATMAP 7 HARI (FINAL FIX)
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -670,9 +668,10 @@ function updateHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        const day = new Date(d.timestamp).toISOString().slice(0, 10);
+        const date = new Date(d.timestamp);
+        const day = date.toISOString().slice(0, 10);
         if (!days[day]) days[day] = [];
-        days[day].push({ hour: new Date(d.timestamp).getHours(), suhu: d.suhu });
+        days[day].push({ hour: date.getHours(), suhu: d.suhu });
     });
     
     const sortedDays = Object.keys(days).sort().reverse();
@@ -707,7 +706,7 @@ function updateHeatmap(data) {
 }
 
 // ============================================
-// HISTOGRAM (PAKE DATA YANG DITERIMA)
+// HISTOGRAM
 // ============================================
 function updateHistogram(data) {
     const canvas = document.getElementById('histogramChart');
@@ -865,7 +864,7 @@ export async function loadDailyHistory() {
 }
 
 // ============================================
-// ⭐ FUNGSI LOAD DASHBOARD
+// FUNGSI LOAD DASHBOARD
 // ============================================
 export async function loadDashboard() {
     console.log('📊 loadDashboard - mulai');
@@ -897,7 +896,7 @@ export async function loadDashboard() {
 }
 
 // ============================================
-// ⭐ FUNGSI UNTUK APP.JS
+// FUNGSI UNTUK APP.JS
 // ============================================
 export async function loadDashHistory() {
     console.log('📊 loadDashHistory - mulai');
@@ -1097,4 +1096,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (FINAL)');
+console.log('✅ analytics.js loaded (FINAL FIX)');
