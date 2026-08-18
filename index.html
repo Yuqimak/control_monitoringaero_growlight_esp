@@ -142,7 +142,7 @@
             <p class="metric-status" id="dashLightStatus">🌤️ Sedang</p>
           </div>
 
-          <!-- Card 3: WAKTU OPERASIONAL + STATUS (GABUNG) -->
+          <!-- Card 3: WAKTU OPERASIONAL + STATUS (GABUNG) - FIX -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">⏱️</div>
@@ -154,7 +154,7 @@
             <div style="display:flex; gap:20px; justify-content:center; margin-top:4px;">
               <div style="text-align:center;">
                 <div style="font-size:28px; font-weight:700; color:#22c55e;">
-                  <span id="dashLampDuration">--</span> jam
+                  <span id="dashLampDuration">0.0</span> jam
                 </div>
                 <div style="font-size:11px; color:var(--text-muted);">⏱️ Durasi ON</div>
               </div>
@@ -666,20 +666,19 @@
       <span class="nav-label">Admin</span>
     </button>
   </nav>
-  
+
+  <!-- ============================================================ -->
+  <!--  FIX ELEMEN HILANG UNTUK CORE.JS                           -->
+  <span id="statTemp" hidden></span>
+  <span id="statTempStatus" hidden></span>
+  <span id="statLight" hidden></span>
+  <span id="statLightStatus" hidden></span>
+  <span id="statLamp" hidden></span>
+  <span id="statLampIcon" hidden></span>
+  <div id="statLightProgress" hidden></div>
+  <div id="dashLampStatus" hidden></div>
+  <span id="currentModeDisplay" hidden></span>
 
   <script type="module" src="js/app.js?v=312"></script>
-  <!-- ============================================================ -->
-<!-- ⭐ ELEMEN TERSEMBUNYI UNTUK FIX ERROR CORE.JS                -->
-<!-- ============================================================ -->
-<span id="statTemp" hidden></span>
-<span id="statTempStatus" hidden></span>
-<span id="statLight" hidden></span>
-<span id="statLightStatus" hidden></span>
-<span id="statLamp" hidden></span>
-<span id="statLampIcon" hidden></span>
-<div id="statLightProgress" hidden></div>
-<div id="dashLampStatus" hidden></div>
-<span id="currentModeDisplay" hidden></span>
 </body>
 </html>
