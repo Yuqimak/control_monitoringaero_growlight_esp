@@ -1,6 +1,6 @@
 // ============================================
 // ESP32 - SIGMA GROWLIGHT (INDOOR FARMING)
-// REVISI FINAL: Logika accumulated + Timestamp Manusia
+// REVISI FINAL: Format History per Timestamp
 // ============================================
 
 #include <WiFi.h>
@@ -73,6 +73,7 @@ bool lcdPage = false;
 
 // ===================================
 // FUNGSI BANTU - TIMESTAMP MANUSIA
+// ===================================
 String getHumanTimestamp(DateTime now) {
   char buffer[25];
   sprintf(buffer, "%04d-%02d-%02d %02d:%02d:%02d",
@@ -94,6 +95,7 @@ String getDateString(DateTime now) {
 
 // ============================================
 // BACA KONFIGURASI DARI FIREBASE (10 DETIK)
+// ============================================
 void bacaKonfigurasi() {
   HTTPClient http;
   http.setTimeout(3000);
@@ -194,7 +196,8 @@ void bacaKonfigurasi() {
 }
 
 // ============================================
-//  KIRIM SENSOR - DENGAN TIMESTAMP MANUSIA
+// KIRIM SENSOR - DENGAN TIMESTAMP MANUSIA
+// ============================================
 void kirimSensor() {
   HTTPClient http;
   DateTime now = rtc.now();
@@ -217,6 +220,7 @@ void kirimSensor() {
 
 // ============================================
 // KIRIM STATE - DENGAN RETRY
+// ============================================
 void kirimState() {
   HTTPClient http;
   bool success = false;
@@ -252,53 +256,73 @@ void kirimState() {
 }
 
 // ============================================
-// KIRIM HISTORY SENSOR - DENGAN TIMESTAMP MANUSIA
+// KIRIM HISTORY SENSOR - FORMAT PER TIMESTAMP
+// ============================================
 void kirimHistory() {
   HTTPClient http;
   DateTime now = rtc.now();
   String timestamp = getTimestamp(now);
 
-  // History suhu
-  String historyPayload = "{\"" + timestamp + "\":{\"value\":" + String(suhu) + ",\"timestamp\":\"" + timestamp + "\"}}";
-  String url = String(FIREBASE_HOST) + "/sensor_history/suhu.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PATCH(historyPayload);
-  http.end();
+  // Buat payload 1 node lengkap per timestamp
+  String payload = "{";
+  payload += "\"" + timestamp + "\":{";
+  payload += "\"cahaya\":{\"timestamp\":\"" + timestamp + "\",\"value\":" + String((int)lux) + "},";
+  payload += "\"kelembapan\":{\"timestamp\":\"" + timestamp + "\",\"value\":" + String(hum, 1) + "},";
+  payload += "\"lampu\":{\"state\":" + String(lampState ? "true" : "false") + ",\"timestamp\":\"" + timestamp + "\"},";
+  payload += "\"suhu\":{\"timestamp\":\"" + timestamp + "\",\"value\":" + String(suhu, 1) + "}";
+  payload += "}}";
 
-  // History kelembapan
-  historyPayload = "{\"" + timestamp + "\":{\"value\":" + String(hum) + ",\"timestamp\":\"" + timestamp + "\"}}";
-  url = String(FIREBASE_HOST) + "/sensor_history/kelembapan.json";
+  // Kirim PATCH ke /sensor_history.json
+  String url = String(FIREBASE_HOST) + "/sensor_history.json";
   http.begin(url);
-  http.setTimeout(2000);
+  http.setTimeout(3000);
   http.addHeader("Content-Type", "application/json");
-  http.PATCH(historyPayload);
-  http.end();
+  int code = http.PATCH(payload);
 
-  // History cahaya
-  historyPayload = "{\"" + timestamp + "\":{\"value\":" + String((int)lux) + ",\"timestamp\":\"" + timestamp + "\"}}";
-  url = String(FIREBASE_HOST) + "/sensor_history/cahaya.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PATCH(historyPayload);
+  if (code == 200) {
+    Serial.println("[✓] History terkirim (format per timestamp)");
+  } else {
+    Serial.print("[✗] Gagal kirim history. HTTP: ");
+    Serial.println(code);
+  }
   http.end();
-
-  // History lampu
-  historyPayload = "{\"" + timestamp + "\":{\"state\":" + String(lampState ? "true" : "false") + ",\"timestamp\":\"" + timestamp + "\"}}";
-  url = String(FIREBASE_HOST) + "/sensor_history/lampu.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PATCH(historyPayload);
-  http.end();
-
-  Serial.println("[✓] History sensor terkirim");
 }
 
 // ============================================
-//  KIRIM DAILY HISTORY - DENGAN TIMESTAMP MANUSIA
+// KIRIM HISTORY LAMPU SAAT BERUBAH
+// ============================================
+void kirimHistoryLampu(bool state) {
+  HTTPClient http;
+  DateTime now = rtc.now();
+  String timestamp = getTimestamp(now);
+
+  // Baca sensor terakhir (suhu, hum, lux) dari variabel global
+  String payload = "{";
+  payload += "\"" + timestamp + "\":{";
+  payload += "\"cahaya\":{\"timestamp\":\"" + timestamp + "\",\"value\":" + String((int)lux) + "},";
+  payload += "\"kelembapan\":{\"timestamp\":\"" + timestamp + "\",\"value\":" + String(hum, 1) + "},";
+  payload += "\"lampu\":{\"state\":" + String(state ? "true" : "false") + ",\"timestamp\":\"" + timestamp + "\"},";
+  payload += "\"suhu\":{\"timestamp\":\"" + timestamp + "\",\"value\":" + String(suhu, 1) + "}";
+  payload += "}}";
+
+  String url = String(FIREBASE_HOST) + "/sensor_history.json";
+  http.begin(url);
+  http.setTimeout(3000);
+  http.addHeader("Content-Type", "application/json");
+  int code = http.PATCH(payload);
+
+  if (code == 200) {
+    Serial.println("[✓] History lampu terkirim (format per timestamp)");
+  } else {
+    Serial.print("[✗] Gagal kirim history lampu. HTTP: ");
+    Serial.println(code);
+  }
+  http.end();
+}
+
+// ============================================
+// KIRIM DAILY HISTORY - DENGAN TIMESTAMP MANUSIA
+// ============================================
 void kirimDailyHistory() {
   HTTPClient http;
   DateTime now = rtc.now();
@@ -310,9 +334,9 @@ void kirimDailyHistory() {
   if (accumulatedLight >= totalLightNeeded) {
     status = "✅ Cukup";
   } else if (accumulatedLight >= totalLightNeeded * 0.5) {
-    status = " Sedang";
+    status = "🟡 Sedang";
   } else if (accumulatedLight > 0) {
-    status = " Kurang";
+    status = "🔴 Kurang";
   }
 
   String payload = "{";
@@ -333,7 +357,8 @@ void kirimDailyHistory() {
 }
 
 // ============================================
-//  CEK PERGANTIAN HARI (RESET ACCUMULATED)
+// CEK PERGANTIAN HARI (RESET ACCUMULATED)
+// ============================================
 bool cekGantiHari() {
   DateTime now = rtc.now();
   String today = getDateString(now);
@@ -350,22 +375,8 @@ bool cekGantiHari() {
 }
 
 // ============================================
-// KIRIM HISTORY LAMPU SAAT BERUBAH
-void kirimHistoryLampu(bool state) {
-  HTTPClient http;
-  DateTime now = rtc.now();
-  String timestamp = getTimestamp(now);
-  String historyPayload = "{\"" + timestamp + "\":{\"state\":" + String(state ? "true" : "false") + ",\"timestamp\":\"" + timestamp + "\"}}";
-  String url = String(FIREBASE_HOST) + "/sensor_history/lampu.json";
-  http.begin(url);
-  http.setTimeout(2000);
-  http.addHeader("Content-Type", "application/json");
-  http.PATCH(historyPayload);
-  http.end();
-}
-
+// KONTROL LAMPU
 // ============================================
-//  KONTROL LAMPU - FIX
 void kontrolLampu() {
   // 1. BACA SENSOR
   suhu = dht.readTemperature();
@@ -440,6 +451,7 @@ void kontrolLampu() {
 
 // ============================================
 // UPDATE LCD
+// ============================================
 void updateLCD() {
   DateTime now = rtc.now();
   lcd.clear();
