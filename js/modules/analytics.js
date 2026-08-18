@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: 1 DATA PER JAM (HEMAT BANDWIDTH)
+// ANALYTICS: 1 DATA PER JAM (HEMAT BANDWIDTH) + FORCE UPDATE
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (1 DATA PER JAM)');
+console.log('📊 analytics.js loaded (1 DATA PER JAM + FORCE UPDATE)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -53,7 +53,7 @@ function getChartOptions() {
 // INIT CHARTS
 // ============================================
 export function initCharts() {
-    console.log('📊 initCharts');
+    console.log('📊 initCharts - FORCE RECREATE');
     if (typeof Chart === 'undefined') { setTimeout(() => initCharts(), 500); return; }
 
     const isMobile = window.innerWidth < 768;
@@ -72,6 +72,9 @@ export function initCharts() {
             },
             options: opts
         });
+        console.log('✅ tempChart recreated');
+    } else {
+        console.warn('⚠️ Element #tempChart not found!');
     }
 
     // LIGHT CHART
@@ -87,6 +90,9 @@ export function initCharts() {
             },
             options: opts
         });
+        console.log('✅ lightChart recreated');
+    } else {
+        console.warn('⚠️ Element #lightChart not found!');
     }
 
     // LAMP STATUS CHART
@@ -107,6 +113,9 @@ export function initCharts() {
                 }
             }
         });
+        console.log('✅ lampStatusChart recreated');
+    } else {
+        console.warn('⚠️ Element #lampStatusChart not found!');
     }
 
     // DASHBOARD CHART
@@ -119,6 +128,9 @@ export function initCharts() {
             data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
         });
+        console.log('✅ dashTempChart recreated');
+    } else {
+        console.warn('⚠️ Element #dashTempChart not found!');
     }
     console.log('✅ All charts initialized');
 }
@@ -195,7 +207,6 @@ function parseKeyToTimestamp(key) {
 export async function loadChartHistory() {
     console.log('📊 loadChartHistory - 1 DATA PER JAM (HEMAT BANDWIDTH)');
     
-    // Hapus cache
     localStorage.removeItem(CACHE_KEY);
     
     try {
@@ -223,7 +234,7 @@ export async function loadChartHistory() {
             const timePart = parts[1].split('-');
             if (timePart.length < 2) return false;
             const minute = parseInt(timePart[1]);
-            return minute === 0; // hanya jam 00:00, 01:00, 02:00, dst
+            return minute === 0;
         });
 
         console.log(`📊 Data per jam: ${hourlyKeys.length}`);
@@ -275,7 +286,6 @@ export async function loadChartHistory() {
             return;
         }
 
-        // ⭐ LANGSUNG PAKE DATA PER JAM (GAK PERLU REDUCE)
         applyChartData(validData);
         console.log(`✅ Analytics chart loaded: ${validData.length} data (per jam)`);
     } catch (e) {
@@ -298,7 +308,6 @@ export async function loadChartHistoryByDate(dateStr) {
             return;
         }
 
-        // Filter data berdasarkan tanggal
         const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
         
         if (keys.length === 0) {
@@ -306,7 +315,6 @@ export async function loadChartHistoryByDate(dateStr) {
             return;
         }
 
-        // ⭐ AMBIL 1 DATA PER JAM (hanya yang menit = 00)
         const hourlyKeys = keys.filter(key => {
             const parts = key.split('T');
             if (parts.length !== 2) return false;
@@ -452,7 +460,7 @@ export async function loadDashChartHistory() {
 }
 
 // ============================================
-// REDUCE TO HOURLY (MASIH DIPERLUIN BUAT FALLBACK)
+// REDUCE TO HOURLY (FALLBACK)
 // ============================================
 function reduceToHourly(data, totalPoints) {
     if (data.length === 0) return [];
@@ -474,7 +482,7 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// APPLY CHART DATA
+// APPLY CHART DATA (FORCE UPDATE)
 // ============================================
 export function applyChartData(hourlyData) {
     console.log(`📊 applyChartData: ${hourlyData?.length || 0} data`);
@@ -505,9 +513,34 @@ export function applyChartData(hourlyData) {
         }
     });
 
-    if (tempChart) tempChart.update('none');
-    if (lightChart) lightChart.update('none');
-    if (lampStatusChart) lampStatusChart.update('none');
+    console.log('📊 tempLabels:', tempLabels.slice(0, 5));
+    console.log('📊 tempData:', tempData.slice(0, 5));
+
+    // ⭐ FORCE UPDATE
+    if (tempChart) {
+        tempChart.data.labels = tempLabels;
+        tempChart.data.datasets[0].data = tempData;
+        tempChart.update();
+        console.log('✅ tempChart updated');
+    } else {
+        console.warn('⚠️ tempChart is null!');
+    }
+    
+    if (lightChart) {
+        lightChart.data.labels = lightLabels;
+        lightChart.data.datasets[0].data = sensorData;
+        lightChart.update();
+        console.log('✅ lightChart updated');
+    } else {
+        console.warn('⚠️ lightChart is null!');
+    }
+    
+    if (lampStatusChart) {
+        lampStatusChart.update();
+        console.log('✅ lampStatusChart updated');
+    } else {
+        console.warn('⚠️ lampStatusChart is null!');
+    }
 
     updateStats(hourlyData);
     updateCategoryStats(hourlyData);
@@ -529,7 +562,7 @@ export function updateAllCharts() {
 }
 
 // ============================================
-// STATS FUNCTIONS
+// STATS FUNCTIONS (SAMA KAYAK SEBELUMNYA, TETAP)
 // ============================================
 function updateStats(data) {
     const temps = data.map(d => d.suhu).filter(v => v > 0);
@@ -1056,7 +1089,6 @@ export function updateDashboardChart(suhu, hum, timestamp) {
     } catch (e) {}
 }
 
-// ⭐ RESET CACHE (DIPANGGIL TOMBOL RESET)
 export function resetAnalyticsCache() {
     localStorage.removeItem(CACHE_KEY);
     console.log('🗑️ Cache analytics dihapus!');
@@ -1066,4 +1098,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (1 DATA PER JAM)');
+console.log('✅ analytics.js loaded (1 DATA PER JAM + FORCE UPDATE)');
