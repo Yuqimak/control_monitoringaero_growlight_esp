@@ -248,15 +248,16 @@
       </section>
 
       <!-- ============================================================ -->
-      <!-- MONITORING (TIDAK DIUBAH)                                     -->
+      <!-- MONITORING (V2 - LEBIH RINGKAS & FOKUS)                      -->
       <!-- ============================================================ -->
       <section class="section page-section hidden" id="monitoring">
         <h2 class="section-title green">🌱 MONITORING</h2>
 
         <div class="monitor-grid">
+          <!-- Card 1: SUHU -->
           <div class="monitor-card">
             <div class="card-head">
-              <div class="card-icon green-box">🌡</div>
+              <div class="card-icon green-box">🌡️</div>
               <div>
                 <h3>Suhu</h3>
                 <p class="card-sub">Temperature</p>
@@ -264,10 +265,9 @@
             </div>
             <div class="metric"><span id="monitorTemp">--</span>°C</div>
             <p class="metric-status" id="tempStatus">🌤️ Normal</p>
-            <canvas id="tempMiniChart" style="height:50px; width:100%; margin-top:6px;"></canvas>
           </div>
 
-          <!-- Card Kelembapan (BARU) -->
+          <!-- Card 2: KELEMBAPAN -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon blue-box">💧</div>
@@ -280,6 +280,7 @@
             <p class="metric-status" id="humidityStatus">🌤️ Normal</p>
           </div>
 
+          <!-- Card 3: INTENSITAS CAHAYA -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon yellow-box">💡</div>
@@ -292,6 +293,7 @@
             <p class="metric-status" id="lightStatus">🌤️ Sedang</p>
           </div>
 
+          <!-- Card 4: STATUS LAMPU + WAKTU OPERASIONAL (GABUNG) -->
           <div class="monitor-card">
             <div class="card-head">
               <div class="card-icon purple-box">💡</div>
@@ -302,103 +304,50 @@
             </div>
             <div class="metric green-text" id="monitorLampStatus">OFF</div>
             <p class="metric-status" id="lampStatusText">⛔ Lampu Mati</p>
+            <div style="margin-top:6px; font-size:12px; color:var(--text-muted); border-top:1px solid rgba(255,255,255,0.05); padding-top:6px;">
+              <span>⏱️ ON: <span id="lampOnTime" style="color:#22c55e; font-weight:600;">0.0</span> jam</span>
+              <span style="margin-left:12px;">📊 Progress: <span id="monitorProgress" style="color:#f59e0b; font-weight:600;">0%</span></span>
+            </div>
           </div>
         </div>
 
-        <div class="monitor-grid" style="margin-top:16px;">
-          <!-- Gauge -->
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon orange-box">☀️</div>
-              <div>
-                <h3>Pemenuhan Cahaya</h3>
-                <p class="card-sub">Progress hari ini</p>
-              </div>
-            </div>
-            <div style="position:relative; width:130px; height:130px; margin:0 auto;">
-              <canvas id="gaugeChart" style="width:100%; height:100%;"></canvas>
-              <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
-                <div id="gaugeProgress" style="font-size:24px; font-weight:700; color:#22c55e;">0%</div>
-                <div style="font-size:10px; color:var(--text-muted);">dari 12 jam</div>
-              </div>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-muted); flex-wrap:wrap;">
-              <span>💡 Growlight: <span id="gaugeSunlight" style="color:var(--green); font-weight:600;">0</span> jam</span>
-              <span>📊 Total: <span id="gaugeGrowlight" style="color:var(--blue); font-weight:600;">0</span> jam</span>
+        <!-- KATEGORI SUHU (FULL WIDTH) -->
+        <div class="monitor-card" style="margin-top:16px;">
+          <div class="card-head">
+            <div class="card-icon orange-box">📊</div>
+            <div>
+              <h3>Kategori Suhu Hari Ini</h3>
+              <p class="card-sub">Distribusi suhu</p>
             </div>
           </div>
-
-          <!-- Kategori Suhu -->
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon green-box">🌡️</div>
-              <div>
-                <h3>Kategori Suhu Hari Ini</h3>
-                <p class="card-sub">Distribusi suhu</p>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span style="color:#3b82f6; font-size:11px;">❄️ Dingin</span>
+              <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                <div id="coldBar" style="height:100%; width:0%; background:#3b82f6; border-radius:999px;"></div>
               </div>
+              <span id="coldPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
             </div>
-            <div id="categoryContainer" style="margin-top:6px;">
-              <div style="display:flex; gap:6px; align-items:center; margin-bottom:3px;">
-                <span style="color:#3b82f6; font-size:11px;">❄️ Dingin</span>
-                <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                  <div id="coldBar" style="height:100%; width:0%; background:#3b82f6; border-radius:999px;"></div>
-                </div>
-                <span id="coldPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span style="color:#22c55e; font-size:11px;">🌤️ Normal</span>
+              <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                <div id="normalBar" style="height:100%; width:0%; background:#22c55e; border-radius:999px;"></div>
               </div>
-              <div style="display:flex; gap:6px; align-items:center; margin-bottom:3px;">
-                <span style="color:#22c55e; font-size:11px;">🌤️ Normal</span>
-                <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                  <div id="normalBar" style="height:100%; width:0%; background:#22c55e; border-radius:999px;"></div>
-                </div>
-                <span id="normalPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
-              </div>
-              <div style="display:flex; gap:6px; align-items:center; margin-bottom:3px;">
-                <span style="color:#f59e0b; font-size:11px;">🔥 Hangat</span>
-                <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                  <div id="warmBar" style="height:100%; width:0%; background:#f59e0b; border-radius:999px;"></div>
-                </div>
-                <span id="warmPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
-              </div>
-              <div style="display:flex; gap:6px; align-items:center; margin-bottom:3px;">
-                <span style="color:#ef4444; font-size:11px;">🔥 Panas</span>
-                <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
-                  <div id="hotBar" style="height:100%; width:0%; background:#ef4444; border-radius:999px;"></div>
-                </div>
-                <span id="hotPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
-              </div>
+              <span id="normalPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
             </div>
-          </div>
-
-          <!-- Waktu Operasional -->
-          <div class="monitor-card">
-            <div class="card-head">
-              <div class="card-icon purple-box">💡</div>
-              <div>
-                <h3>Waktu Operasional Lampu</h3>
-                <p class="card-sub">ON / OFF hari ini</p>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span style="color:#f59e0b; font-size:11px;">🔥 Hangat</span>
+              <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                <div id="warmBar" style="height:100%; width:0%; background:#f59e0b; border-radius:999px;"></div>
               </div>
+              <span id="warmPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
             </div>
-            <div style="margin-top:6px;">
-              <div style="display:flex; justify-content:space-between; font-size:12px; flex-wrap:wrap;">
-                <span style="color:var(--text-muted);">Total ON</span>
-                <span id="lampOnTime" style="font-weight:600; color:#22c55e;">0.0 jam</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <span style="color:#ef4444; font-size:11px;">🔥 Panas</span>
+              <div style="flex:1; height:5px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden;">
+                <div id="hotBar" style="height:100%; width:0%; background:#ef4444; border-radius:999px;"></div>
               </div>
-              <div style="display:flex; justify-content:space-between; font-size:12px; margin-top:2px; flex-wrap:wrap;">
-                <span style="color:var(--text-muted);">Total OFF</span>
-                <span id="lampOffTime" style="font-weight:600; color:#ef4444;">0.0 jam</span>
-              </div>
-              <div style="margin-top:6px;">
-                <div style="display:flex; gap:4px; align-items:center;">
-                  <div style="flex:1; height:8px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; display:flex;">
-                    <div id="lampOnBar" style="height:100%; width:50%; background:#22c55e; border-radius:999px 0 0 999px;"></div>
-                    <div id="lampOffBar" style="height:100%; width:50%; background:#ef4444; border-radius:0 999px 999px 0;"></div>
-                  </div>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-muted); margin-top:2px;">
-                  <span id="onPercent">ON: 0%</span>
-                  <span id="offPercent">OFF: 0%</span>
-                </div>
-              </div>
+              <span id="hotPercent" style="font-size:10px; color:var(--text-muted);">0%</span>
             </div>
           </div>
         </div>
@@ -668,7 +617,8 @@
   </nav>
 
   <!-- ============================================================ -->
-  <!--  FIX ELEMEN HILANG UNTUK CORE.JS                           -->
+  <!-- ⭐ FIX ELEMEN HILANG UNTUK CORE.JS                           -->
+  <!-- ============================================================ -->
   <span id="statTemp" hidden></span>
   <span id="statTempStatus" hidden></span>
   <span id="statLight" hidden></span>
