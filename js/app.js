@@ -113,7 +113,7 @@ function parseFirebaseKeyToTimestamp(key) {
 // ============================================
 const Dashboard = {
     updateCards(temp, lux, lampState, humidity) {
-        requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
             // 1. SUHU
             const tempVal = document.getElementById('dashTempValue');
             const tempStatus = document.getElementById('dashTempStatus');
@@ -147,11 +147,25 @@ const Dashboard = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // 4. WAKTU OPERASIONAL LAMPU
+            // 4. WAKTU OPERASIONAL LAMPU - FIX (AMBIL DARI DAILY_HISTORY)
             const lampDuration = document.getElementById('dashLampDuration');
             const lampText = document.getElementById('dashLampStatusText');
-            const accumulatedLight = state.accumulatedLight || 0;
+            
+            let accumulatedLight = state.accumulatedLight || 0;
+            
+            // Kalo state kosong, ambil dari daily_history
+            if (accumulatedLight === 0) {
+                try {
+                    const today = getTodayKey();
+                    const snap = await get(ref(db, `daily_history/${today}/growlight`));
+                    if (snap.exists()) {
+                        accumulatedLight = snap.val() || 0;
+                    }
+                } catch (e) {}
+            }
+            
             if (lampDuration) lampDuration.textContent = accumulatedLight.toFixed(1);
+            
             const statusText = lampState ? 'ON' : 'OFF';
             const statusColor = lampState ? '#22c55e' : '#ef4444';
             const statusLabel = lampState ? '💡 Lampu Menyala' : '⛔ Lampu Mati';
