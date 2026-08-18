@@ -1,15 +1,14 @@
 // ============================================
-// ANALYTICS: VERSION FINAL STABLE
+// ANALYTICS: FORCE LOAD FROM FIREBASE (NO CACHE)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
-import { ref, get, query, orderByKey, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FINAL STABLE)');
+console.log('📊 analytics.js loaded (NO CACHE MODE)');
 
 const MAX_POINTS = 96;
-const CACHE_DURATION = 60 * 60 * 1000;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
 
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
@@ -110,41 +109,15 @@ export function initCharts() {
         });
     }
 
-    // DASHBOARD CHART (dashTempChart)
+    // DASHBOARD CHART
     const dEl = document.getElementById('dashTempChart');
     if (dEl) {
         const existing = Chart.getChart(dEl);
         if (existing) existing.destroy();
         dashTempChart = new Chart(dEl, {
             type: 'line',
-            data: {
-                labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'],
-                datasets: [
-                    {
-                        label: 'Suhu (°C)',
-                        data: dashTempData.length > 0 ? dashTempData : [0],
-                        borderColor: '#22c55e',
-                        backgroundColor: 'rgba(34,197,94,0.15)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: isMobile ? 2 : 3,
-                        yAxisID: 'y'
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { callbacks: { label: (ctx) => ctx.parsed.y !== null ? ctx.parsed.y.toFixed(1) + '°C' : '--' } }
-                },
-                scales: {
-                    x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
-                }
-            }
+            data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
         });
     }
     console.log('✅ All charts initialized');
@@ -217,24 +190,14 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// LOAD CHART HISTORY (ANALYTICS)
+// LOAD CHART HISTORY (FORCE FROM FIREBASE)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - STRUKTUR FLEKSIBEL');
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-        try {
-            const parsed = JSON.parse(cached);
-            if (Date.now() - parsed.timestamp < CACHE_DURATION) {
-                if (parsed.data && parsed.data.length > 0) {
-                    console.log('📦 Pakai cache');
-                    applyChartData(parsed.data);
-                    return;
-                }
-            }
-        } catch (e) {}
-    }
-
+    console.log('📊 loadChartHistory - FORCE FROM FIREBASE (NO CACHE)');
+    
+    // ⭐ HAPUS CACHE DULU
+    localStorage.removeItem(CACHE_KEY);
+    
     try {
         const snapshot = await get(ref(db, 'sensor_history'));
         const historyData = snapshot.val();
@@ -295,7 +258,6 @@ export async function loadChartHistory() {
         }
 
         const chartData = reduceToHourly(validData, 24);
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: chartData }));
         applyChartData(chartData);
         console.log(`✅ Analytics chart loaded: ${chartData.length} data`);
     } catch (e) {
@@ -305,11 +267,11 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD DASHBOARD CHART HISTORY (FLEKSIBEL)
+// LOAD DASHBOARD CHART HISTORY
 // ============================================
 export async function loadDashChartHistory() {
     try {
-        console.log('📊 loadDashChartHistory - STRUKTUR FLEKSIBEL');
+        console.log('📊 loadDashChartHistory');
         let chart = dashTempChart;
         const canvas = document.getElementById('dashTempChart');
         if (!canvas) { console.warn('⚠️ Canvas not found'); return; }
@@ -427,7 +389,7 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// APPLY CHART DATA (EXPORTED)
+// APPLY CHART DATA
 // ============================================
 export function applyChartData(hourlyData) {
     console.log(`📊 applyChartData: ${hourlyData?.length || 0} data`);
@@ -833,7 +795,7 @@ export async function loadDailyHistory() {
 }
 
 // ============================================
-// ⭐ FUNGSI LOAD DASHBOARD (DIPANGGIL APP.JS)
+// ⭐ FUNGSI LOAD DASHBOARD
 // ============================================
 export async function loadDashboard() {
     console.log('📊 loadDashboard - mulai');
@@ -865,10 +827,8 @@ export async function loadDashboard() {
 }
 
 // ============================================
-// ⭐ FUNGSI UNTUK APP.JS (loadDashHistory & updateDashboardChart)
+// ⭐ FUNGSI UNTUK APP.JS
 // ============================================
-
-// 1. loadDashHistory - buat dashboard chart history
 export async function loadDashHistory() {
     console.log('📊 loadDashHistory - mulai');
     try {
@@ -1028,7 +988,6 @@ export async function loadDashHistory() {
     }
 }
 
-// 2. updateDashboardChart - update chart realtime
 export function updateDashboardChart(suhu, hum, timestamp) {
     try {
         if (!dashTempChart) return;
@@ -1056,9 +1015,18 @@ export function updateDashboardChart(suhu, hum, timestamp) {
         dashTempChart.data.datasets[0].data = suhuData;
         dashTempChart.data.datasets[1].data = humData;
         dashTempChart.update('none');
-    } catch (e) {
-        // Silent fail
-    }
+    } catch (e) {}
 }
 
-console.log('✅ analytics.js loaded (FINAL STABLE)');
+// ⭐ RESET CACHE (DIPANGGIL TOMBOL RESET)
+export function resetAnalyticsCache() {
+    localStorage.removeItem(CACHE_KEY);
+    console.log('🗑️ Cache analytics dihapus!');
+    showToast('🗑️ Cache dihapus, reload halaman...', 'info');
+    setTimeout(() => location.reload(), 500);
+}
+
+// ⭐ EXPOSE KE WINDOW BIAR BISA DIPANGGIL DARI HTML
+window.resetAnalyticsCache = resetAnalyticsCache;
+
+console.log('✅ analytics.js loaded (NO CACHE MODE)');
