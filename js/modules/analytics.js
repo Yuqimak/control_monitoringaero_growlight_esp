@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: 1 DATA PER JAM (24 DATA TERAKHIR) + TREN DINAMIS
+// ANALYTICS: FULL CODE FINAL
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FINAL STABLE)');
+console.log('📊 analytics.js loaded (FINAL)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -488,6 +488,12 @@ export function applyChartData(hourlyData) {
         if (tempChart) tempChart.update();
         if (lightChart) lightChart.update();
         if (lampStatusChart) lampStatusChart.update();
+        updateStats(hourlyData);
+        updateCategoryStats(hourlyData);
+        updateLampStats(hourlyData);
+        updateTrend(hourlyData);
+        updateHeatmap(hourlyData);
+        updateHistogram(hourlyData);
         return;
     }
 
@@ -503,28 +509,24 @@ export function applyChartData(hourlyData) {
         }
     });
 
-    console.log('📊 tempLabels (5 data pertama):', tempLabels.slice(0, 5));
-    console.log('📊 tempData (5 data pertama):', tempData.slice(0, 5));
-
     if (tempChart) {
         tempChart.data.labels = tempLabels;
         tempChart.data.datasets[0].data = tempData;
         tempChart.update();
         console.log('✅ tempChart updated');
     }
-    
     if (lightChart) {
         lightChart.data.labels = lightLabels;
         lightChart.data.datasets[0].data = sensorData;
         lightChart.update();
         console.log('✅ lightChart updated');
     }
-    
     if (lampStatusChart) {
         lampStatusChart.update();
         console.log('✅ lampStatusChart updated');
     }
 
+    // ⭐ PAKE hourlyData UNTUK SEMUA
     updateStats(hourlyData);
     updateCategoryStats(hourlyData);
     updateLampStats(hourlyData);
@@ -631,7 +633,7 @@ function updateLampStats(data) {
 }
 
 // ============================================
-// TREN 7 HARI (AMBIL DARI DATA TERAKHIR DI DB)
+// TREN 7 HARI (PAKE hourlyData)
 // ============================================
 function updateTrend(data) {
     const container = document.getElementById('trendContainer');
@@ -661,7 +663,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (AMBIL DARI DATA TERAKHIR DI DB)
+// HEATMAP 7 HARI (PAKE hourlyData)
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -706,7 +708,7 @@ function updateHeatmap(data) {
 }
 
 // ============================================
-// HISTOGRAM
+// HISTOGRAM (PAKE hourlyData)
 // ============================================
 function updateHistogram(data) {
     const canvas = document.getElementById('histogramChart');
@@ -1096,4 +1098,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (FINAL STABLE)');
+console.log('✅ analytics.js loaded (FINAL)');
