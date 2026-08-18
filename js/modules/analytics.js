@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FORCE LOAD FROM FIREBASE (NO CACHE)
+// ANALYTICS: 1 DATA PER JAM (HEMAT BANDWIDTH)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (NO CACHE MODE)');
+console.log('📊 analytics.js loaded (1 DATA PER JAM)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -190,12 +190,12 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// LOAD CHART HISTORY (FORCE FROM FIREBASE)
+// LOAD CHART HISTORY (1 DATA PER JAM - HEMAT BANDWIDTH)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - FORCE FROM FIREBASE (NO CACHE)');
+    console.log('📊 loadChartHistory - 1 DATA PER JAM (HEMAT BANDWIDTH)');
     
-    // ⭐ HAPUS CACHE DULU
+    // Hapus cache
     localStorage.removeItem(CACHE_KEY);
     
     try {
@@ -209,17 +209,35 @@ export async function loadChartHistory() {
         }
 
         const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
-        console.log(`📊 Total data: ${keys.length}`);
+        console.log(`📊 Total data di DB: ${keys.length}`);
 
         if (keys.length === 0) {
             applyChartData([]);
             return;
         }
 
-        const last100Keys = keys.slice(-100);
+        // ⭐ AMBIL 1 DATA PER JAM (hanya yang menit = 00)
+        const hourlyKeys = keys.filter(key => {
+            const parts = key.split('T');
+            if (parts.length !== 2) return false;
+            const timePart = parts[1].split('-');
+            if (timePart.length < 2) return false;
+            const minute = parseInt(timePart[1]);
+            return minute === 0; // hanya jam 00:00, 01:00, 02:00, dst
+        });
+
+        console.log(`📊 Data per jam: ${hourlyKeys.length}`);
+
+        if (hourlyKeys.length === 0) {
+            applyChartData([]);
+            return;
+        }
+
+        // Ambil 100 data terakhir dari hasil filter
+        const lastKeys = hourlyKeys.slice(-100);
         const rawData = [];
 
-        last100Keys.forEach(key => {
+        lastKeys.forEach(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = 0;
 
@@ -257,12 +275,79 @@ export async function loadChartHistory() {
             return;
         }
 
-        const chartData = reduceToHourly(validData, 24);
-        applyChartData(chartData);
-        console.log(`✅ Analytics chart loaded: ${chartData.length} data`);
+        // ⭐ LANGSUNG PAKE DATA PER JAM (GAK PERLU REDUCE)
+        applyChartData(validData);
+        console.log(`✅ Analytics chart loaded: ${validData.length} data (per jam)`);
     } catch (e) {
         console.error('❌ loadChartHistory error:', e);
         applyChartData([]);
+    }
+}
+
+// ============================================
+// LOAD CHART HISTORY BY DATE (1 DATA PER JAM)
+// ============================================
+export async function loadChartHistoryByDate(dateStr) {
+    console.log('📅 loadChartHistoryByDate:', dateStr);
+    try {
+        if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
+        const snapshot = await get(ref(db, 'sensor_history'));
+        const historyData = snapshot.val();
+        if (!historyData) {
+            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
+            return;
+        }
+
+        // Filter data berdasarkan tanggal
+        const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
+        
+        if (keys.length === 0) {
+            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
+            return;
+        }
+
+        // ⭐ AMBIL 1 DATA PER JAM (hanya yang menit = 00)
+        const hourlyKeys = keys.filter(key => {
+            const parts = key.split('T');
+            if (parts.length !== 2) return false;
+            const timePart = parts[1].split('-');
+            if (timePart.length < 2) return false;
+            const minute = parseInt(timePart[1]);
+            return minute === 0;
+        });
+
+        if (hourlyKeys.length === 0) {
+            showToast(`⚠️ Tidak ada data per jam untuk ${dateStr}`, 'warning');
+            return;
+        }
+
+        const rawData = hourlyKeys.map(key => {
+            const entry = historyData[key];
+            let suhu = 0, cahaya = 0, lampu = 0;
+
+            if (entry.suhu) {
+                suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                        break;
+                    }
+                }
+            }
+            if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+            if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+
+            const timestamp = parseKeyToTimestamp(key);
+            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
+        });
+
+        applyChartData(rawData);
+        showToast(`✅ Menampilkan ${rawData.length} data per jam untuk ${dateStr}`, 'success');
+    } catch (e) {
+        console.error('❌ loadChartHistoryByDate:', e);
+        showToast('❌ Gagal load data: ' + e.message, 'error');
     }
 }
 
@@ -367,7 +452,7 @@ export async function loadDashChartHistory() {
 }
 
 // ============================================
-// REDUCE TO HOURLY
+// REDUCE TO HOURLY (MASIH DIPERLUIN BUAT FALLBACK)
 // ============================================
 function reduceToHourly(data, totalPoints) {
     if (data.length === 0) return [];
@@ -718,53 +803,6 @@ export async function exportPDF() {
     }
 }
 
-export async function loadChartHistoryByDate(dateStr) {
-    console.log('📅 loadChartHistoryByDate:', dateStr);
-    try {
-        if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
-        const snapshot = await get(ref(db, 'sensor_history'));
-        const historyData = snapshot.val();
-        if (!historyData) {
-            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
-            return;
-        }
-
-        const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
-        if (keys.length === 0) {
-            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
-            return;
-        }
-
-        const rawData = keys.map(key => {
-            const entry = historyData[key];
-            let suhu = 0, cahaya = 0, lampu = 0;
-
-            if (entry.suhu) {
-                suhu = entry.suhu.value ?? entry.suhu ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                        break;
-                    }
-                }
-            }
-            if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
-            if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
-
-            const timestamp = parseKeyToTimestamp(key);
-            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
-        });
-
-        applyChartData(rawData);
-        showToast(`✅ Menampilkan data ${dateStr} (${rawData.length} titik)`, 'success');
-    } catch (e) {
-        console.error('❌ loadChartHistoryByDate:', e);
-        showToast('❌ Gagal load data: ' + e.message, 'error');
-    }
-}
-
 export async function loadDailyHistory() {
     try {
         const snapshot = await get(ref(db, 'daily_history'));
@@ -1026,7 +1064,6 @@ export function resetAnalyticsCache() {
     setTimeout(() => location.reload(), 500);
 }
 
-// ⭐ EXPOSE KE WINDOW BIAR BISA DIPANGGIL DARI HTML
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (NO CACHE MODE)');
+console.log('✅ analytics.js loaded (1 DATA PER JAM)');
