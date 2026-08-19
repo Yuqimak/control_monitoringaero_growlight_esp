@@ -11,8 +11,8 @@ import {
     loadChartHistory, 
     loadChartHistoryByDate, 
     loadDailyHistory,
-    loadDashHistory,        // ⭐ TAMBAHKAN INI
-    updateDashboardChart    // ⭐ TAMBAHKAN INI
+    loadDashHistory,
+    updateDashboardChart
 } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
@@ -147,13 +147,12 @@ const Dashboard = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // 4. WAKTU OPERASIONAL LAMPU - FIX (AMBIL DARI DAILY_HISTORY)
+            // 4. WAKTU OPERASIONAL LAMPU
             const lampDuration = document.getElementById('dashLampDuration');
             const lampText = document.getElementById('dashLampStatusText');
             
             let accumulatedLight = state.accumulatedLight || 0;
             
-            // Kalo state kosong, ambil dari daily_history
             if (accumulatedLight === 0) {
                 try {
                     const today = getTodayKey();
@@ -204,7 +203,6 @@ const Monitoring = {
         this.lastUpdate = now;
 
         requestAnimationFrame(() => {
-            // SUHU
             const el = document.getElementById('monitorTemp');
             const status = document.getElementById('tempStatus');
             if (el) el.textContent = temp.toFixed(1);
@@ -214,7 +212,6 @@ const Monitoring = {
             else if (temp < 20) { category = '❄️ Dingin'; color = '#3b82f6'; }
             if (status) { status.textContent = category; status.style.color = color; }
 
-            // KELEMBAPAN
             const humEl = document.getElementById('monitorHumidity');
             const humStatus = document.getElementById('humidityStatus');
             if (humEl) humEl.textContent = humidity.toFixed(1);
@@ -225,7 +222,6 @@ const Monitoring = {
             else if (humidity < 30) { humCategory = '🔥 Sangat Kering'; humColor = '#ef4444'; }
             if (humStatus) { humStatus.textContent = humCategory; humStatus.style.color = humColor; }
 
-            // CAHAYA
             const lightEl = document.getElementById('monitorLight');
             const lightStatus = document.getElementById('lightStatus');
             if (lightEl) lightEl.textContent = Math.round(lux);
@@ -237,7 +233,6 @@ const Monitoring = {
             else { lCat = '🌙 Gelap'; lColor = '#3b82f6'; }
             if (lightStatus) { lightStatus.textContent = lCat; lightStatus.style.color = lColor; }
 
-            // STATUS LAMPU
             const lampStatus = document.getElementById('monitorLampStatus');
             const lampText = document.getElementById('lampStatusText');
             const statusText = lampState ? 'ON' : 'OFF';
@@ -443,7 +438,6 @@ function initFirebase() {
                 Monitoring.updateUI(smoothSuhu, smoothLux, state.lampState, smoothHum);
                 Monitoring.updateQuickStats(smoothSuhu, smoothLux);
                 
-                // ⭐ UPDATE DASHBOARD CHART (2 LINE)
                 updateDashboardChart(smoothSuhu, smoothHum, d.timestamp || Date.now());
                 
                 const statTemp = document.getElementById('statTemp');
@@ -591,6 +585,39 @@ function setupNavigation() {
     });
 }
 
+// ============================================
+// 📱 BOTTOM NAVIGATION (MOBILE)
+// ============================================
+function setupBottomNav() {
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const target = this.dataset.target;
+            if (!target) return;
+            
+            // Update active state di bottom nav
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Sembunyikan semua section
+            document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+            
+            // Tampilkan section yang dipilih
+            const section = document.getElementById(target);
+            if (section) section.classList.remove('hidden');
+            
+            // Sinkronkan dengan sidebar menu
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            const menuItem = document.querySelector(`.menu-item[data-target="${target}"]`);
+            if (menuItem) menuItem.classList.add('active');
+        });
+    });
+}
+
+// ============================================
+// MOBILE MENU TOGGLE
+// ============================================
 const menuToggle = document.getElementById('menuToggle');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('mobileOverlay');
@@ -641,7 +668,6 @@ document.addEventListener("DOMContentLoaded", () => {
         initAdminPanel();
         initCharts();
 
-        // ⭐ LOAD DASHBOARD CHART HISTORY
         setTimeout(() => {
             loadDashHistory();
         }, 500);
@@ -655,6 +681,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Control.init();
         initFirebase();
         setupNavigation();
+        setupBottomNav(); // ⭐ BOTTOM NAV DI HP
 
         window.toggleExpand = function(wrapperId) {
             const wrapper = document.getElementById(wrapperId);
