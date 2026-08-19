@@ -109,7 +109,7 @@ body::after {
 /* ============================================ */
 .sidebar {
   width: var(--sidebar-width);
-  background: rgba(10, 15, 25, 0.92);
+  background: rgba(10,  ﻿15, 25, 0.92);
   border-right: 1px solid var(--border);
   padding: 24px 18px;
   display: flex;
@@ -1175,7 +1175,7 @@ input[type="checkbox"] {
 /* RESPONSIVE - MOBILE (≤ 768px)                */
 /* ============================================ */
 @media (max-width: 768px) {
-  /* SIDEBAR - SLIDE IN */
+  /* SIDEBAR - SLIDE IN (TAPI BISA DIHIDE KALO MAU) */
   .sidebar {
     position: fixed;
     top: 0;
@@ -1269,7 +1269,47 @@ input[type="checkbox"] {
     font-size: 9px !important;
   }
 
-  /* GRID */
+  /* GRID - 3 CARD DASHBOARD JADI 1 KOLOM PROPORSIONAL */
+  .monitor-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .monitor-grid .monitor-card {
+    width: 100% !important;
+    padding: 14px 16px !important;
+  }
+
+  .monitor-grid .monitor-card .metric {
+    font-size: 24px !important;
+  }
+
+  .monitor-grid .monitor-card .card-head h3 {
+    font-size: 13px !important;
+  }
+
+  /* DASHBOARD MAIN GRID - GRAFIK CEPAT DI ATAS */
+  .dashboard-main-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .dashboard-main-grid .monitor-card:first-child {
+    order: 1 !important; /* Grafik Cepat di atas */
+  }
+
+  .dashboard-main-grid .monitor-card:last-child {
+    order: 2 !important; /* Mode Kontrol di bawah */
+  }
+
+  .dashboard-chart-card canvas {
+    max-height: 120px !important;
+    width: 100% !important;
+  }
+
+  /* QUICK STATS */
   .quick-stats {
     grid-template-columns: 1fr 1fr !important;
     gap: 8px !important;
@@ -1293,72 +1333,36 @@ input[type="checkbox"] {
     font-size: 9px !important;
   }
 
-  .monitor-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 10px !important;
-  }
-
-  .dashboard-main-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-
-  .dashboard-main-grid .monitor-card {
-    grid-column: span 1 !important;
-  }
-
+  /* CONTROL GRID */
   .control-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
   }
 
   .control-card {
-    grid-column: span 1 !important;
+    width: 100% !important;
     padding: 16px !important;
   }
 
+  /* ADMIN GRID */
   .admin-grid {
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
     gap: 16px !important;
   }
 
+  .admin-card {
+    width: 100% !important;
+  }
+
+  /* ANALYTICS */
   .analytics-card {
     padding: 14px 16px !important;
   }
 
-  /* CARDS */
-  .monitor-card,
-  .dashboard-card,
-  .control-card,
-  .admin-card {
-    padding: 14px 16px !important;
-  }
-
-  .monitor-card .card-head .card-icon {
-    width: 36px !important;
-    height: 36px !important;
-    font-size: 16px !important;
-  }
-
-  .monitor-card .card-head h3 {
-    font-size: 13px !important;
-  }
-
-  .monitor-card .card-head .card-sub {
-    font-size: 10px !important;
-  }
-
-  .monitor-card .metric {
-    font-size: 24px !important;
-  }
-
-  .monitor-card .metric-status {
-    font-size: 11px !important;
-  }
-
-  /* SECTION TITLE */
-  .section-title {
-    font-size: 17px !important;
+  .analytics-card .analytics-head h3 {
+    font-size: 14px !important;
   }
 
   /* CHARTS */
@@ -1368,10 +1372,6 @@ input[type="checkbox"] {
 
   .chart-wrapper.expanded {
     height: 280px !important;
-  }
-
-  .dashboard-chart-card canvas {
-    max-height: 80px !important;
   }
 
   canvas {
@@ -1476,10 +1476,6 @@ input[type="checkbox"] {
     gap: 6px;
   }
 
-  .analytics-card .analytics-head h3 {
-    font-size: 14px !important;
-  }
-
   /* EXPORT */
   #exportPeriod {
     min-width: 100px !important;
@@ -1550,34 +1546,25 @@ input[type="checkbox"] {
     font-size: 8px !important;
   }
 
-  .monitor-grid {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
-  }
-
-  .monitor-card {
+  .monitor-grid .monitor-card {
     padding: 10px 12px !important;
   }
 
-  .monitor-card .card-head .card-icon {
+  .monitor-grid .monitor-card .card-head .card-icon {
     width: 28px !important;
     height: 28px !important;
     font-size: 14px !important;
   }
 
-  .monitor-card .card-head h3 {
+  .monitor-grid .monitor-card .card-head h3 {
     font-size: 11px !important;
   }
 
-  .monitor-card .card-head .card-sub {
-    font-size: 9px !important;
-  }
-
-  .monitor-card .metric {
+  .monitor-grid .monitor-card .metric {
     font-size: 20px !important;
   }
 
-  .monitor-card .metric-status {
+  .monitor-grid .monitor-card .metric-status {
     font-size: 10px !important;
   }
 
@@ -1713,6 +1700,7 @@ input[type="checkbox"] {
   }
 
   .monitor-grid {
+    display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
   }
 
