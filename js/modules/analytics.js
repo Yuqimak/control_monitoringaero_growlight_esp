@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: BRUTAL METHOD (NO RELOAD)
+// ANALYTICS: FIX GLOBAL FUNCTION
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (BRUTAL METHOD)');
+console.log('📊 analytics.js loaded (FIX GLOBAL)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -211,7 +211,6 @@ export async function loadChartHistory() {
             return;
         }
 
-        // ⭐ AMBIL 24 DATA TERAKHIR
         const last24Keys = keys.slice(-24);
         const rawData = [];
 
@@ -262,28 +261,30 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (BRUTAL METHOD)
+// LOAD CHART HISTORY BY DATE (FIX)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
-    console.log('📅 loadChartHistoryByDate (BRUTAL):', dateStr);
+    console.log('📅 loadChartHistoryByDate (FIX):', dateStr);
     try {
-        if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
-        const snapshot = await get(ref(db, 'sensor_history'));
-        const historyData = snapshot.val();
-        if (!historyData) {
-            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
-            return;
+        if (!dateStr) { 
+            showToast('⚠️ Pilih tanggal dulu!', 'warning'); 
+            return; 
         }
-
-        // Filter data berdasarkan tanggal
-        const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
         
-        if (keys.length === 0) {
+        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${dateStr}T00"&endAt="${dateStr}T23"`;
+        console.log('📡 Fetching URL:', url);
+        
+        const response = await fetch(url);
+        const historyData = await response.json();
+        
+        if (!historyData || Object.keys(historyData).length === 0) {
             showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
             return;
         }
 
-        // ⭐ AMBIL SEMUA DATA DI TANGGAL TERSEBUT
+        const keys = Object.keys(historyData).sort();
+        console.log(`📊 Total data untuk ${dateStr}: ${keys.length}`);
+
         const rawData = keys.map(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = 0;
@@ -306,151 +307,31 @@ export async function loadChartHistoryByDate(dateStr) {
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
         });
 
-        // ⭐ APPLY DATA BARU (BRUTAL METHOD)
+        console.log(`📊 Data yang diproses: ${rawData.length}`);
+
         applyChartData(rawData);
         showToast(`✅ Menampilkan ${rawData.length} data untuk ${dateStr}`, 'success');
     } catch (e) {
-        console.error('❌ loadChartHistoryByDate:', e);
+        console.error('❌ loadChartHistoryByDate (FIX):', e);
         showToast('❌ Gagal load data: ' + e.message, 'error');
     }
 }
 
-// ============================================
-// LOAD DASHBOARD CHART HISTORY
-// ============================================
-export async function loadDashChartHistory() {
-    try {
-        console.log('📊 loadDashChartHistory');
-        let chart = dashTempChart;
-        const canvas = document.getElementById('dashTempChart');
-        if (!canvas) { console.warn('⚠️ Canvas not found'); return; }
-
-        if (!chart) {
-            const existing = Chart.getChart(canvas);
-            if (existing) existing.destroy();
-            const ctx = canvas.getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'line',
-                data: { labels: ['-'], datasets: [{ label: 'Suhu (°C)', data: [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
-                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: 5 } }, y: { display: true, ticks: { color: '#94a3b8' } } } }
-            });
-            dashTempChart = chart;
-        }
-
-        if (!chart || !chart.data || !chart.data.datasets) return;
-
-        const snapshot = await get(ref(db, 'sensor_history'));
-        const historyData = snapshot.val();
-
-        let labels = [], values = [];
-
-        if (historyData) {
-            const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
-            console.log(`📊 Total data: ${keys.length}`);
-
-            const last15Keys = keys.slice(-15);
-
-            last15Keys.forEach(key => {
-                const entry = historyData[key];
-                let suhu = 0;
-
-                if (entry.suhu) {
-                    suhu = entry.suhu.value ?? entry.suhu ?? 0;
-                } else {
-                    for (const subKey of Object.keys(entry)) {
-                        const subNode = entry[subKey];
-                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                            if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                            break;
-                        }
-                    }
-                }
-
-                if (suhu > 0) {
-                    const date = new Date(parseKeyToTimestamp(key));
-                    labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
-                    values.push(suhu);
-                }
-            });
-        }
-
-        if (labels.length === 0) {
-            const sensorSnap = await get(ref(db, 'sensor'));
-            const sensorData = sensorSnap.val();
-            if (sensorData) {
-                const suhu = sensorData.suhu || 0;
-                const timestamp = sensorData.timestamp || Date.now();
-                if (suhu > 0) {
-                    const time = new Date(timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-                    labels.push(time);
-                    values.push(suhu);
-                    console.log(`✅ Data dari sensor: ${suhu}°C`);
-                }
-            }
-        }
-
-        if (labels.length === 0) {
-            chart.data.labels = ['Tidak Ada Data'];
-            chart.data.datasets[0].data = [0];
-            chart.update();
-            return;
-        }
-
-        if (labels.length > 15) {
-            labels.splice(0, labels.length - 15);
-            values.splice(0, values.length - 15);
-        }
-
-        chart.data.labels = labels;
-        chart.data.datasets[0].data = values;
-        chart.update();
-        console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
-    } catch (e) {
-        console.error('❌ loadDashChartHistory error:', e);
-        if (dashTempChart) {
-            dashTempChart.data.labels = ['Error Load Data'];
-            dashTempChart.data.datasets[0].data = [0];
-            dashTempChart.update();
-        }
-    }
-}
+// ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
+window.loadChartHistoryByDate = loadChartHistoryByDate;
 
 // ============================================
-// REDUCE TO HOURLY (FALLBACK)
-// ============================================
-function reduceToHourly(data, totalPoints) {
-    if (data.length === 0) return [];
-    data.sort((a, b) => a.timestamp - b.timestamp);
-    const start = data[0].timestamp;
-    const end = data[data.length - 1].timestamp;
-    const interval = (end - start) / (totalPoints - 1 || 1);
-    const result = [];
-    for (let i = 0; i < totalPoints; i++) {
-        const target = start + i * interval;
-        let closest = data[0], minDiff = Math.abs(data[0].timestamp - target);
-        for (const point of data) {
-            const diff = Math.abs(point.timestamp - target);
-            if (diff < minDiff) { minDiff = diff; closest = point; }
-        }
-        result.push(closest);
-    }
-    return result;
-}
-
-// ============================================
-// APPLY CHART DATA (BRUTAL METHOD - NO RELOAD)
+// APPLY CHART DATA (BRUTAL METHOD)
 // ============================================
 export function applyChartData(hourlyData) {
     console.log(`📊 applyChartData (BRUTAL): ${hourlyData?.length || 0} data`);
     
-    // ⭐ BRUTAL: HAPUS SEMUA CHART DARI DOM
     const charts = ['tempChart', 'lightChart', 'lampStatusChart'];
     charts.forEach(id => {
         const canvas = document.getElementById(id);
         if (canvas) {
             const chart = Chart.getChart(canvas);
             if (chart) chart.destroy();
-            // Buat canvas baru (replace)
             const parent = canvas.parentNode;
             const newCanvas = document.createElement('canvas');
             newCanvas.id = id;
@@ -458,12 +339,10 @@ export function applyChartData(hourlyData) {
         }
     });
 
-    // ⭐ RESET GLOBAL CHART VARIABLES
     tempChart = null;
     lightChart = null;
     lampStatusChart = null;
 
-    // ⭐ RESET ARRAYS
     tempLabels.length = 0;
     tempData.length = 0;
     lightLabels.length = 0;
@@ -493,10 +372,8 @@ export function applyChartData(hourlyData) {
         sensorData.push(Math.round(d.cahaya || 0));
     });
 
-    // ⭐ RE-INIT CHARTS
     initCharts();
 
-    // ⭐ FORCE UPDATE
     if (tempChart) {
         tempChart.data.labels = tempLabels;
         tempChart.data.datasets[0].data = tempData;
@@ -519,17 +396,6 @@ export function applyChartData(hourlyData) {
     updateTrend(hourlyData);
     updateHeatmap(hourlyData);
     updateHistogram(hourlyData);
-}
-
-// ============================================
-// UPDATE ALL CHARTS
-// ============================================
-export function updateAllCharts() {
-    console.log('🔄 updateAllCharts');
-    if (tempChart) tempChart.update();
-    if (lightChart) lightChart.update();
-    if (lampStatusChart) lampStatusChart.update();
-    if (dashTempChart) dashTempChart.update();
 }
 
 // ============================================
@@ -1220,4 +1086,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (BRUTAL METHOD)');
+console.log('✅ analytics.js loaded (FIX GLOBAL)');
