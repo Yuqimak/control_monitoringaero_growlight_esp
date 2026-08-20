@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FIX GLOBAL FUNCTION
+// ANALYTICS: FULL CODE (FIX SEMUA)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX GLOBAL)');
+console.log('📊 analytics.js loaded (FIX SEMUA)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -261,17 +261,22 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (FIX)
+// LOAD CHART HISTORY BY DATE (GRAFIK 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
-    console.log('📅 loadChartHistoryByDate (FIX):', dateStr);
+    console.log('📅 loadChartHistoryByDate (GRAFIK 24 DATA, TREN 7 HARI):', dateStr);
     try {
         if (!dateStr) { 
             showToast('⚠️ Pilih tanggal dulu!', 'warning'); 
             return; 
         }
         
-        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${dateStr}T00"&endAt="${dateStr}T23"`;
+        // ⭐ AMBIL DATA 7 HARI (DARI TANGGAL YANG DIPILIH - 6 HARI)
+        const startDate = new Date(dateStr);
+        startDate.setDate(startDate.getDate() - 6);
+        const startStr = startDate.toISOString().slice(0, 10);
+        
+        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${startStr}T00"&endAt="${dateStr}T23"`;
         console.log('📡 Fetching URL:', url);
         
         const response = await fetch(url);
@@ -282,50 +287,78 @@ export async function loadChartHistoryByDate(dateStr) {
             return;
         }
 
-        const keys = Object.keys(historyData).sort();
-        console.log(`📊 Total data untuk ${dateStr}: ${keys.length}`);
+        // ⭐ FILTER: AMBIL 1 DATA PER JAM (MENIT = 0)
+        const allKeys = Object.keys(historyData)
+            .filter(key => {
+                const parts = key.split('T');
+                if (parts.length !== 2) return false;
+                const timePart = parts[1].split('-');
+                if (timePart.length < 2) return false;
+                const minute = parseInt(timePart[1]);
+                return minute === 0;
+            })
+            .sort();
+        
+        console.log(`📊 Total data: ${Object.keys(historyData).length}, setelah filter per jam: ${allKeys.length}`);
 
-        const rawData = keys.map(key => {
-            const entry = historyData[key];
-            let suhu = 0, cahaya = 0, lampu = 0;
+        if (allKeys.length === 0) {
+            showToast(`⚠️ Tidak ada data per jam untuk rentang ini`, 'warning');
+            return;
+        }
 
-            if (entry.suhu) {
-                suhu = entry.suhu.value ?? entry.suhu ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                        break;
+        // ⭐ BUAT DATA UNTUK GRAFIK (HANYA TANGGAL YANG DIPILIH)
+        const chartKeys = allKeys.filter(key => key.includes(dateStr));
+        
+        // ⭐ BUAT DATA UNTUK TREN & HEATMAP (SEMUA DATA 7 HARI)
+        const trendKeys = allKeys;
+
+        console.log(`📊 Data untuk grafik: ${chartKeys.length}, Data untuk tren: ${trendKeys.length}`);
+
+        const processData = (keys) => {
+            return keys.map(key => {
+                const entry = historyData[key];
+                let suhu = 0, cahaya = 0, lampu = 0;
+
+                if (entry.suhu) {
+                    suhu = entry.suhu.value ?? entry.suhu ?? 0;
+                } else {
+                    for (const subKey of Object.keys(entry)) {
+                        const subNode = entry[subKey];
+                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                            if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                            break;
+                        }
                     }
                 }
-            }
-            if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
-            if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+                if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+                if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
 
-            const timestamp = parseKeyToTimestamp(key);
-            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
-        });
+                const timestamp = parseKeyToTimestamp(key);
+                return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
+            });
+        };
 
-        console.log(`📊 Data yang diproses: ${rawData.length}`);
+        const chartData = processData(chartKeys);
+        const trendData = processData(trendKeys);
 
-        applyChartData(rawData);
-        showToast(`✅ Menampilkan ${rawData.length} data untuk ${dateStr}`, 'success');
+        // ⭐ APPLY: GRAFIK PAKE chartData, TREN & HEATMAP PAKE trendData
+        applyChartData(chartData, trendData);
+        showToast(`✅ Menampilkan ${chartData.length} data untuk ${dateStr}`, 'success');
     } catch (e) {
-        console.error('❌ loadChartHistoryByDate (FIX):', e);
+        console.error('❌ loadChartHistoryByDate:', e);
         showToast('❌ Gagal load data: ' + e.message, 'error');
     }
 }
 
-// ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
-window.loadChartHistoryByDate = loadChartHistoryByDate;
-
 // ============================================
-// APPLY CHART DATA (BRUTAL METHOD)
+// APPLY CHART DATA (GRAFIK PAKE chartData, TREN PAKE trendData)
 // ============================================
-export function applyChartData(hourlyData) {
-    console.log(`📊 applyChartData (BRUTAL): ${hourlyData?.length || 0} data`);
+export function applyChartData(chartData, trendData = null) {
+    const dataForTrend = trendData || chartData;
     
+    console.log(`📊 applyChartData: ${chartData?.length || 0} data (grafik), ${dataForTrend?.length || 0} data (tren)`);
+    
+    // ⭐ BRUTAL: HAPUS SEMUA CHART DARI DOM
     const charts = ['tempChart', 'lightChart', 'lampStatusChart'];
     charts.forEach(id => {
         const canvas = document.getElementById(id);
@@ -348,24 +381,24 @@ export function applyChartData(hourlyData) {
     lightLabels.length = 0;
     sensorData.length = 0;
 
-    if (!hourlyData || hourlyData.length === 0) {
+    if (!chartData || chartData.length === 0) {
         const placeholder = ['Belum Ada Data'];
         tempLabels.push(...placeholder);
         tempData.push(0);
         lightLabels.push(...placeholder);
         sensorData.push(0);
         initCharts();
-        updateStats(hourlyData);
-        updateCategoryStats(hourlyData);
-        updateLampStats(hourlyData);
-        updateTrend(hourlyData);
-        updateHeatmap(hourlyData);
-        updateHistogram(hourlyData);
+        updateStats(dataForTrend);
+        updateCategoryStats(dataForTrend);
+        updateLampStats(dataForTrend);
+        updateTrend(dataForTrend);
+        updateHeatmap(dataForTrend);
+        updateHistogram(dataForTrend);
         return;
     }
 
-    const labels = hourlyData.map(d => new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-    hourlyData.forEach((d, i) => {
+    const labels = chartData.map(d => new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    chartData.forEach((d, i) => {
         tempLabels.push(labels[i] || `${i}`);
         tempData.push(d.suhu || 0);
         lightLabels.push(labels[i] || `${i}`);
@@ -386,16 +419,17 @@ export function applyChartData(hourlyData) {
     }
     if (lampStatusChart) {
         lampStatusChart.data.labels = labels;
-        lampStatusChart.data.datasets[0].data = hourlyData.map(d => (d.lampu === true || d.lampu === 1) ? 1 : 0);
+        lampStatusChart.data.datasets[0].data = chartData.map(d => (d.lampu === true || d.lampu === 1) ? 1 : 0);
         lampStatusChart.update();
     }
 
-    updateStats(hourlyData);
-    updateCategoryStats(hourlyData);
-    updateLampStats(hourlyData);
-    updateTrend(hourlyData);
-    updateHeatmap(hourlyData);
-    updateHistogram(hourlyData);
+    // ⭐ TREN, HEATMAP, HISTOGRAM PAKE dataForTrend (7 HARI)
+    updateStats(dataForTrend);
+    updateCategoryStats(dataForTrend);
+    updateLampStats(dataForTrend);
+    updateTrend(dataForTrend);
+    updateHeatmap(dataForTrend);
+    updateHistogram(dataForTrend);
 }
 
 // ============================================
@@ -1086,4 +1120,7 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (FIX GLOBAL)');
+// ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
+window.loadChartHistoryByDate = loadChartHistoryByDate;
+
+console.log('✅ analytics.js loaded (FIX SEMUA)');
