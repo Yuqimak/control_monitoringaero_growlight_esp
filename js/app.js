@@ -723,5 +723,24 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error('❌ Error start app:', e);
     }
 });
+// =======================================
+// 📅 ANALYTICS - TOMBOL TAMPILKAN 
+const loadBtn = document.getElementById('loadHistoryDateBtn');
+if (loadBtn) {
+    loadBtn.addEventListener('click', function() {
+        const dateInput = document.getElementById('analyticsDate');
+        if (!dateInput || !dateInput.value) {
+            alert('⚠️ Pilih tanggal dulu!');
+            return;
+        }
+        console.log('📅 Tombol Tampilkan ditekan, tanggal:', dateInput.value);
+        if (typeof window.loadChartHistoryByDate === 'function') {
+            window.loadChartHistoryByDate(dateInput.value);
+        } else {
+            console.error('❌ Fungsi loadChartHistoryByDate gak ditemukan!');
+            alert('❌ Error: Fungsi gak ditemukan. Cek console.');
+        }
+    });
+}
 
 console.log('✅ app.js loaded');
