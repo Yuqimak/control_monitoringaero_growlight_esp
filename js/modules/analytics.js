@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE FIX
+// ANALYTICS: BRUTAL METHOD (NO RELOAD)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX)');
+console.log('📊 analytics.js loaded (BRUTAL METHOD)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -262,10 +262,10 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (FIX: DESTROY + RE-INIT)
+// LOAD CHART HISTORY BY DATE (BRUTAL METHOD)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
-    console.log('📅 loadChartHistoryByDate:', dateStr);
+    console.log('📅 loadChartHistoryByDate (BRUTAL):', dateStr);
     try {
         if (!dateStr) { showToast('⚠️ Pilih tanggal dulu!', 'warning'); return; }
         const snapshot = await get(ref(db, 'sensor_history'));
@@ -306,7 +306,7 @@ export async function loadChartHistoryByDate(dateStr) {
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
         });
 
-        // ⭐ APPLY DATA BARU (DENGAN DESTROY + RE-INIT)
+        // ⭐ APPLY DATA BARU (BRUTAL METHOD)
         applyChartData(rawData);
         showToast(`✅ Menampilkan ${rawData.length} data untuk ${dateStr}`, 'success');
     } catch (e) {
@@ -438,25 +438,32 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// APPLY CHART DATA (DENGAN DESTROY + RE-INIT)
+// APPLY CHART DATA (BRUTAL METHOD - NO RELOAD)
 // ============================================
 export function applyChartData(hourlyData) {
-    console.log(`📊 applyChartData: ${hourlyData?.length || 0} data`);
+    console.log(`📊 applyChartData (BRUTAL): ${hourlyData?.length || 0} data`);
     
-    // ⭐ DESTROY CHART LAMA
-    if (tempChart) {
-        tempChart.destroy();
-        tempChart = null;
-    }
-    if (lightChart) {
-        lightChart.destroy();
-        lightChart = null;
-    }
-    if (lampStatusChart) {
-        lampStatusChart.destroy();
-        lampStatusChart = null;
-    }
+    // ⭐ BRUTAL: HAPUS SEMUA CHART DARI DOM
+    const charts = ['tempChart', 'lightChart', 'lampStatusChart'];
+    charts.forEach(id => {
+        const canvas = document.getElementById(id);
+        if (canvas) {
+            const chart = Chart.getChart(canvas);
+            if (chart) chart.destroy();
+            // Buat canvas baru (replace)
+            const parent = canvas.parentNode;
+            const newCanvas = document.createElement('canvas');
+            newCanvas.id = id;
+            parent.replaceChild(newCanvas, canvas);
+        }
+    });
 
+    // ⭐ RESET GLOBAL CHART VARIABLES
+    tempChart = null;
+    lightChart = null;
+    lampStatusChart = null;
+
+    // ⭐ RESET ARRAYS
     tempLabels.length = 0;
     tempData.length = 0;
     lightLabels.length = 0;
@@ -1213,4 +1220,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (FIX)');
+console.log('✅ analytics.js loaded (BRUTAL METHOD)');
