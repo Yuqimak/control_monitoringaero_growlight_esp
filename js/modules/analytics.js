@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE + EXPORT PER TANGGAL
+// ANALYTICS: FULL CODE + FIX TANGGAL
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FULL)');
+console.log('📊 analytics.js loaded (FIX TANGGAL)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -186,10 +186,10 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// LOAD CHART HISTORY (FIX HEATMAP)
+// LOAD CHART HISTORY (DEFAULT 24 DATA TERAKHIR)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - FIX HEATMAP');
+    console.log('📊 loadChartHistory - DEFAULT 24 DATA TERAKHIR');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -211,9 +211,11 @@ export async function loadChartHistory() {
             return;
         }
 
-        // ⭐ BIKIN ALL DATA DARI SEMUA DATA (GAK DI-FILTER)
-        const allData = [];
-        keys.forEach(key => {
+        // ⭐ AMBIL 24 DATA TERAKHIR
+        const last24Keys = keys.slice(-24);
+        const rawData = [];
+
+        last24Keys.forEach(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = 0;
 
@@ -239,59 +241,20 @@ export async function loadChartHistory() {
 
             const timestamp = parseKeyToTimestamp(key);
             if (timestamp > 0) {
-                allData.push({ key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp });
+                rawData.push({ key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp });
             }
         });
 
-        console.log(`📊 Total data untuk tren: ${allData.length}`);
+        const validData = rawData.filter(d => d.timestamp > 0 && d.suhu > 0);
+        console.log(`📊 Data valid: ${validData.length}`);
 
-        // ⭐ AMBIL DATA PER JAM UNTUK GRAFIK (TETAP FILTER minute === 0)
-        const hourlyKeys = keys.filter(key => {
-            const parts = key.split('T');
-            if (parts.length !== 2) return false;
-            const timePart = parts[1].split('-');
-            if (timePart.length < 2) return false;
-            const minute = parseInt(timePart[1]);
-            return minute === 0;
-        });
+        if (validData.length === 0) {
+            applyChartData([]);
+            return;
+        }
 
-        const hourlyData = [];
-        hourlyKeys.forEach(key => {
-            const entry = historyData[key];
-            let suhu = 0, cahaya = 0, lampu = 0;
-
-            if (entry.suhu) {
-                suhu = entry.suhu.value ?? entry.suhu ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                        break;
-                    }
-                }
-            }
-
-            if (entry.cahaya) {
-                cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
-            }
-
-            if (entry.lampu) {
-                lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
-            }
-
-            const timestamp = parseKeyToTimestamp(key);
-            if (timestamp > 0) {
-                hourlyData.push({ key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp });
-            }
-        });
-
-        const last24Data = hourlyData.slice(-24);
-        console.log(`📊 Data untuk grafik: ${last24Data.length} (24 jam terakhir)`);
-
-        // ⭐ APPLY: GRAFIK PAKE HOURLY, TREN & HEATMAP PAKE ALL DATA
-        applyChartData(last24Data, allData);
-        console.log(`✅ Analytics chart loaded: ${last24Data.length} data (grafik), ${allData.length} data (tren)`);
+        applyChartData(validData);
+        console.log(`✅ Analytics chart loaded: ${validData.length} data (24 jam terakhir)`);
     } catch (e) {
         console.error('❌ loadChartHistory error:', e);
         applyChartData([]);
@@ -299,7 +262,7 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE
+// LOAD CHART HISTORY BY DATE (FIX: RESET CHART)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
     console.log('📅 loadChartHistoryByDate:', dateStr);
@@ -312,6 +275,7 @@ export async function loadChartHistoryByDate(dateStr) {
             return;
         }
 
+        // Filter data berdasarkan tanggal
         const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
         
         if (keys.length === 0) {
@@ -319,21 +283,8 @@ export async function loadChartHistoryByDate(dateStr) {
             return;
         }
 
-        const hourlyKeys = keys.filter(key => {
-            const parts = key.split('T');
-            if (parts.length !== 2) return false;
-            const timePart = parts[1].split('-');
-            if (timePart.length < 2) return false;
-            const minute = parseInt(timePart[1]);
-            return minute === 0;
-        });
-
-        if (hourlyKeys.length === 0) {
-            showToast(`⚠️ Tidak ada data per jam untuk ${dateStr}`, 'warning');
-            return;
-        }
-
-        const rawData = hourlyKeys.map(key => {
+        // ⭐ AMBIL SEMUA DATA DI TANGGAL TERSEBUT
+        const rawData = keys.map(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = 0;
 
@@ -355,8 +306,19 @@ export async function loadChartHistoryByDate(dateStr) {
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
         });
 
+        // ⭐ RESET CHART DULU SEBELUM APPLY DATA BARU
+        tempLabels.length = 0;
+        tempData.length = 0;
+        lightLabels.length = 0;
+        sensorData.length = 0;
+        if (lampStatusChart) {
+            lampStatusChart.data.labels = [];
+            lampStatusChart.data.datasets[0].data = [];
+        }
+
+        // ⭐ APPLY DATA BARU
         applyChartData(rawData);
-        showToast(`✅ Menampilkan ${rawData.length} data per jam untuk ${dateStr}`, 'success');
+        showToast(`✅ Menampilkan ${rawData.length} data untuk ${dateStr}`, 'success');
     } catch (e) {
         console.error('❌ loadChartHistoryByDate:', e);
         showToast('❌ Gagal load data: ' + e.message, 'error');
@@ -488,15 +450,13 @@ function reduceToHourly(data, totalPoints) {
 // ============================================
 // APPLY CHART DATA
 // ============================================
-export function applyChartData(chartData, trendData = null) {
-    const dataForTrend = trendData || chartData;
-    
-    console.log(`📊 applyChartData: ${chartData?.length || 0} data (grafik), ${dataForTrend?.length || 0} data (tren)`);
+export function applyChartData(hourlyData) {
+    console.log(`📊 applyChartData: ${hourlyData?.length || 0} data`);
     
     tempLabels.length = 0; tempData.length = 0; lightLabels.length = 0; sensorData.length = 0;
     if (lampStatusChart) { lampStatusChart.data.labels = []; lampStatusChart.data.datasets[0].data = []; }
 
-    if (!chartData || chartData.length === 0) {
+    if (!hourlyData || hourlyData.length === 0) {
         const placeholder = ['Belum Ada Data'];
         tempLabels.push(...placeholder); tempData.push(0);
         lightLabels.push(...placeholder); sensorData.push(0);
@@ -504,17 +464,17 @@ export function applyChartData(chartData, trendData = null) {
         if (tempChart) tempChart.update();
         if (lightChart) lightChart.update();
         if (lampStatusChart) lampStatusChart.update();
-        updateStats(dataForTrend);
-        updateCategoryStats(dataForTrend);
-        updateLampStats(dataForTrend);
-        updateTrend(dataForTrend);
-        updateHeatmap(dataForTrend);
-        updateHistogram(dataForTrend);
+        updateStats(hourlyData);
+        updateCategoryStats(hourlyData);
+        updateLampStats(hourlyData);
+        updateTrend(hourlyData);
+        updateHeatmap(hourlyData);
+        updateHistogram(hourlyData);
         return;
     }
 
-    const labels = chartData.map(d => new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-    chartData.forEach((d, i) => {
+    const labels = hourlyData.map(d => new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+    hourlyData.forEach((d, i) => {
         tempLabels.push(labels[i] || `${i}`);
         tempData.push(d.suhu || 0);
         lightLabels.push(labels[i] || `${i}`);
@@ -542,12 +502,12 @@ export function applyChartData(chartData, trendData = null) {
         console.log('✅ lampStatusChart updated');
     }
 
-    updateStats(dataForTrend);
-    updateCategoryStats(dataForTrend);
-    updateLampStats(dataForTrend);
-    updateTrend(dataForTrend);
-    updateHeatmap(dataForTrend);
-    updateHistogram(dataForTrend);
+    updateStats(hourlyData);
+    updateCategoryStats(hourlyData);
+    updateLampStats(hourlyData);
+    updateTrend(hourlyData);
+    updateHeatmap(hourlyData);
+    updateHistogram(hourlyData);
 }
 
 // ============================================
@@ -678,7 +638,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (FIX 17 AGUSTUS)
+// HEATMAP 7 HARI
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -686,7 +646,6 @@ function updateHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE parseKeyToTimestamp() BIAR AMAN DARI KARAKTER TERSEMBUNYI
         const ts = parseKeyToTimestamp(d.key);
         if (ts === 0) return;
         const date = new Date(ts);
@@ -757,7 +716,7 @@ function updateHistogram(data) {
 }
 
 // ============================================
-// EXPORT DATA PER TANGGAL (1 DATA PER JAM)
+// EXPORT DATA PER TANGGAL
 // ============================================
 export async function exportDataByDate(dateStr) {
     const status = DOM.exportStatus;
@@ -777,7 +736,6 @@ export async function exportDataByDate(dateStr) {
             return;
         }
         
-        // Filter data berdasarkan tanggal
         const keys = Object.keys(historyData).filter(key => key.includes('T') && key.includes(dateStr)).sort();
         
         if (keys.length === 0) {
@@ -785,7 +743,6 @@ export async function exportDataByDate(dateStr) {
             return;
         }
         
-        // ⭐ AMBIL 1 DATA PER JAM (menit = 00)
         const hourlyKeys = keys.filter(key => {
             const parts = key.split('T');
             if (parts.length !== 2) return false;
@@ -800,7 +757,6 @@ export async function exportDataByDate(dateStr) {
             return;
         }
         
-        // ⭐ SORTIR DATA PER JAM
         const sortedData = hourlyKeys.map(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = false;
@@ -818,7 +774,6 @@ export async function exportDataByDate(dateStr) {
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu };
         });
         
-        // ⭐ BUAT CSV
         let csv = `"LAPORAN DATA SENSOR"\n`;
         csv += `"Tanggal Export","${new Date().toLocaleString('id-ID')}"\n`;
         csv += `"Periode","${dateStr}"\n`;
@@ -832,7 +787,6 @@ export async function exportDataByDate(dateStr) {
         
         csv += `\n"--- AKHIR LAPORAN ---"`;
         
-        // ⭐ DOWNLOAD
         const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -851,7 +805,7 @@ export async function exportDataByDate(dateStr) {
 }
 
 // ============================================
-// EXPORT DATA RANGE (WEEK / MONTH)
+// EXPORT DATA RANGE
 // ============================================
 export async function exportData(period) {
     const status = DOM.exportStatus;
@@ -870,7 +824,6 @@ export async function exportData(period) {
             return;
         }
         
-        // Filter data berdasarkan range tanggal
         const keys = Object.keys(historyData).filter(key => {
             if (!key.includes('T')) return false;
             const datePart = key.split('T')[0];
@@ -882,7 +835,6 @@ export async function exportData(period) {
             return;
         }
         
-        // ⭐ AMBIL 1 DATA PER JAM (menit = 00)
         const hourlyKeys = keys.filter(key => {
             const parts = key.split('T');
             if (parts.length !== 2) return false;
@@ -897,7 +849,6 @@ export async function exportData(period) {
             return;
         }
         
-        // ⭐ SORTIR DATA
         const sortedData = hourlyKeys.map(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = false;
@@ -915,7 +866,6 @@ export async function exportData(period) {
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu };
         });
         
-        // ⭐ BUAT CSV
         let csv = `"LAPORAN DATA SENSOR"\n`;
         csv += `"Tanggal Export","${new Date().toLocaleString('id-ID')}"\n`;
         csv += `"Periode","${period === 'week' ? '1 Minggu' : '1 Bulan'}"\n`;
@@ -1259,4 +1209,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (FULL)');
+console.log('✅ analytics.js loaded (FIX TANGGAL)');
