@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE + FIX TANGGAL
+// ANALYTICS: FULL CODE FIX
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX TANGGAL)');
+console.log('📊 analytics.js loaded (FIX)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -262,7 +262,7 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (FIX: RESET CHART)
+// LOAD CHART HISTORY BY DATE (FIX: DESTROY + RE-INIT)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
     console.log('📅 loadChartHistoryByDate:', dateStr);
@@ -306,17 +306,7 @@ export async function loadChartHistoryByDate(dateStr) {
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
         });
 
-        // ⭐ RESET CHART DULU SEBELUM APPLY DATA BARU
-        tempLabels.length = 0;
-        tempData.length = 0;
-        lightLabels.length = 0;
-        sensorData.length = 0;
-        if (lampStatusChart) {
-            lampStatusChart.data.labels = [];
-            lampStatusChart.data.datasets[0].data = [];
-        }
-
-        // ⭐ APPLY DATA BARU
+        // ⭐ APPLY DATA BARU (DENGAN DESTROY + RE-INIT)
         applyChartData(rawData);
         showToast(`✅ Menampilkan ${rawData.length} data untuk ${dateStr}`, 'success');
     } catch (e) {
@@ -448,22 +438,37 @@ function reduceToHourly(data, totalPoints) {
 }
 
 // ============================================
-// APPLY CHART DATA
+// APPLY CHART DATA (DENGAN DESTROY + RE-INIT)
 // ============================================
 export function applyChartData(hourlyData) {
     console.log(`📊 applyChartData: ${hourlyData?.length || 0} data`);
     
-    tempLabels.length = 0; tempData.length = 0; lightLabels.length = 0; sensorData.length = 0;
-    if (lampStatusChart) { lampStatusChart.data.labels = []; lampStatusChart.data.datasets[0].data = []; }
+    // ⭐ DESTROY CHART LAMA
+    if (tempChart) {
+        tempChart.destroy();
+        tempChart = null;
+    }
+    if (lightChart) {
+        lightChart.destroy();
+        lightChart = null;
+    }
+    if (lampStatusChart) {
+        lampStatusChart.destroy();
+        lampStatusChart = null;
+    }
+
+    tempLabels.length = 0;
+    tempData.length = 0;
+    lightLabels.length = 0;
+    sensorData.length = 0;
 
     if (!hourlyData || hourlyData.length === 0) {
         const placeholder = ['Belum Ada Data'];
-        tempLabels.push(...placeholder); tempData.push(0);
-        lightLabels.push(...placeholder); sensorData.push(0);
-        if (lampStatusChart) { lampStatusChart.data.labels.push(...placeholder); lampStatusChart.data.datasets[0].data.push(0); }
-        if (tempChart) tempChart.update();
-        if (lightChart) lightChart.update();
-        if (lampStatusChart) lampStatusChart.update();
+        tempLabels.push(...placeholder);
+        tempData.push(0);
+        lightLabels.push(...placeholder);
+        sensorData.push(0);
+        initCharts();
         updateStats(hourlyData);
         updateCategoryStats(hourlyData);
         updateLampStats(hourlyData);
@@ -479,27 +484,26 @@ export function applyChartData(hourlyData) {
         tempData.push(d.suhu || 0);
         lightLabels.push(labels[i] || `${i}`);
         sensorData.push(Math.round(d.cahaya || 0));
-        if (lampStatusChart) {
-            lampStatusChart.data.labels.push(labels[i] || `${i}`);
-            lampStatusChart.data.datasets[0].data.push((d.lampu === true || d.lampu === 1) ? 1 : 0);
-        }
     });
 
+    // ⭐ RE-INIT CHARTS
+    initCharts();
+
+    // ⭐ FORCE UPDATE
     if (tempChart) {
         tempChart.data.labels = tempLabels;
         tempChart.data.datasets[0].data = tempData;
         tempChart.update();
-        console.log('✅ tempChart updated');
     }
     if (lightChart) {
         lightChart.data.labels = lightLabels;
         lightChart.data.datasets[0].data = sensorData;
         lightChart.update();
-        console.log('✅ lightChart updated');
     }
     if (lampStatusChart) {
+        lampStatusChart.data.labels = labels;
+        lampStatusChart.data.datasets[0].data = hourlyData.map(d => (d.lampu === true || d.lampu === 1) ? 1 : 0);
         lampStatusChart.update();
-        console.log('✅ lampStatusChart updated');
     }
 
     updateStats(hourlyData);
@@ -1209,4 +1213,4 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-console.log('✅ analytics.js loaded (FIX TANGGAL)');
+console.log('✅ analytics.js loaded (FIX)');
