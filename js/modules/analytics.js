@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE (WITH EVENT LISTENERS)
+// ANALYTICS: BRUTAL METHOD (NO RELOAD)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (WITH EVENT LISTENERS)');
+console.log('📊 analytics.js loaded (BRUTAL METHOD)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -316,6 +316,128 @@ export async function loadChartHistoryByDate(dateStr) {
 }
 
 // ============================================
+// LOAD DASHBOARD CHART HISTORY
+// ============================================
+export async function loadDashChartHistory() {
+    try {
+        console.log('📊 loadDashChartHistory');
+        let chart = dashTempChart;
+        const canvas = document.getElementById('dashTempChart');
+        if (!canvas) { console.warn('⚠️ Canvas not found'); return; }
+
+        if (!chart) {
+            const existing = Chart.getChart(canvas);
+            if (existing) existing.destroy();
+            const ctx = canvas.getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: ['-'], datasets: [{ label: 'Suhu (°C)', data: [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: 2 }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: 5 } }, y: { display: true, ticks: { color: '#94a3b8' } } } }
+            });
+            dashTempChart = chart;
+        }
+
+        if (!chart || !chart.data || !chart.data.datasets) return;
+
+        const snapshot = await get(ref(db, 'sensor_history'));
+        const historyData = snapshot.val();
+
+        let labels = [], values = [];
+
+        if (historyData) {
+            const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
+            console.log(`📊 Total data: ${keys.length}`);
+
+            const last15Keys = keys.slice(-15);
+
+            last15Keys.forEach(key => {
+                const entry = historyData[key];
+                let suhu = 0;
+
+                if (entry.suhu) {
+                    suhu = entry.suhu.value ?? entry.suhu ?? 0;
+                } else {
+                    for (const subKey of Object.keys(entry)) {
+                        const subNode = entry[subKey];
+                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                            if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                            break;
+                        }
+                    }
+                }
+
+                if (suhu > 0) {
+                    const date = new Date(parseKeyToTimestamp(key));
+                    labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+                    values.push(suhu);
+                }
+            });
+        }
+
+        if (labels.length === 0) {
+            const sensorSnap = await get(ref(db, 'sensor'));
+            const sensorData = sensorSnap.val();
+            if (sensorData) {
+                const suhu = sensorData.suhu || 0;
+                const timestamp = sensorData.timestamp || Date.now();
+                if (suhu > 0) {
+                    const time = new Date(timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    labels.push(time);
+                    values.push(suhu);
+                    console.log(`✅ Data dari sensor: ${suhu}°C`);
+                }
+            }
+        }
+
+        if (labels.length === 0) {
+            chart.data.labels = ['Tidak Ada Data'];
+            chart.data.datasets[0].data = [0];
+            chart.update();
+            return;
+        }
+
+        if (labels.length > 15) {
+            labels.splice(0, labels.length - 15);
+            values.splice(0, values.length - 15);
+        }
+
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = values;
+        chart.update();
+        console.log(`✅ Dashboard chart loaded: ${labels.length} data`);
+    } catch (e) {
+        console.error('❌ loadDashChartHistory error:', e);
+        if (dashTempChart) {
+            dashTempChart.data.labels = ['Error Load Data'];
+            dashTempChart.data.datasets[0].data = [0];
+            dashTempChart.update();
+        }
+    }
+}
+
+// ============================================
+// REDUCE TO HOURLY (FALLBACK)
+// ============================================
+function reduceToHourly(data, totalPoints) {
+    if (data.length === 0) return [];
+    data.sort((a, b) => a.timestamp - b.timestamp);
+    const start = data[0].timestamp;
+    const end = data[data.length - 1].timestamp;
+    const interval = (end - start) / (totalPoints - 1 || 1);
+    const result = [];
+    for (let i = 0; i < totalPoints; i++) {
+        const target = start + i * interval;
+        let closest = data[0], minDiff = Math.abs(data[0].timestamp - target);
+        for (const point of data) {
+            const diff = Math.abs(point.timestamp - target);
+            if (diff < minDiff) { minDiff = diff; closest = point; }
+        }
+        result.push(closest);
+    }
+    return result;
+}
+
+// ============================================
 // APPLY CHART DATA (BRUTAL METHOD - NO RELOAD)
 // ============================================
 export function applyChartData(hourlyData) {
@@ -328,6 +450,7 @@ export function applyChartData(hourlyData) {
         if (canvas) {
             const chart = Chart.getChart(canvas);
             if (chart) chart.destroy();
+            // Buat canvas baru (replace)
             const parent = canvas.parentNode;
             const newCanvas = document.createElement('canvas');
             newCanvas.id = id;
@@ -376,121 +499,4 @@ export function applyChartData(hourlyData) {
     // ⭐ FORCE UPDATE
     if (tempChart) {
         tempChart.data.labels = tempLabels;
-        tempChart.data.datasets[0].data = tempData;
-        tempChart.update();
-    }
-    if (lightChart) {
-        lightChart.data.labels = lightLabels;
-        lightChart.data.datasets[0].data = sensorData;
-        lightChart.update();
-    }
-    if (lampStatusChart) {
-        lampStatusChart.data.labels = labels;
-        lampStatusChart.data.datasets[0].data = hourlyData.map(d => (d.lampu === true || d.lampu === 1) ? 1 : 0);
-        lampStatusChart.update();
-    }
-
-    updateStats(hourlyData);
-    updateCategoryStats(hourlyData);
-    updateLampStats(hourlyData);
-    updateTrend(hourlyData);
-    updateHeatmap(hourlyData);
-    updateHistogram(hourlyData);
-}
-
-// ============================================
-// STATS FUNCTIONS
-// ============================================
-function updateStats(data) {
-    const temps = data.map(d => d.suhu).filter(v => v > 0);
-    if (temps.length) {
-        const avg = temps.reduce((a, b) => a + b, 0) / temps.length;
-        const avgEl = document.getElementById('avgTemp');
-        const maxEl = document.getElementById('maxTemp');
-        const minEl = document.getElementById('minTemp');
-        if (avgEl) avgEl.textContent = avg.toFixed(1) + '°C';
-        if (maxEl) maxEl.textContent = Math.max(...temps).toFixed(1) + '°C';
-        if (minEl) minEl.textContent = Math.min(...temps).toFixed(1) + '°C';
-    }
-    const lights = data.map(d => d.cahaya).filter(v => v > 0);
-    if (lights.length) {
-        const avgL = lights.reduce((a, b) => a + b, 0) / lights.length;
-        const avgEl = document.getElementById('avgLight');
-        if (avgEl) avgEl.textContent = Math.round(avgL) + ' lux';
-    }
-}
-
-function updateCategoryStats(data) {
-    const values = data.map(d => d.suhu).filter(v => v > 0);
-    if (!values.length) {
-        ['cold', 'normal', 'warm', 'hot'].forEach(id => {
-            const pct = document.getElementById(id + 'Percent');
-            const bar = document.getElementById(id + 'Bar');
-            if (pct) pct.textContent = '0%';
-            if (bar) bar.style.width = '0%';
-        });
-        return;
-    }
-    const total = values.length;
-    const calc = n => Math.round((n / total) * 100);
-    const cold = values.filter(v => v < 25).length;
-    const normal = values.filter(v => v >= 25 && v < 30).length;
-    const warm = values.filter(v => v >= 30 && v < 34).length;
-    const hot = values.filter(v => v >= 34).length;
-    ['cold', 'normal', 'warm', 'hot'].forEach((id, i) => {
-        const pct = [cold, normal, warm, hot][i];
-        const elPct = document.getElementById(id + 'Percent');
-        const elBar = document.getElementById(id + 'Bar');
-        if (elPct) elPct.textContent = calc(pct) + '%';
-        if (elBar) elBar.style.width = calc(pct) + '%';
-    });
-}
-
-function updateLampStats(data) {
-    const lampData = data.filter(d => d.lampu !== undefined && d.lampu !== null);
-    if (lampData.length < 2) {
-        ['lampOnTime', 'lampOffTime', 'onPercent', 'offPercent', 'lampOnBar', 'lampOffBar'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                if (id === 'lampOnTime' || id === 'lampOffTime') el.textContent = '0.0 jam';
-                else if (id === 'onPercent' || id === 'offPercent') el.textContent = id === 'onPercent' ? 'ON: 0%' : 'OFF: 0%';
-                else el.style.width = '0%';
-            }
-        });
-        return;
-    }
-
-    let totalOn = 0;
-    for (let i = 1; i < lampData.length; i++) {
-        const duration = (lampData[i].timestamp - lampData[i - 1].timestamp) / 3600000;
-        if (lampData[i - 1].lampu === 1) totalOn += duration;
-    }
-    const totalDurasi = (lampData[lampData.length - 1].timestamp - lampData[0].timestamp) / 3600000;
-    const totalOff = totalDurasi - totalOn;
-    const onP = totalDurasi > 0 ? Math.round((totalOn / totalDurasi) * 100) : 0;
-    const offP = 100 - onP;
-
-    const onTime = document.getElementById('lampOnTime');
-    const offTime = document.getElementById('lampOffTime');
-    const onPct = document.getElementById('onPercent');
-    const offPct = document.getElementById('offPercent');
-    const onBar = document.getElementById('lampOnBar');
-    const offBar = document.getElementById('lampOffBar');
-    if (onTime) onTime.textContent = totalOn.toFixed(1) + ' jam';
-    if (offTime) offTime.textContent = totalOff.toFixed(1) + ' jam';
-    if (onPct) onPct.textContent = `ON: ${onP}%`;
-    if (offPct) offPct.textContent = `OFF: ${offP}%`;
-    if (onBar) onBar.style.width = onP + '%';
-    if (offBar) offBar.style.width = offP + '%';
-}
-
-// ============================================
-// TREN 7 HARI
-// ============================================
-function updateTrend(data) {
-    const container = document.getElementById('trendContainer');
-    if (!container) return;
-    
-    const days = {};
-    data.forEach(d => {
-        const day = new Date(d.timestamp).
+        tempChart.data.datasets[0].data = t
