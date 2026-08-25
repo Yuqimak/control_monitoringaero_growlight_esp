@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE (FIX SEMUA + KELEMBAPAN)
+// ANALYTICS: FULL CODE (FIX HEATMAP + KELEMBAPAN)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX SEMUA + KELEMBAPAN)');
+console.log('📊 analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -196,7 +196,6 @@ export function updateCharts(time) {
     if (humidityChart && humidityChart.data) {
         humidityChart.data.labels = tempLabels;
         humidityChart.data.datasets[0].data = tempData.map((_, i) => {
-            // Simulasi data kelembapan (kalo gak ada, pake state.humidity)
             return hum || 50;
         });
         humidityChart.update('none');
@@ -250,7 +249,7 @@ function parseKeyToTimestamp(key) {
 // LOAD CHART HISTORY (DEFAULT 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI');
+    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI (FIX)');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -272,8 +271,8 @@ export async function loadChartHistory() {
             return;
         }
 
-        // ⭐ AMBIL 1 DATA PER JAM (MENIT = 0)
-        const allKeys = keys.filter(key => {
+        // ⭐ AMBIL 1 DATA PER JAM (MENIT = 0) UNTUK GRAFIK
+        const hourlyKeys = keys.filter(key => {
             const parts = key.split('T');
             if (parts.length !== 2) return false;
             const timePart = parts[1].split('-');
@@ -282,97 +281,60 @@ export async function loadChartHistory() {
             return minute === 0;
         });
 
-        if (allKeys.length === 0) {
+        if (hourlyKeys.length === 0) {
             applyChartData([]);
             return;
         }
 
         // ⭐ AMBIL 24 DATA TERAKHIR UNTUK GRAFIK
-        const last24Keys = allKeys.slice(-24);
+        const last24Keys = hourlyKeys.slice(-24);
         console.log(`📊 Data untuk grafik: ${last24Keys.length} (24 jam terakhir)`);
-        console.log(`📊 Data untuk tren: ${allKeys.length} (semua data per jam)`);
 
-        // ⭐ BUILD RAW DATA UNTUK GRAFIK
+        // ⭐ BUILD RAW DATA UNTUK GRAFIK (PAKE HOURLY KEYS)
         const chartData = last24Keys.map(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
 
             if (entry.suhu) {
                 suhu = entry.suhu.value ?? entry.suhu ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                        break;
-                    }
-                }
             }
-
             if (entry.cahaya) {
                 cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
             }
-
             if (entry.lampu) {
                 lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
             }
-
             if (entry.kelembapan) {
                 kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!kelembapan) kelembapan = parseFloat(subNode.value) || 0;
-                        break;
-                    }
-                }
             }
 
             const timestamp = parseKeyToTimestamp(key);
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, kelembapan: Number(kelembapan), timestamp };
         });
 
-        // ⭐ BUILD RAW DATA UNTUK TREN & HEATMAP (SEMUA DATA PER JAM)
-        const trendData = allKeys.map(key => {
+        // ⭐ BUILD DATA UNTUK TREN & HEATMAP (PAKE SEMUA DATA - GAK DI-FILTER)
+        const trendData = keys.map(key => {
             const entry = historyData[key];
             let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
 
             if (entry.suhu) {
                 suhu = entry.suhu.value ?? entry.suhu ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                        break;
-                    }
-                }
             }
-
             if (entry.cahaya) {
                 cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
             }
-
             if (entry.lampu) {
                 lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
             }
-
             if (entry.kelembapan) {
                 kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
-            } else {
-                for (const subKey of Object.keys(entry)) {
-                    const subNode = entry[subKey];
-                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                        if (!kelembapan) kelembapan = parseFloat(subNode.value) || 0;
-                        break;
-                    }
-                }
             }
 
             const timestamp = parseKeyToTimestamp(key);
             return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, kelembapan: Number(kelembapan), timestamp };
         });
+
+        console.log(`📊 Data untuk tren: ${trendData.length} (semua data)`);
 
         // ⭐ APPLY: GRAFIK PAKE chartData, TREN & HEATMAP PAKE trendData
         applyChartData(chartData, trendData);
@@ -697,7 +659,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (SUHU)
+// HEATMAP 7 HARI (SUHU) - FIX KOLOM 0-6
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -705,6 +667,7 @@ function updateHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
+        // ⭐ PAKE parseKeyToTimestamp BIAR AMAN
         const ts = parseKeyToTimestamp(d.key);
         if (ts === 0) return;
         const date = new Date(ts);
@@ -805,7 +768,7 @@ function updateHumidityTrend(data) {
 }
 
 // ============================================
-// HEATMAP KELEMBAPAN 7 HARI
+// HEATMAP KELEMBAPAN 7 HARI - FIX KOLOM 0-6
 // ============================================
 function updateHumidityHeatmap(data) {
     const table = document.getElementById('humidityHeatmapTable');
@@ -813,6 +776,7 @@ function updateHumidityHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
+        // ⭐ PAKE parseKeyToTimestamp BIAR AMAN
         const ts = parseKeyToTimestamp(d.key);
         if (ts === 0) return;
         const date = new Date(ts);
@@ -1395,4 +1359,4 @@ window.resetAnalyticsCache = resetAnalyticsCache;
 // ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 
-console.log('✅ analytics.js loaded (FIX SEMUA + KELEMBAPAN)');
+console.log('✅ analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
