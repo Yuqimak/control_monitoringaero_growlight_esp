@@ -331,18 +331,7 @@ const Control = {
         document.getElementById('btnOff')?.addEventListener('click', () => this.setLamp(false));
         document.getElementById('saveLightNeededBtn')?.addEventListener('click', () => this.saveLightNeeded());
         document.getElementById('saveJadwalBtn')?.addEventListener('click', () => this.saveJadwal());
-        document.getElementById('forceDayOn')?.addEventListener('change', (e) => {
-            set(ref(db, 'system/force_day_on'), e.target.checked)
-                .then(() => showToast(e.target.checked ? '☀️ Force Day ON' : '🌙 Force Day OFF', 'info'))
-                .catch(err => showToast('❌ ' + err.message, 'error'));
-        });
-        document.getElementById('resetPlantBtn')?.addEventListener('click', async () => {
-            if (!confirm('🔄 Reset semua data tanam?')) return;
-            try {
-                await set(ref(db, 'system/plant_start_date'), null);
-                showToast('✅ Tanaman di-reset!', 'success');
-            } catch (e) { showToast('❌ ' + e.message, 'error'); }
-        });
+        // ⭐ REMOVED: forceDayOn & resetPlantBtn
     },
 
     setMode(mode) {
@@ -596,18 +585,13 @@ function setupBottomNav() {
             const target = this.dataset.target;
             if (!target) return;
             
-            // Update active state di bottom nav
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             this.classList.add('active');
             
-            // Sembunyikan semua section
             document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
-            
-            // Tampilkan section yang dipilih
             const section = document.getElementById(target);
             if (section) section.classList.remove('hidden');
             
-            // Sinkronkan dengan sidebar menu
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             const menuItem = document.querySelector(`.menu-item[data-target="${target}"]`);
             if (menuItem) menuItem.classList.add('active');
@@ -681,7 +665,7 @@ document.addEventListener("DOMContentLoaded", () => {
         Control.init();
         initFirebase();
         setupNavigation();
-        setupBottomNav(); // ⭐ BOTTOM NAV DI HP
+        setupBottomNav();
 
         window.toggleExpand = function(wrapperId) {
             const wrapper = document.getElementById(wrapperId);
@@ -723,8 +707,10 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error('❌ Error start app:', e);
     }
 });
-// =======================================
-// 📅 ANALYTICS - TOMBOL TAMPILKAN 
+
+// ============================================
+// 📅 ANALYTICS - TOMBOL TAMPILKAN (FIX)
+// ============================================
 const loadBtn = document.getElementById('loadHistoryDateBtn');
 if (loadBtn) {
     loadBtn.addEventListener('click', function() {
