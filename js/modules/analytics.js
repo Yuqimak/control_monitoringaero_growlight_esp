@@ -1,18 +1,18 @@
 // ============================================
-// ANALYTICS: FULL CODE (FIX SEMUA)
+// ANALYTICS: FULL CODE (FIX SEMUA + KELEMBAPAN)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX SEMUA)');
+console.log('📊 analytics.js loaded (FIX SEMUA + KELEMBAPAN)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
 
 export const tempLabels = [], tempData = [], lightLabels = [], sensorData = [];
-export let tempChart = null, lightChart = null, lampStatusChart = null;
+export let tempChart = null, lightChart = null, lampStatusChart = null, humidityChart = null;
 const dashTempLabels = [], dashTempData = [];
 export let dashTempChart = null;
 
@@ -59,6 +59,7 @@ export function initCharts() {
     const isMobile = window.innerWidth < 768;
     const opts = getChartOptions();
 
+    // TEMP CHART
     const tEl = document.getElementById('tempChart');
     if (tEl) {
         const existing = Chart.getChart(tEl);
@@ -67,12 +68,24 @@ export function initCharts() {
             type: 'line',
             data: {
                 labels: tempLabels.length > 0 ? tempLabels : ['Belum Ada Data'],
-                datasets: [{ label: 'Temperature (°C)', data: tempData.length > 0 ? tempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 4, pointBackgroundColor: '#22c55e' }]
+                datasets: [{ 
+                    label: 'Temperature (°C)', 
+                    data: tempData.length > 0 ? tempData : [0], 
+                    borderColor: '#22c55e', 
+                    backgroundColor: 'rgba(34,197,94,0.2)', 
+                    borderWidth: 2, 
+                    fill: true, 
+                    tension: 0.4, 
+                    pointRadius: isMobile ? 6 : 4,
+                    pointHoverRadius: isMobile ? 10 : 6,
+                    pointBackgroundColor: '#22c55e' 
+                }]
             },
             options: opts
         });
     }
 
+    // LIGHT CHART
     const lEl = document.getElementById('lightChart');
     if (lEl) {
         const existing = Chart.getChart(lEl);
@@ -81,19 +94,57 @@ export function initCharts() {
             type: 'line',
             data: {
                 labels: lightLabels.length > 0 ? lightLabels : ['Belum Ada Data'],
-                datasets: [{ label: 'Sensor Light (lux)', data: sensorData.length > 0 ? sensorData : [0], borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.2)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 4, pointBackgroundColor: '#38bdf8' }]
+                datasets: [{ 
+                    label: 'Sensor Light (lux)', 
+                    data: sensorData.length > 0 ? sensorData : [0], 
+                    borderColor: '#f59e0b', 
+                    backgroundColor: 'rgba(245,158,11,0.2)', 
+                    borderWidth: 2, 
+                    fill: true, 
+                    tension: 0.4, 
+                    pointRadius: isMobile ? 6 : 4,
+                    pointHoverRadius: isMobile ? 10 : 6,
+                    pointBackgroundColor: '#f59e0b' 
+                }]
             },
             options: opts
         });
     }
 
+    // HUMIDITY CHART (TERPISAH)
+    const hEl = document.getElementById('humidityChart');
+    if (hEl) {
+        const existing = Chart.getChart(hEl);
+        if (existing) existing.destroy();
+        humidityChart = new Chart(hEl, {
+            type: 'line',
+            data: {
+                labels: tempLabels.length > 0 ? tempLabels : ['Belum Ada Data'],
+                datasets: [{ 
+                    label: 'Kelembapan (%)', 
+                    data: tempData.length > 0 ? tempData : [0], 
+                    borderColor: '#38bdf8', 
+                    backgroundColor: 'rgba(56,189,248,0.2)', 
+                    borderWidth: 2, 
+                    fill: true, 
+                    tension: 0.4, 
+                    pointRadius: isMobile ? 6 : 4,
+                    pointHoverRadius: isMobile ? 10 : 6,
+                    pointBackgroundColor: '#38bdf8' 
+                }]
+            },
+            options: opts
+        });
+    }
+
+    // LAMP STATUS CHART
     const lsEl = document.getElementById('lampStatusChart');
     if (lsEl) {
         const existing = Chart.getChart(lsEl);
         if (existing) existing.destroy();
         lampStatusChart = new Chart(lsEl, {
             type: 'bar',
-            data: { labels: [], datasets: [{ label: 'Status Lampu', data: [], backgroundColor: (ctx) => ctx.dataset.data[ctx.dataIndex] === 1 ? '#22c55e' : '#ef4444', borderWidth: 1, borderRadius: 4, barPercentage: isMobile ? 0.6 : 0.8 }] },
+            data: { labels: [], datasets: [{ label: 'Status Lampu', data: [], backgroundColor: (ctx) => ctx.dataset.data[ctx.dataIndex] === 1 ? '#22c55e' : '#ef4444', borderWidth: 1, borderRadius: 4, barPercentage: isMobile ? 0.8 : 0.6 }] },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
@@ -106,13 +157,14 @@ export function initCharts() {
         });
     }
 
+    // DASHBOARD CHART
     const dEl = document.getElementById('dashTempChart');
     if (dEl) {
         const existing = Chart.getChart(dEl);
         if (existing) existing.destroy();
         dashTempChart = new Chart(dEl, {
             type: 'line',
-            data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 2 : 3 }] },
+            data: { labels: dashTempLabels.length > 0 ? dashTempLabels : ['-'], datasets: [{ label: 'Suhu (°C)', data: dashTempData.length > 0 ? dashTempData : [0], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.15)', borderWidth: 2, fill: true, tension: 0.4, pointRadius: isMobile ? 6 : 3, pointHoverRadius: isMobile ? 10 : 6 }] },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, scales: { x: { display: true, ticks: { color: '#94a3b8', maxTicksLimit: isMobile ? 5 : 10, font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, y: { display: true, ticks: { color: '#94a3b8', font: { size: isMobile ? 7 : 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
         });
     }
@@ -133,12 +185,21 @@ export function updateCharts(time) {
     const temp = state.temperature || 0;
     const light = state.sensorLight || 0;
     const lamp = state.lampState || false;
+    const hum = state.humidity || 0;
 
     if (tempChart && tempChart.data) {
         tempLabels.push(time);
         tempData.push(temp);
         if (tempLabels.length > MAX_POINTS) { tempLabels.shift(); tempData.shift(); }
         tempChart.update('none');
+    }
+    if (humidityChart && humidityChart.data) {
+        humidityChart.data.labels = tempLabels;
+        humidityChart.data.datasets[0].data = tempData.map((_, i) => {
+            // Simulasi data kelembapan (kalo gak ada, pake state.humidity)
+            return hum || 50;
+        });
+        humidityChart.update('none');
     }
     if (lightChart && lightChart.data) {
         lightLabels.push(time);
@@ -186,10 +247,10 @@ function parseKeyToTimestamp(key) {
 }
 
 // ============================================
-// LOAD CHART HISTORY (DEFAULT 24 DATA TERAKHIR)
+// LOAD CHART HISTORY (DEFAULT 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - DEFAULT 24 DATA TERAKHIR');
+    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -211,12 +272,30 @@ export async function loadChartHistory() {
             return;
         }
 
-        const last24Keys = keys.slice(-24);
-        const rawData = [];
+        // ⭐ AMBIL 1 DATA PER JAM (MENIT = 0)
+        const allKeys = keys.filter(key => {
+            const parts = key.split('T');
+            if (parts.length !== 2) return false;
+            const timePart = parts[1].split('-');
+            if (timePart.length < 2) return false;
+            const minute = parseInt(timePart[1]);
+            return minute === 0;
+        });
 
-        last24Keys.forEach(key => {
+        if (allKeys.length === 0) {
+            applyChartData([]);
+            return;
+        }
+
+        // ⭐ AMBIL 24 DATA TERAKHIR UNTUK GRAFIK
+        const last24Keys = allKeys.slice(-24);
+        console.log(`📊 Data untuk grafik: ${last24Keys.length} (24 jam terakhir)`);
+        console.log(`📊 Data untuk tren: ${allKeys.length} (semua data per jam)`);
+
+        // ⭐ BUILD RAW DATA UNTUK GRAFIK
+        const chartData = last24Keys.map(key => {
             const entry = historyData[key];
-            let suhu = 0, cahaya = 0, lampu = 0;
+            let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
 
             if (entry.suhu) {
                 suhu = entry.suhu.value ?? entry.suhu ?? 0;
@@ -238,22 +317,66 @@ export async function loadChartHistory() {
                 lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
             }
 
-            const timestamp = parseKeyToTimestamp(key);
-            if (timestamp > 0) {
-                rawData.push({ key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp });
+            if (entry.kelembapan) {
+                kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!kelembapan) kelembapan = parseFloat(subNode.value) || 0;
+                        break;
+                    }
+                }
             }
+
+            const timestamp = parseKeyToTimestamp(key);
+            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, kelembapan: Number(kelembapan), timestamp };
         });
 
-        const validData = rawData.filter(d => d.timestamp > 0 && d.suhu > 0);
-        console.log(`📊 Data valid: ${validData.length}`);
+        // ⭐ BUILD RAW DATA UNTUK TREN & HEATMAP (SEMUA DATA PER JAM)
+        const trendData = allKeys.map(key => {
+            const entry = historyData[key];
+            let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
 
-        if (validData.length === 0) {
-            applyChartData([]);
-            return;
-        }
+            if (entry.suhu) {
+                suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!suhu) suhu = parseFloat(subNode.value) || 0;
+                        break;
+                    }
+                }
+            }
 
-        applyChartData(validData);
-        console.log(`✅ Analytics chart loaded: ${validData.length} data (24 jam terakhir)`);
+            if (entry.cahaya) {
+                cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+            }
+
+            if (entry.lampu) {
+                lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+            }
+
+            if (entry.kelembapan) {
+                kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
+            } else {
+                for (const subKey of Object.keys(entry)) {
+                    const subNode = entry[subKey];
+                    if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                        if (!kelembapan) kelembapan = parseFloat(subNode.value) || 0;
+                        break;
+                    }
+                }
+            }
+
+            const timestamp = parseKeyToTimestamp(key);
+            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, kelembapan: Number(kelembapan), timestamp };
+        });
+
+        // ⭐ APPLY: GRAFIK PAKE chartData, TREN & HEATMAP PAKE trendData
+        applyChartData(chartData, trendData);
+        console.log(`✅ Analytics chart loaded: ${chartData.length} data (grafik), ${trendData.length} data (tren)`);
     } catch (e) {
         console.error('❌ loadChartHistory error:', e);
         applyChartData([]);
@@ -317,7 +440,7 @@ export async function loadChartHistoryByDate(dateStr) {
         const processData = (keys) => {
             return keys.map(key => {
                 const entry = historyData[key];
-                let suhu = 0, cahaya = 0, lampu = 0;
+                let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
 
                 if (entry.suhu) {
                     suhu = entry.suhu.value ?? entry.suhu ?? 0;
@@ -332,9 +455,20 @@ export async function loadChartHistoryByDate(dateStr) {
                 }
                 if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
                 if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+                if (entry.kelembapan) {
+                    kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
+                } else {
+                    for (const subKey of Object.keys(entry)) {
+                        const subNode = entry[subKey];
+                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
+                            if (!kelembapan) kelembapan = parseFloat(subNode.value) || 0;
+                            break;
+                        }
+                    }
+                }
 
                 const timestamp = parseKeyToTimestamp(key);
-                return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, timestamp };
+                return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, kelembapan: Number(kelembapan), timestamp };
             });
         };
 
@@ -359,7 +493,7 @@ export function applyChartData(chartData, trendData = null) {
     console.log(`📊 applyChartData: ${chartData?.length || 0} data (grafik), ${dataForTrend?.length || 0} data (tren)`);
     
     // ⭐ BRUTAL: HAPUS SEMUA CHART DARI DOM
-    const charts = ['tempChart', 'lightChart', 'lampStatusChart'];
+    const charts = ['tempChart', 'lightChart', 'lampStatusChart', 'humidityChart'];
     charts.forEach(id => {
         const canvas = document.getElementById(id);
         if (canvas) {
@@ -375,6 +509,7 @@ export function applyChartData(chartData, trendData = null) {
     tempChart = null;
     lightChart = null;
     lampStatusChart = null;
+    humidityChart = null;
 
     tempLabels.length = 0;
     tempData.length = 0;
@@ -394,6 +529,9 @@ export function applyChartData(chartData, trendData = null) {
         updateTrend(dataForTrend);
         updateHeatmap(dataForTrend);
         updateHistogram(dataForTrend);
+        updateHumidityTrend(dataForTrend);
+        updateHumidityHeatmap(dataForTrend);
+        updateHumidityHistogram(dataForTrend);
         return;
     }
 
@@ -422,6 +560,13 @@ export function applyChartData(chartData, trendData = null) {
         lampStatusChart.data.datasets[0].data = chartData.map(d => (d.lampu === true || d.lampu === 1) ? 1 : 0);
         lampStatusChart.update();
     }
+    if (humidityChart) {
+        humidityChart.data.labels = tempLabels;
+        const humData = chartData.map(d => d.kelembapan || 0);
+        humidityChart.data.datasets[0].data = humData;
+        humidityChart.update();
+        console.log('✅ humidityChart updated');
+    }
 
     // ⭐ TREN, HEATMAP, HISTOGRAM PAKE dataForTrend (7 HARI)
     updateStats(dataForTrend);
@@ -430,6 +575,9 @@ export function applyChartData(chartData, trendData = null) {
     updateTrend(dataForTrend);
     updateHeatmap(dataForTrend);
     updateHistogram(dataForTrend);
+    updateHumidityTrend(dataForTrend);
+    updateHumidityHeatmap(dataForTrend);
+    updateHumidityHistogram(dataForTrend);
 }
 
 // ============================================
@@ -519,7 +667,7 @@ function updateLampStats(data) {
 }
 
 // ============================================
-// TREN 7 HARI
+// TREN 7 HARI (SUHU)
 // ============================================
 function updateTrend(data) {
     const container = document.getElementById('trendContainer');
@@ -549,7 +697,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI
+// HEATMAP 7 HARI (SUHU)
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -597,7 +745,7 @@ function updateHeatmap(data) {
 }
 
 // ============================================
-// HISTOGRAM
+// HISTOGRAM (SUHU)
 // ============================================
 function updateHistogram(data) {
     const canvas = document.getElementById('histogramChart');
@@ -622,6 +770,114 @@ function updateHistogram(data) {
     new Chart(canvas, {
         type: 'bar',
         data: { labels, datasets: [{ data: counts, backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#f59e0b', '#ef4444', '#ef4444', '#7c3aed'] }] },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+}
+
+// ============================================
+// TREN KELEMBAPAN 7 HARI
+// ============================================
+function updateHumidityTrend(data) {
+    const container = document.getElementById('humidityTrendContainer');
+    if (!container) return;
+    
+    const days = {};
+    data.forEach(d => {
+        const day = new Date(d.timestamp).toISOString().slice(0, 10);
+        if (!days[day]) days[day] = [];
+        days[day].push(d.kelembapan || 0);
+    });
+    
+    const sortedDays = Object.keys(days).sort().reverse();
+    const last7Days = sortedDays.slice(0, 7).reverse();
+    
+    let html = '';
+    last7Days.forEach(day => {
+        const vals = days[day] || [];
+        const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '--';
+        const color = avg > 80 ? '#3b82f6' : avg > 70 ? '#60a5fa' : avg > 60 ? '#94a3b8' : '#64748b';
+        html += `<div style="text-align:center;background:rgba(255,255,255,.04);padding:8px;border-radius:8px;">
+            <div style="font-size:11px;color:var(--text-muted);">${day.slice(5)}</div>
+            <div style="font-size:16px;font-weight:600;color:${color};">${avg}%</div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// ============================================
+// HEATMAP KELEMBAPAN 7 HARI
+// ============================================
+function updateHumidityHeatmap(data) {
+    const table = document.getElementById('humidityHeatmapTable');
+    if (!table) return;
+    
+    const days = {};
+    data.forEach(d => {
+        const ts = parseKeyToTimestamp(d.key);
+        if (ts === 0) return;
+        const date = new Date(ts);
+        const day = date.toISOString().slice(0, 10);
+        if (!days[day]) days[day] = [];
+        days[day].push({ hour: date.getHours(), kelembapan: d.kelembapan || 0 });
+    });
+    
+    const sortedDays = Object.keys(days).sort().reverse();
+    const last7Days = sortedDays.slice(0, 7).reverse();
+    
+    const ranges = [0, 6, 12, 18, 24];
+    let html = '<thead><tr><th></th>';
+    for (let i = 0; i < 4; i++) html += `<th style="font-size:10px;color:var(--text-muted);">${ranges[i]}-${ranges[i+1]}</th>`;
+    html += '</tr></thead><tbody>';
+    
+    last7Days.forEach(day => {
+        html += `<tr><td style="font-size:11px;color:var(--text-muted);">${day.slice(5)}</td>`;
+        for (let i = 0; i < 4; i++) {
+            const vals = (days[day] || [])
+                .filter(d => d.hour >= ranges[i] && d.hour < ranges[i + 1])
+                .map(d => d.kelembapan)
+                .filter(v => v > 0);
+            const avg = vals.length ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : '-';
+            let bg = 'rgba(100,116,139,0.2)', tc = '#94a3b8';
+            if (avg !== '-') {
+                if (avg > 80) { bg = 'rgba(59,130,246,0.4)'; tc = '#3b82f6'; }
+                else if (avg > 70) { bg = 'rgba(96,165,250,0.4)'; tc = '#60a5fa'; }
+                else if (avg > 60) { bg = 'rgba(148,163,184,0.3)'; tc = '#94a3b8'; }
+                else { bg = 'rgba(100,116,139,0.2)'; tc = '#64748b'; }
+            }
+            html += `<td style="background:${bg};text-align:center;padding:6px;border-radius:4px;font-size:12px;color:${tc};">${avg}</td>`;
+        }
+        html += '</tr>';
+    });
+    html += '</tbody>';
+    table.innerHTML = html;
+}
+
+// ============================================
+// HISTOGRAM KELEMBAPAN
+// ============================================
+function updateHumidityHistogram(data) {
+    const canvas = document.getElementById('humidityHistogramChart');
+    if (!canvas) return;
+    const values = data.map(d => d.kelembapan || 0).filter(v => v > 0);
+    let chart = Chart.getChart(canvas);
+    if (chart) chart.destroy();
+    if (!values.length) {
+        new Chart(canvas, {
+            type: 'bar',
+            data: { labels: ['0-10', '10-20', '20-30', '30-40', '40-50', '50-60', '60-70', '70-80', '80-90', '90-100'], datasets: [{ data: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], backgroundColor: '#64748b' }] },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+        return;
+    }
+    const bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    const labels = ['0-10%', '10-20%', '20-30%', '30-40%', '40-50%', '50-60%', '60-70%', '70-80%', '80-90%', '90-100%'];
+    const counts = bins.map((b, i) => {
+        const next = bins[i + 1] || Infinity;
+        return values.filter(v => v >= b && v < next).length;
+    });
+    new Chart(canvas, {
+        type: 'bar',
+        data: { labels, datasets: [{ data: counts, backgroundColor: ['#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe', '#94a3b8', '#94a3b8', '#94a3b8', '#60a5fa', '#3b82f6', '#1d4ed8'] }] },
         options: { responsive: true, plugins: { legend: { display: false } } }
     });
 }
@@ -850,7 +1106,7 @@ export async function exportPDF() {
 }
 
 // ============================================
-// LOAD DAILY HISTORY
+// LOAD DAILY HISTORY (7 HARI PER HALAMAN)
 // ============================================
 export async function loadDailyHistory() {
     try {
@@ -858,13 +1114,20 @@ export async function loadDailyHistory() {
         const data = snapshot.val();
         const tbody = document.getElementById('dailyHistoryBody');
         if (!tbody) return;
+        
         if (!data) {
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
             return;
         }
+        
         const dates = Object.keys(data).sort().reverse();
         let html = '';
-        dates.forEach(date => {
+        let count = 0;
+        
+        // ⭐ TAMPILKAN 7 HARI TERAKHIR (PALING BARU)
+        const last7Dates = dates.slice(0, 7);
+        
+        last7Dates.forEach(date => {
             const d = data[date];
             const growlight = d.growlight || 0;
             const target = d.target || 12;
@@ -876,7 +1139,18 @@ export async function loadDailyHistory() {
                 <td style="padding:6px 8px; color:#f59e0b; font-weight:600;">${target.toFixed(1)} jam</td>
                 <td style="padding:6px 8px; color:${color}; font-weight:600;">${status}</td>
             </tr>`;
+            count++;
         });
+        
+        // ⭐ TAMBAHKAN INFORMASI JUMLAH DATA
+        if (dates.length > 7) {
+            html += `<tr style="border-top:1px solid rgba(255,255,255,0.1);">
+                <td colspan="4" style="padding:8px; text-align:center; color:var(--text-muted); font-size:11px;">
+                    📊 Menampilkan 7 dari ${dates.length} hari terakhir
+                </td>
+            </tr>`;
+        }
+        
         tbody.innerHTML = html || '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:16px;">Belum ada data</td></tr>';
     } catch (e) { console.error('❌ loadDailyHistory:', e); }
 }
@@ -914,10 +1188,10 @@ export async function loadDashboard() {
 }
 
 // ============================================
-// LOAD DASH HISTORY
+// LOAD DASHBOARD CHART (LANGSUNG DARI SENSOR_HISTORY)
 // ============================================
 export async function loadDashHistory() {
-    console.log('📊 loadDashHistory - mulai');
+    console.log('📊 loadDashHistory - ambil data buat dashboard');
     try {
         const snapshot = await get(ref(db, 'sensor_history'));
         const historyData = snapshot.val();
@@ -927,17 +1201,19 @@ export async function loadDashHistory() {
             return;
         }
 
-        const keys = Object.keys(historyData).filter(key => key.includes('T')).sort();
-        console.log(`📊 Dashboard total data: ${keys.length}`);
+        // Ambil 15 data terakhir (per jam)
+        const keys = Object.keys(historyData).filter(key => key.includes('T')).sort().slice(-15);
+        
+        if (keys.length === 0) {
+            console.log('⚠️ Tidak ada data valid');
+            return;
+        }
 
-        if (keys.length === 0) return;
-
-        const last15Keys = keys.slice(-15);
         const labels = [];
         const suhuData = [];
         const humData = [];
 
-        last15Keys.forEach(key => {
+        keys.forEach(key => {
             const entry = historyData[key];
             let suhu = 0, hum = 0;
 
@@ -965,19 +1241,13 @@ export async function loadDashHistory() {
                 }
             }
 
-            const timestamp = parseKeyToTimestamp(key);
-            if (timestamp > 0 && suhu > 0) {
-                const date = new Date(timestamp);
-                labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
-                suhuData.push(suhu);
-                humData.push(hum > 0 ? hum : null);
-            }
+            const date = new Date(parseKeyToTimestamp(key));
+            labels.push(String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0'));
+            suhuData.push(suhu);
+            humData.push(hum > 0 ? hum : null);
         });
 
-        if (labels.length === 0) {
-            console.log('⚠️ Tidak ada data valid untuk dashboard');
-            return;
-        }
+        console.log(`📊 Dashboard chart: ${labels.length} data`);
 
         if (dashTempChart) {
             dashTempChart.data.labels = labels;
@@ -1068,7 +1338,9 @@ export async function loadDashHistory() {
                 }
             };
             dashTempChart.update();
-            console.log(`✅ Dashboard chart updated: ${labels.length} data`);
+            console.log('✅ Dashboard chart updated from sensor_history');
+        } else {
+            console.warn('⚠️ dashTempChart belum diinisialisasi');
         }
     } catch (e) {
         console.error('❌ loadDashHistory error:', e);
@@ -1123,4 +1395,4 @@ window.resetAnalyticsCache = resetAnalyticsCache;
 // ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 
-console.log('✅ analytics.js loaded (FIX SEMUA)');
+console.log('✅ analytics.js loaded (FIX SEMUA + KELEMBAPAN)');
