@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE (FIX HEATMAP + KELEMBAPAN)
+// ANALYTICS: FULL CODE (REVISI HEATMAP SAJA)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
+console.log('📊 analytics.js loaded (REVISI HEATMAP SAJA)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -659,7 +659,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (SUHU) - FIX KOLOM 0-6
+// HEATMAP 7 HARI (SUHU) - REVISI (PAKE d.timestamp)
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -667,17 +667,15 @@ function updateHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE parseKeyToTimestamp BIAR AMAN
-        const ts = parseKeyToTimestamp(d.key);
-        if (ts === 0) return;
-        const date = new Date(ts);
+        // ⭐ PAKE d.timestamp LANGSUNG
+        const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return;
         const day = date.toISOString().slice(0, 10);
         if (!days[day]) days[day] = [];
         days[day].push({ hour: date.getHours(), suhu: d.suhu });
     });
     
     const sortedDays = Object.keys(days).sort();
-    // ⭐ FIX: AMBIL 7 HARI TERAKHIR (BUKAN 7 HARI PERTAMA)
     const last7Days = sortedDays.slice(-7);
     
     const ranges = [0, 6, 12, 18, 24];
@@ -769,7 +767,7 @@ function updateHumidityTrend(data) {
 }
 
 // ============================================
-// HEATMAP KELEMBAPAN 7 HARI - FIX KOLOM 0-6
+// HEATMAP KELEMBAPAN 7 HARI - REVISI (PAKE d.timestamp)
 // ============================================
 function updateHumidityHeatmap(data) {
     const table = document.getElementById('humidityHeatmapTable');
@@ -777,17 +775,15 @@ function updateHumidityHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE parseKeyToTimestamp BIAR AMAN
-        const ts = parseKeyToTimestamp(d.key);
-        if (ts === 0) return;
-        const date = new Date(ts);
+        // ⭐ PAKE d.timestamp LANGSUNG
+        const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return;
         const day = date.toISOString().slice(0, 10);
         if (!days[day]) days[day] = [];
         days[day].push({ hour: date.getHours(), kelembapan: d.kelembapan || 0 });
     });
     
     const sortedDays = Object.keys(days).sort();
-    // ⭐ FIX: AMBIL 7 HARI TERAKHIR (BUKAN 7 HARI PERTAMA)
     const last7Days = sortedDays.slice(-7);
     
     const ranges = [0, 6, 12, 18, 24];
@@ -1361,4 +1357,4 @@ window.resetAnalyticsCache = resetAnalyticsCache;
 // ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 
-console.log('✅ analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
+console.log('✅ analytics.js loaded (REVISI HEATMAP SAJA)');
