@@ -249,7 +249,7 @@ function parseKeyToTimestamp(key) {
 // LOAD CHART HISTORY (DEFAULT 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI (FIX)');
+    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -346,17 +346,16 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (GRAFIK 24 DATA, TREN 7 HARI)
+// LOAD CHART HISTORY BY DATE (FIX HEATMAP)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
-    console.log('📅 loadChartHistoryByDate (GRAFIK 24 DATA, TREN 7 HARI):', dateStr);
+    console.log('📅 loadChartHistoryByDate (FIX HEATMAP):', dateStr);
     try {
         if (!dateStr) { 
             showToast('⚠️ Pilih tanggal dulu!', 'warning'); 
             return; 
         }
         
-        // ⭐ AMBIL DATA 7 HARI (DARI TANGGAL YANG DIPILIH - 6 HARI)
         const startDate = new Date(dateStr);
         startDate.setDate(startDate.getDate() - 6);
         const startStr = startDate.toISOString().slice(0, 10);
@@ -372,8 +371,8 @@ export async function loadChartHistoryByDate(dateStr) {
             return;
         }
 
-        // ⭐ FILTER: AMBIL 1 DATA PER JAM (MENIT = 0)
-        const allKeys = Object.keys(historyData)
+        // ⭐ DATA UNTUK GRAFIK (1 DATA PER JAM)
+        const hourlyKeys = Object.keys(historyData)
             .filter(key => {
                 const parts = key.split('T');
                 if (parts.length !== 2) return false;
@@ -384,20 +383,10 @@ export async function loadChartHistoryByDate(dateStr) {
             })
             .sort();
         
-        console.log(`📊 Total data: ${Object.keys(historyData).length}, setelah filter per jam: ${allKeys.length}`);
-
-        if (allKeys.length === 0) {
-            showToast(`⚠️ Tidak ada data per jam untuk rentang ini`, 'warning');
-            return;
-        }
-
-        // ⭐ BUAT DATA UNTUK GRAFIK (HANYA TANGGAL YANG DIPILIH)
-        const chartKeys = allKeys.filter(key => key.includes(dateStr));
+        // ⭐ DATA UNTUK HEATMAP (SEMUA DATA - GAK DI-FILTER)
+        const allKeys = Object.keys(historyData).sort();
         
-        // ⭐ BUAT DATA UNTUK TREN & HEATMAP (SEMUA DATA 7 HARI)
-        const trendKeys = allKeys;
-
-        console.log(`📊 Data untuk grafik: ${chartKeys.length}, Data untuk tren: ${trendKeys.length}`);
+        console.log(`📊 Data untuk grafik: ${hourlyKeys.length}, Data untuk heatmap: ${allKeys.length}`);
 
         const processData = (keys) => {
             return keys.map(key => {
@@ -406,27 +395,15 @@ export async function loadChartHistoryByDate(dateStr) {
 
                 if (entry.suhu) {
                     suhu = entry.suhu.value ?? entry.suhu ?? 0;
-                } else {
-                    for (const subKey of Object.keys(entry)) {
-                        const subNode = entry[subKey];
-                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                            if (!suhu) suhu = parseFloat(subNode.value) || 0;
-                            break;
-                        }
-                    }
                 }
-                if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
-                if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+                if (entry.cahaya) {
+                    cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+                }
+                if (entry.lampu) {
+                    lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+                }
                 if (entry.kelembapan) {
                     kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
-                } else {
-                    for (const subKey of Object.keys(entry)) {
-                        const subNode = entry[subKey];
-                        if (subNode && typeof subNode === 'object' && subNode.value !== undefined) {
-                            if (!kelembapan) kelembapan = parseFloat(subNode.value) || 0;
-                            break;
-                        }
-                    }
                 }
 
                 const timestamp = parseKeyToTimestamp(key);
@@ -434,8 +411,8 @@ export async function loadChartHistoryByDate(dateStr) {
             });
         };
 
-        const chartData = processData(chartKeys);
-        const trendData = processData(trendKeys);
+        const chartData = processData(hourlyKeys);
+        const trendData = processData(allKeys);
 
         // ⭐ APPLY: GRAFIK PAKE chartData, TREN & HEATMAP PAKE trendData
         applyChartData(chartData, trendData);
@@ -667,10 +644,9 @@ function updateHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE parseKeyToTimestamp BIAR AMAN
-        const ts = parseKeyToTimestamp(d.key);
-        if (ts === 0) return;
-        const date = new Date(ts);
+        // ⭐ PAKE d.timestamp LANGSUNG (BUKAN parseKeyToTimestamp)
+        const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return;
         const day = date.toISOString().slice(0, 10);
         if (!days[day]) days[day] = [];
         days[day].push({ hour: date.getHours(), suhu: d.suhu });
@@ -776,10 +752,9 @@ function updateHumidityHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE parseKeyToTimestamp BIAR AMAN
-        const ts = parseKeyToTimestamp(d.key);
-        if (ts === 0) return;
-        const date = new Date(ts);
+        // ⭐ PAKE d.timestamp LANGSUNG (BUKAN parseKeyToTimestamp)
+        const date = new Date(d.timestamp);
+        if (isNaN(date.getTime())) return;
         const day = date.toISOString().slice(0, 10);
         if (!days[day]) days[day] = [];
         days[day].push({ hour: date.getHours(), kelembapan: d.kelembapan || 0 });
@@ -863,7 +838,7 @@ export async function exportDataByDate(dateStr) {
         const historyData = snapshot.val();
         
         if (!historyData) {
-            showToast('⚠️ Tidak ada data', 'warning');
+            showToast('⚠️ Tidak ada数据', 'warning');
             return;
         }
         
