@@ -676,8 +676,9 @@ function updateHeatmap(data) {
         days[day].push({ hour: date.getHours(), suhu: d.suhu });
     });
     
-    const sortedDays = Object.keys(days).sort().reverse();
-    const last7Days = sortedDays.slice(0, 7).reverse();
+    const sortedDays = Object.keys(days).sort();
+    // ⭐ FIX: AMBIL 7 HARI TERAKHIR (BUKAN 7 HARI PERTAMA)
+    const last7Days = sortedDays.slice(-7);
     
     const ranges = [0, 6, 12, 18, 24];
     let html = '<thead><tr><th></th>';
@@ -785,8 +786,9 @@ function updateHumidityHeatmap(data) {
         days[day].push({ hour: date.getHours(), kelembapan: d.kelembapan || 0 });
     });
     
-    const sortedDays = Object.keys(days).sort().reverse();
-    const last7Days = sortedDays.slice(0, 7).reverse();
+    const sortedDays = Object.keys(days).sort();
+    // ⭐ FIX: AMBIL 7 HARI TERAKHIR (BUKAN 7 HARI PERTAMA)
+    const last7Days = sortedDays.slice(-7);
     
     const ranges = [0, 6, 12, 18, 24];
     let html = '<thead><tr><th></th>';
