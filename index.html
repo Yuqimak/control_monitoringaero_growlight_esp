@@ -354,11 +354,12 @@
       </section>
 
       <!-- ============================================================ -->
-      <!-- ANALYTICS (TIDAK DIUBAH)                                      -->
+      <!-- ANALYTICS (FIX + KELEMBAPAN)                                  -->
       <!-- ============================================================ -->
       <section class="section page-section hidden" id="analytics">
         <h2 class="section-title blue">📊 ANALYTICS</h2>
 
+        <!-- Pilih Tanggal -->
         <div class="analytics-card">
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
             <label style="color:var(--text-muted); font-size:12px;">📅 Pilih Tanggal:</label>
@@ -368,6 +369,7 @@
           </div>
         </div>
 
+        <!-- GRAFIK SUHU -->
         <div class="analytics-card">
           <div class="analytics-head">
             <h3>🌡️ Suhu Realtime</h3>
@@ -378,6 +380,18 @@
           </div>
         </div>
 
+        <!-- GRAFIK KELEMBAPAN (TERPISAH) -->
+        <div class="analytics-card">
+          <div class="analytics-head">
+            <h3>💧 Kelembapan</h3>
+            <button class="time-btn" onclick="toggleExpand('wrapper-humidityChart')">⛶ Expand</button>
+          </div>
+          <div class="chart-wrapper" id="wrapper-humidityChart">
+            <canvas id="humidityChart"></canvas>
+          </div>
+        </div>
+
+        <!-- GRAFIK CAHAYA -->
         <div class="analytics-card">
           <div class="analytics-head">
             <h3>💡 Intensitas Cahaya</h3>
@@ -388,6 +402,7 @@
           </div>
         </div>
 
+        <!-- GRAFIK STATUS LAMPU -->
         <div class="analytics-card">
           <div class="analytics-head">
             <h3>💡 Status Lampu</h3>
@@ -398,6 +413,7 @@
           </div>
         </div>
 
+        <!-- STATISTIK -->
         <div class="analytics-card">
           <h3 style="margin-bottom:12px;">📊 Statistik Hari Ini</h3>
           <div id="statsContainer" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap:10px;">
@@ -420,6 +436,7 @@
           </div>
         </div>
 
+        <!-- DURASI GROWLIGHT PER HARI (7 HARI) -->
         <div class="analytics-card">
           <h3>📊 Durasi Growlight per Hari</h3>
           <div style="margin-top:10px; overflow-x:auto;">
@@ -439,6 +456,9 @@
           </div>
         </div>
 
+        <!-- ============================================================ -->
+        <!-- SUHU - TREN, HEATMAP, HISTOGRAM                               -->
+        <!-- ============================================================ -->
         <div class="analytics-card">
           <h3>📈 Tren Suhu 7 Hari Terakhir</h3>
           <div id="trendContainer" style="margin-top:10px; display:grid; grid-template-columns: repeat(7,1fr); gap:6px;"></div>
@@ -456,6 +476,29 @@
           <canvas id="histogramChart" style="max-height:180px; width:100%;"></canvas>
         </div>
 
+        <!-- ============================================================ -->
+        <!-- KELEMBAPAN - TREN, HEATMAP, HISTOGRAM                         -->
+        <!-- ============================================================ -->
+        <div class="analytics-card">
+          <h3>💧 Tren Kelembapan 7 Hari Terakhir</h3>
+          <div id="humidityTrendContainer" style="margin-top:10px; display:grid; grid-template-columns: repeat(7,1fr); gap:6px;"></div>
+        </div>
+
+        <div class="analytics-card">
+          <h3>💧 Heatmap Kelembapan (7 Hari x 6 Jam)</h3>
+          <div id="humidityHeatmapContainer" style="margin-top:10px; overflow-x:auto;">
+            <table id="humidityHeatmapTable" style="width:100%; border-collapse:collapse; font-size:11px;"></table>
+          </div>
+        </div>
+
+        <div class="analytics-card">
+          <h3>💧 Distribusi Kelembapan (Histogram)</h3>
+          <canvas id="humidityHistogramChart" style="max-height:180px; width:100%;"></canvas>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- EXPORT DATA                                                    -->
+        <!-- ============================================================ -->
         <div class="analytics-card">
           <div class="analytics-head">
             <h3>📥 Export Data</h3>
