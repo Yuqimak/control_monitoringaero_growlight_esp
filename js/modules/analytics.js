@@ -1384,7 +1384,320 @@ export function resetAnalyticsCache() {
 
 window.resetAnalyticsCache = resetAnalyticsCache;
 
-// ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
-window.loadChartHistoryByDate = loadChartHistoryByDate;
+// ============================================
+// ⭐ EXPORT FULL REPORT (PDF LENGKAP)
+// ============================================
+export async function exportFullReport(dateStr) {
+    console.log('📥 exportFullReport:', dateStr);
+    
+    try {
+        // FORMAT TANGGAL DENGAN LEADING ZERO
+        const dateStrWithZero = dateStr.split('-').map((part, i) => i === 0 ? part : part.padStart(2, '0')).join('-');
+        
+        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${dateStrWithZero}T00"&endAt="${dateStrWithZero}T23"`;
+        const response = await fetch(url);
+        const historyData = await response.json();
+        
+        if (!historyData || Object.keys(historyData).length === 0) {
+            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
+            return;
+        }
+        
+        // FILTER 1 DATA PER JAM (MENIT = 0)
+        const keys = Object.keys(historyData)
+            .filter(key => {
+                const parts = key.split('T');
+                if (parts.length !== 2) return false;
+                const timePart = parts[1].split('-');
+                if (timePart.length < 2) return false;
+                const minute = parseInt(timePart[1]);
+                return minute === 0;
+            })
+            .sort();
+        
+        if (keys.length === 0) {
+            showToast(`⚠️ Tidak ada data per jam untuk ${dateStr}`, 'warning');
+            return;
+        }
+        
+        // PROSES DATA
+        const rawData = keys.map(key => {
+            const entry = historyData[key];
+            let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
+            
+            if (entry.suhu) suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+            if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+            if (entry.kelembapan) kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
+            
+            const timestamp = parseKeyToTimestamp(key);
+            return { key, suhu: Number(suhu), cahaya: Number(cahaya), lampu, kelembapan: Number(kelembapan), timestamp };
+        });
+        
+        // STATISTIK
+        const suhuValues = rawData.map(d => d.suhu).filter(v => v > 0);
+        const humValues = rawData.map(d => d.kelembapan).filter(v => v > 0);
+        const lightValues = rawData.map(d => d.cahaya).filter(v => v > 0);
+        const lampOnCount = rawData.filter(d => d.lampu === 1).length;
+        const lampOffCount = rawData.filter(d => d.lampu === 0).length;
+        
+        const stats = {
+            avgSuhu: suhuValues.length ? (suhuValues.reduce((a, b) => a + b, 0) / suhuValues.length).toFixed(1) : '--',
+            maxSuhu: suhuValues.length ? Math.max(...suhuValues).toFixed(1) : '--',
+            minSuhu: suhuValues.length ? Math.min(...suhuValues).toFixed(1) : '--',
+            avgHum: humValues.length ? (humValues.reduce((a, b) => a + b, 0) / humValues.length).toFixed(1) : '--',
+            avgLight: lightValues.length ? Math.round(lightValues.reduce((a, b) => a + b, 0) / lightValues.length) : '--',
+            totalOn: lampOnCount,
+            totalOff: lampOffCount,
+            totalData: rawData.length,
+            onPercent: rawData.length ? Math.round((lampOnCount / rawData.length) * 100) : 0,
+            offPercent: rawData.length ? Math.round((lampOffCount / rawData.length) * 100) : 0,
+        };
+        
+        // HISTOGRAM SUHU
+        const suhuBins = [0, 10, 20, 25, 30, 35, 40];
+        const suhuLabels = ['0-10°C', '10-20°C', '20-25°C', '25-30°C', '30-35°C', '35-40°C', '40+°C'];
+        const suhuCounts = suhuBins.map((b, i) => {
+            const next = suhuBins[i + 1] || Infinity;
+            return suhuValues.filter(v => v >= b && v < next).length;
+        });
+        
+        // HISTOGRAM KELEMBAPAN
+        const humBins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+        const humLabels = ['0-10%', '10-20%', '20-30%', '30-40%', '40-50%', '50-60%', '60-70%', '70-80%', '80-90%', '90-100%'];
+        const humCounts = humBins.map((b, i) => {
+            const next = humBins[i + 1] || Infinity;
+            return humValues.filter(v => v >= b && v < next).length;
+        });
+        
+        // DATA UNTUK CHART
+        const labels = rawData.map(d => new Date(d.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
+        const suhuData = rawData.map(d => d.suhu);
+        const humData = rawData.map(d => d.kelembapan);
+        const lightData = rawData.map(d => d.cahaya);
+        const lampData = rawData.map(d => d.lampu);
+        
+        // GENERATE HTML LAPORAN (SINGKAT)
+        let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Laporan Sensor ${dateStr}</title>
+            <style>
+                body { font-family: 'Inter', sans-serif; background: #0b0f1a; color: #f1f5f9; padding: 20px; margin: 0; }
+                .container { max-width: 1200px; margin: 0 auto; }
+                .header { border-bottom: 2px solid rgba(34,197,94,0.3); padding-bottom: 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+                .header h1 { color: #22c55e; font-size: 24px; margin: 0; }
+                .header .date-badge { background: rgba(34,197,94,0.15); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.3); font-size: 14px; color: #22c55e; }
+                .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 16px 0; }
+                .stat-card { background: #111827; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 14px; text-align: center; }
+                .stat-card .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; }
+                .stat-card .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+                .stat-card .value.green { color: #22c55e; }
+                .stat-card .value.red { color: #ef4444; }
+                .stat-card .value.blue { color: #3b82f6; }
+                .stat-card .value.yellow { color: #f59e0b; }
+                .chart-container { background: #111827; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 16px; margin: 12px 0; }
+                .chart-container h3 { margin: 0 0 8px 0; font-size: 14px; color: #e2e8f0; }
+                .chart-container canvas { width: 100% !important; height: 200px !important; }
+                .footer { margin-top: 20px; font-size: 11px; color: #64748b; text-align: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px; }
+                @media print { body { background: white; color: #1e293b; } .stat-card, .chart-container { background: #f8fafc; border-color: #e2e8f0; } }
+            </style>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <div><h1>📊 Laporan Sensor</h1><div style="font-size:12px;color:#94a3b8;">SIGMA Grow Light Monitoring</div></div>
+                    <div class="date-badge">📅 ${dateStr}</div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="label">🌡️ Rata Suhu</div><div class="value green">${stats.avgSuhu}°C</div></div>
+                    <div class="stat-card"><div class="label">📈 Suhu Max</div><div class="value red">${stats.maxSuhu}°C</div></div>
+                    <div class="stat-card"><div class="label">📉 Suhu Min</div><div class="value blue">${stats.minSuhu}°C</div></div>
+                    <div class="stat-card"><div class="label">💧 Rata Kelembapan</div><div class="value blue">${stats.avgHum}%</div></div>
+                    <div class="stat-card"><div class="label">💡 Rata Cahaya</div><div class="value yellow">${stats.avgLight} lux</div></div>
+                    <div class="stat-card"><div class="label">📊 Total Data</div><div class="value green">${stats.totalData}</div></div>
+                </div>
+                
+                <div class="chart-container"><h3>🌡️ Suhu</h3><canvas id="chartSuhu"></canvas></div>
+                <div class="chart-container"><h3>💧 Kelembapan</h3><canvas id="chartHum"></canvas></div>
+                <div class="chart-container"><h3>💡 Intensitas Cahaya</h3><canvas id="chartLight"></canvas></div>
+                <div class="chart-container"><h3>💡 Status Lampu</h3><canvas id="chartLamp"></canvas></div>
+                
+                <div class="footer">SIGMA Grow Light — Laporan otomatis dari sistem monitoring<br>Generated: ${new Date().toLocaleString('id-ID')}</div>
+            </div>
+            <script>
+                const labels = ${JSON.stringify(labels)};
+                const suhuData = ${JSON.stringify(suhuData)};
+                const humData = ${JSON.stringify(humData)};
+                const lightData = ${JSON.stringify(lightData)};
+                const lampData = ${JSON.stringify(lampData)};
+                
+                function renderChart(id, label, data, color, isBar = false) {
+                    const ctx = document.getElementById(id);
+                    if (!ctx) return;
+                    new Chart(ctx, {
+                        type: isBar ? 'bar' : 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: label,
+                                data: data,
+                                borderColor: color,
+                                backgroundColor: color + '33',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 3,
+                                pointBackgroundColor: color,
+                                barPercentage: 0.6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { labels: { color: '#cbd5e1', font: { size: 10 } } }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8', maxTicksLimit: 12, font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                y: { ticks: { color: '#94a3b8', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                            }
+                        }
+                    });
+                }
+                
+                renderChart('chartSuhu', 'Suhu (°C)', suhuData, '#22c55e');
+                renderChart('chartHum', 'Kelembapan (%)', humData, '#3b82f6');
+                renderChart('chartLight', 'Cahaya (lux)', lightData, '#f59e0b');
+                
+                const lampCtx = document.getElementById('chartLamp');
+                if (lampCtx) {
+                    new Chart(lampCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Status Lampu',
+                                data: lampData,
+                                backgroundColor: lampData.map(v => v === 1 ? '#22c55e' : '#ef4444'),
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.5
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { labels: { color: '#cbd5e1', font: { size: 10 } } },
+                                tooltip: { callbacks: { label: (ctx) => ctx.parsed.y === 1 ? 'ON' : 'OFF' } }
+                            },
+                            scales: {
+                                x: { ticks: { color: '#94a3b8', maxTicksLimit: 12, font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                                y: { ticks: { color: '#94a3b8', stepSize: 1, callback: (v) => v === 1 ? 'ON' : 'OFF', font: { size: 9 } }, min: -0.5, max: 1.5, grid: { color: 'rgba(255,255,255,0.05)' } }
+                            }
+                        }
+                    });
+                }
+            </script>
+        </body>
+        </html>
+        `;
+        
+        // BUKA DI WINDOW BARU
+        const win = window.open('', '_blank');
+        if (win) {
+            win.document.write(html);
+            win.document.close();
+            showToast(`✅ Laporan ${dateStr} siap!`, 'success');
+            setTimeout(() => { win.print(); }, 1500);
+        } else {
+            showToast('⚠️ Popup diblokir. Izinkan popup untuk melihat laporan.', 'warning');
+        }
+        
+    } catch (e) {
+        console.error('❌ exportFullReport error:', e);
+        showToast('❌ Gagal export: ' + e.message, 'error');
+        throw e;
+    }
+}
 
-console.log('✅ analytics.js loaded (FIX HEATMAP + 1 DUMMY)');
+// ============================================
+// ⭐ EXPORT CSV (DATA MENTAH PER TANGGAL)
+// ============================================
+export async function exportCsvData(dateStr) {
+    console.log('📥 exportCsvData:', dateStr);
+    
+    try {
+        const dateStrWithZero = dateStr.split('-').map((part, i) => i === 0 ? part : part.padStart(2, '0')).join('-');
+        
+        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${dateStrWithZero}T00"&endAt="${dateStrWithZero}T23"`;
+        const response = await fetch(url);
+        const historyData = await response.json();
+        
+        if (!historyData || Object.keys(historyData).length === 0) {
+            showToast(`⚠️ Tidak ada data untuk ${dateStr}`, 'warning');
+            return;
+        }
+        
+        const keys = Object.keys(historyData)
+            .filter(key => {
+                const parts = key.split('T');
+                if (parts.length !== 2) return false;
+                const timePart = parts[1].split('-');
+                if (timePart.length < 2) return false;
+                const minute = parseInt(timePart[1]);
+                return minute === 0;
+            })
+            .sort();
+        
+        if (keys.length === 0) {
+            showToast(`⚠️ Tidak ada data per jam untuk ${dateStr}`, 'warning');
+            return;
+        }
+        
+        // Build CSV
+        let csv = 'Jam,Suhu (°C),Kelembapan (%),Cahaya (lux),Status Lampu\n';
+        
+        keys.forEach(key => {
+            const entry = historyData[key];
+            let suhu = 0, cahaya = 0, lampu = 0, kelembapan = 0;
+            
+            if (entry.suhu) suhu = entry.suhu.value ?? entry.suhu ?? 0;
+            if (entry.cahaya) cahaya = entry.cahaya.value ?? entry.cahaya ?? 0;
+            if (entry.lampu) lampu = entry.lampu.state === true || entry.lampu.state === 1 || entry.lampu.state === 'ON' ? 1 : 0;
+            if (entry.kelembapan) kelembapan = entry.kelembapan.value ?? entry.kelembapan ?? 0;
+            
+            const timestamp = parseKeyToTimestamp(key);
+            const time = new Date(timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            
+            csv += `${time},${Number(suhu).toFixed(1)},${Number(kelembapan).toFixed(1)},${Math.round(Number(cahaya))},${lampu === 1 ? 'ON' : 'OFF'}\n`;
+        });
+        
+        // Download
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+        const url2 = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url2;
+        a.download = `sensor_data_${dateStr}.csv`;
+        a.click();
+        URL.revokeObjectURL(url2);
+        
+        showToast(`✅ CSV ${dateStr} berhasil diunduh! (${keys.length} data)`, 'success');
+        
+    } catch (e) {
+        console.error('❌ exportCsvData error:', e);
+        showToast('❌ Gagal export CSV: ' + e.message, 'error');
+    }
+}
+
+// ⭐ EXPOSE KE GLOBAL WINDOW
+window.loadChartHistoryByDate = loadChartHistoryByDate;
+window.exportFullReport = exportFullReport;
+window.exportCsvData = exportCsvData;
+
+console.log('✅ analytics.js loaded (FIX HEATMAP + 1 DUMMY + EXPORT)');
