@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE (FIX HEATMAP + KELEMBAPAN)
+// ANALYTICS: FULL CODE (FIX HEATMAP + KELEMBAPAN + LEADING ZERO)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
+console.log('📊 analytics.js loaded (FIX HEATMAP + KELEMBAPAN + LEADING ZERO)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -249,7 +249,7 @@ function parseKeyToTimestamp(key) {
 // LOAD CHART HISTORY (DEFAULT 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI');
+    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI (FIX)');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -346,7 +346,7 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (GRAFIK 24 DATA, TREN 7 HARI)
+// LOAD CHART HISTORY BY DATE (GRAFIK 24 DATA, TREN 7 HARI) - FIX LEADING ZERO
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
     console.log('📅 loadChartHistoryByDate (GRAFIK 24 DATA, TREN 7 HARI):', dateStr);
@@ -356,12 +356,15 @@ export async function loadChartHistoryByDate(dateStr) {
             return; 
         }
         
-        // ⭐ AMBIL DATA 7 HARI (DARI TANGGAL YANG DIPILIH - 6 HARI)
-        const startDate = new Date(dateStr);
+        // ⭐ BUAT FORMAT DENGAN LEADING ZERO
+        const dateStrWithZero = dateStr.split('-').map((part, i) => i === 0 ? part : part.padStart(2, '0')).join('-');
+        console.log('📅 Format dengan leading zero:', dateStrWithZero);
+        
+        const startDate = new Date(dateStrWithZero);
         startDate.setDate(startDate.getDate() - 6);
         const startStr = startDate.toISOString().slice(0, 10);
         
-        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${startStr}T00"&endAt="${dateStr}T23"`;
+        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${startStr}T00"&endAt="${dateStrWithZero}T23"`;
         console.log('📡 Fetching URL:', url);
         
         const response = await fetch(url);
@@ -392,7 +395,7 @@ export async function loadChartHistoryByDate(dateStr) {
         }
 
         // ⭐ BUAT DATA UNTUK GRAFIK (HANYA TANGGAL YANG DIPILIH)
-        const chartKeys = allKeys.filter(key => key.includes(dateStr));
+        const chartKeys = allKeys.filter(key => key.includes(dateStrWithZero));
         
         // ⭐ BUAT DATA UNTUK TREN & HEATMAP (SEMUA DATA 7 HARI)
         const trendKeys = allKeys;
@@ -1357,4 +1360,4 @@ window.resetAnalyticsCache = resetAnalyticsCache;
 // ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 
-console.log('✅ analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
+console.log('✅ analytics.js loaded (FIX HEATMAP + KELEMBAPAN + LEADING ZERO)');
