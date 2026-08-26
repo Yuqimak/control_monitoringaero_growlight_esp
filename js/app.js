@@ -1,21 +1,22 @@
 // ============================================
-// MAIN ENTRY – app.js (FULLY INTEGRATED - FIXED)
+// MAIN ENTRY – app.js (FULLY INTEGRATED)
 // ============================================
 
 import { db } from './firebase.js';
 import { state, currentUser, setUser, DOM, initDOM, showToast } from './modules/core.js';
 import { 
     initCharts, 
+    exportData, 
+    exportPDF, 
     loadChartHistory, 
     loadChartHistoryByDate, 
     loadDailyHistory,
     loadDashHistory,
-    updateDashboardChart,
-    exportFullReport
+    updateDashboardChart
 } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
-import { ref, onValue, set, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, onValue, set, update, get, query, limitToLast } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 console.log('🚀 app.js loaded');
 
@@ -44,7 +45,8 @@ if (!sessionData) {
 // ============================================
 // EXPOSE GLOBAL
 // ============================================
-window.exportFullReport = exportFullReport;
+window.exportData = exportData;
+window.exportPDF = exportPDF;
 window.logout = function() {
     if (confirm('Yakin mau logout?')) {
         localStorage.removeItem('iot_user');
@@ -82,7 +84,7 @@ const humFilter = new SmoothingFilter(5);
 // ============================================
 function getTodayKey() {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
 }
 
 function parseFirebaseKeyToTimestamp(key) {
@@ -329,7 +331,7 @@ const Control = {
         document.getElementById('btnOff')?.addEventListener('click', () => this.setLamp(false));
         document.getElementById('saveLightNeededBtn')?.addEventListener('click', () => this.saveLightNeeded());
         document.getElementById('saveJadwalBtn')?.addEventListener('click', () => this.saveJadwal());
-        document.getElementById('resetPlantBtn')?.addEventListener('click', () => this.resetPlant());
+        // ⭐ REMOVED: forceDayOn & resetPlantBtn
     },
 
     setMode(mode) {
@@ -365,18 +367,6 @@ const Control = {
             .catch(err => showToast('❌ ' + err.message, 'error'));
     },
 
-    resetPlant() {
-        if (!confirm('⚠️ Yakin mau reset data tanaman? Semua progress akan direset!')) return;
-        const today = getTodayKey();
-        set(ref(db, 'system/plant_start_date'), today)
-            .then(() => {
-                state.plantStartDate = today;
-                state.accumulatedLight = 0;
-                showToast('✅ Tanaman direset! Mulai dari hari ke-0', 'success');
-            })
-            .catch(err => showToast('❌ ' + err.message, 'error'));
-    },
-
     updateUI(mode) {
         const labels = { otomatis: '🤖 Otomatis', jadwal: '⏰ Jadwal', manual: '👋 Manual' };
         ['currentModeDisplay', 'currentModeDisplayControl'].forEach(id => {
@@ -403,8 +393,7 @@ const Control = {
 // ============================================
 let unsubSensor = null, unsubSystem = null, isListenerActive = false;
 let lastSensorUpdate = 0, lastSystemUpdate = 0;
-const SENSOR_THROTTLE = 2000;
-const SYSTEM_THROTTLE = 1000;
+const SENSOR_THROTTLE = 10000, SYSTEM_THROTTLE = 5000;
 
 function initFirebase() {
     if (isListenerActive) return;
@@ -654,52 +643,6 @@ function updateClock() {
 }
 
 // ============================================
-// 📅 ANALYTICS - TOMBOL TAMPILKAN
-// ============================================
-function setupAnalyticsButtons() {
-    const loadBtn = document.getElementById('loadHistoryDateBtn');
-    if (loadBtn) {
-        loadBtn.addEventListener('click', function() {
-            const dateInput = document.getElementById('analyticsDate');
-            if (!dateInput || !dateInput.value) {
-                showToast('⚠️ Pilih tanggal dulu!', 'warning');
-                return;
-            }
-            console.log('📅 Tombol Tampilkan ditekan, tanggal:', dateInput.value);
-            loadChartHistoryByDate(dateInput.value);
-        });
-    }
-
-    const resetBtn = document.getElementById('resetHistoryDateBtn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function() {
-            document.getElementById('analyticsDate').value = '';
-            loadChartHistory();
-            showToast('✅ Reset ke data terbaru', 'success');
-        });
-    }
-
-    // Export buttons
-    const exportBtn = document.getElementById('exportBtn');
-    if (exportBtn) {
-        exportBtn.addEventListener('click', function() {
-            const dateInput = document.getElementById('analyticsDate');
-            const date = dateInput?.value || new Date().toISOString().slice(0, 10);
-            exportFullReport(date);
-        });
-    }
-
-    const exportPdfBtn = document.getElementById('exportPdfBtn');
-    if (exportPdfBtn) {
-        exportPdfBtn.addEventListener('click', function() {
-            const dateInput = document.getElementById('analyticsDate');
-            const date = dateInput?.value || new Date().toISOString().slice(0, 10);
-            exportFullReport(date);
-        });
-    }
-}
-
-// ============================================
 // 🚀 APP START
 // ============================================
 document.addEventListener("DOMContentLoaded", () => {
@@ -723,7 +666,6 @@ document.addEventListener("DOMContentLoaded", () => {
         initFirebase();
         setupNavigation();
         setupBottomNav();
-        setupAnalyticsButtons();
 
         window.toggleExpand = function(wrapperId) {
             const wrapper = document.getElementById(wrapperId);
@@ -763,16 +705,28 @@ document.addEventListener("DOMContentLoaded", () => {
         console.log("🚀 App ready!");
     } catch (e) {
         console.error('❌ Error start app:', e);
-        showToast('❌ Error loading app: ' + e.message, 'error');
     }
 });
 
 // ============================================
-// EXPOSE FUNCTIONS TO GLOBAL WINDOW
+// 📅 ANALYTICS - TOMBOL TAMPILKAN (FIX)
 // ============================================
-window.loadChartHistoryByDate = loadChartHistoryByDate;
-window.loadChartHistory = loadChartHistory;
-window.exportFullReport = exportFullReport;
-window.toggleExpand = window.toggleExpand;
+const loadBtn = document.getElementById('loadHistoryDateBtn');
+if (loadBtn) {
+    loadBtn.addEventListener('click', function() {
+        const dateInput = document.getElementById('analyticsDate');
+        if (!dateInput || !dateInput.value) {
+            alert('⚠️ Pilih tanggal dulu!');
+            return;
+        }
+        console.log('📅 Tombol Tampilkan ditekan, tanggal:', dateInput.value);
+        if (typeof window.loadChartHistoryByDate === 'function') {
+            window.loadChartHistoryByDate(dateInput.value);
+        } else {
+            console.error('❌ Fungsi loadChartHistoryByDate gak ditemukan!');
+            alert('❌ Error: Fungsi gak ditemukan. Cek console.');
+        }
+    });
+}
 
 console.log('✅ app.js loaded');
