@@ -497,22 +497,25 @@
         </div>
 
         <!-- ============================================================ -->
-        <!-- EXPORT DATA                                                    -->
+        <!-- EXPORT DATA - REVISI (PAKAI TANGGAL YANG DIPILIH)            -->
         <!-- ============================================================ -->
         <div class="analytics-card">
           <div class="analytics-head">
-            <h3>📥 Export Data</h3>
-            <span style="color:var(--text-muted); font-size:11px;">Unduh data sensor</span>
+            <h3>📥 Export Laporan</h3>
+            <span style="color:var(--text-muted); font-size:11px;">Export semua data & chart berdasarkan tanggal</span>
           </div>
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:8px;">
-            <select id="exportPeriod" style="flex:1; padding:10px; border-radius:8px; background:rgba(255,255,255,.06); border:1px solid var(--border); color:white; font-size:13px; min-width:120px;">
-              <option value="week">📅 1 Minggu Terakhir</option>
-              <option value="month">📅 1 Bulan Terakhir</option>
-            </select>
-            <button id="exportBtn" class="big-btn on" style="flex:0 0 auto; padding:10px 20px;">⬇️ CSV</button>
-            <button id="exportPdfBtn" class="big-btn" style="flex:0 0 auto; padding:10px 20px; background:linear-gradient(135deg,#8b5cf6,#6d28d9);">📄 PDF</button>
+            <button id="exportFullReportBtn" class="big-btn on" style="flex:1; padding:10px 20px; background:linear-gradient(135deg,#22c55e,#16a34a); min-width:140px;">
+              📄 Export PDF Lengkap
+            </button>
+            <button id="exportCsvBtn" class="big-btn" style="flex:1; padding:10px 20px; background:linear-gradient(135deg,#3b82f6,#2563eb); min-width:140px;">
+              ⬇️ Download CSV
+            </button>
           </div>
-          <p id="exportStatus" style="margin-top:8px; font-size:12px; color:var(--text-muted);">Klik tombol untuk mengunduh data.</p>
+          <p id="exportStatus" style="margin-top:8px; font-size:12px; color:var(--text-muted);">
+            📌 Pilih tanggal di atas, lalu klik tombol export. <br>
+            <span style="font-size:11px; color:var(--text-muted); opacity:0.7;">PDF berisi: 4 chart (Suhu, Kelembapan, Lux, Status Lampu) + Statistik + 2 Histogram + Tabel Data</span>
+          </p>
         </div>
       </section>
 
