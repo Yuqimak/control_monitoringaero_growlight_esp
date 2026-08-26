@@ -8,9 +8,10 @@ import {
     initCharts, 
     loadChartHistory, 
     loadChartHistoryByDate, 
-    // loadDailyHistory,  // ❌ HAPUS - GAK ADA DI ANALYTICS.JS
     loadDashHistory,
-    updateDashboardChart
+    updateDashboardChart,
+    exportFullReport,
+    exportCsvData
 } from './modules/analytics.js';
 import { renderUI } from './modules/ui.js';
 import { initAdminPanel } from './modules/admin.js';
@@ -43,6 +44,8 @@ if (!sessionData) {
 // ============================================
 // EXPOSE GLOBAL
 // ============================================
+window.exportFullReport = exportFullReport;
+window.exportCsvData = exportCsvData;
 window.logout = function() {
     if (confirm('Yakin mau logout?')) {
         localStorage.removeItem('iot_user');
@@ -683,9 +686,10 @@ function setupAnalyticsButtons() {
 }
 
 // ============================================
-// 📥 EXPORT BUTTONS - SEMENTARA DISABLE
+// 📥 EXPORT BUTTONS - FIX (PAKAI FUNGSI DARI ANALYTICS)
 // ============================================
 function setupExportButtons() {
+    // Export PDF Full Report
     const exportPdfBtn = document.getElementById('exportFullReportBtn');
     if (exportPdfBtn) {
         exportPdfBtn.addEventListener('click', function() {
@@ -694,10 +698,18 @@ function setupExportButtons() {
                 showToast('⚠️ Pilih tanggal dulu!', 'warning');
                 return;
             }
-            showToast('⏳ Fitur export PDF sedang dalam pengembangan', 'info');
+            console.log('📄 Export PDF untuk tanggal:', dateInput.value);
+            
+            // Panggil fungsi exportFullReport dari analytics.js
+            if (typeof window.exportFullReport === 'function') {
+                window.exportFullReport(dateInput.value);
+            } else {
+                showToast('❌ Fungsi exportFullReport tidak ditemukan!', 'error');
+            }
         });
     }
     
+    // Export CSV
     const exportCsvBtn = document.getElementById('exportCsvBtn');
     if (exportCsvBtn) {
         exportCsvBtn.addEventListener('click', function() {
@@ -706,7 +718,14 @@ function setupExportButtons() {
                 showToast('⚠️ Pilih tanggal dulu!', 'warning');
                 return;
             }
-            showToast('⏳ Fitur export CSV sedang dalam pengembangan', 'info');
+            console.log('📥 Export CSV untuk tanggal:', dateInput.value);
+            
+            // Panggil fungsi exportCsvData dari analytics.js
+            if (typeof window.exportCsvData === 'function') {
+                window.exportCsvData(dateInput.value);
+            } else {
+                showToast('❌ Fungsi exportCsvData tidak ditemukan!', 'error');
+            }
         });
     }
 }
@@ -727,7 +746,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         setTimeout(() => {
             loadChartHistory();
-            // loadDailyHistory();  // ❌ HAPUS - GAK ADA DI ANALYTICS.JS
         }, 500);
 
         setTimeout(() => Gauge.init(), 600);
@@ -785,6 +803,8 @@ document.addEventListener("DOMContentLoaded", () => {
 // ============================================
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 window.loadChartHistory = loadChartHistory;
+window.exportFullReport = exportFullReport;
+window.exportCsvData = exportCsvData;
 window.toggleExpand = window.toggleExpand;
 
 console.log('✅ app.js loaded');
