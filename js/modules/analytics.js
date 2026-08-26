@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE (REVISI HEATMAP SAJA)
+// ANALYTICS: FULL CODE (FIX HEATMAP + KELEMBAPAN)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (REVISI HEATMAP SAJA)');
+console.log('📊 analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -249,7 +249,7 @@ function parseKeyToTimestamp(key) {
 // LOAD CHART HISTORY (DEFAULT 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI (FIX)');
+    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -659,7 +659,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (SUHU) - REVISI (PAKE d.timestamp)
+// HEATMAP 7 HARI (SUHU) - FIX KOLOM 0-6
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -767,7 +767,7 @@ function updateHumidityTrend(data) {
 }
 
 // ============================================
-// HEATMAP KELEMBAPAN 7 HARI - REVISI (PAKE d.timestamp)
+// HEATMAP KELEMBAPAN 7 HARI - FIX KOLOM 0-6
 // ============================================
 function updateHumidityHeatmap(data) {
     const table = document.getElementById('humidityHeatmapTable');
@@ -1357,4 +1357,4 @@ window.resetAnalyticsCache = resetAnalyticsCache;
 // ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 
-console.log('✅ analytics.js loaded (REVISI HEATMAP SAJA)');
+console.log('✅ analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
