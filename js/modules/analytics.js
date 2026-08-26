@@ -1,12 +1,12 @@
 // ============================================
-// ANALYTICS: FULL CODE (FIX HEATMAP + KELEMBAPAN)
+// ANALYTICS: FULL CODE (FIX HEATMAP + 1 DUMMY)
 // ============================================
 
 import { db } from '../firebase.js';
 import { state, DOM, showToast, formatTime } from './core.js';
 import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
-console.log('📊 analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
+console.log('📊 analytics.js loaded (FIX HEATMAP + 1 DUMMY)');
 
 const MAX_POINTS = 96;
 const CACHE_KEY = 'analytics_24h_cache_hemat';
@@ -249,7 +249,7 @@ function parseKeyToTimestamp(key) {
 // LOAD CHART HISTORY (DEFAULT 24 DATA, TREN 7 HARI)
 // ============================================
 export async function loadChartHistory() {
-    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI');
+    console.log('📊 loadChartHistory - GRAFIK 24 DATA, TREN 7 HARI (FIX)');
     
     localStorage.removeItem(CACHE_KEY);
     
@@ -346,22 +346,25 @@ export async function loadChartHistory() {
 }
 
 // ============================================
-// LOAD CHART HISTORY BY DATE (GRAFIK 24 DATA, TREN 7 HARI)
+// LOAD CHART HISTORY BY DATE (GRAFIK 24 DATA, TREN 7 HARI + 1 DUMMY)
 // ============================================
 export async function loadChartHistoryByDate(dateStr) {
-    console.log('📅 loadChartHistoryByDate (GRAFIK 24 DATA, TREN 7 HARI):', dateStr);
+    console.log('📅 loadChartHistoryByDate (GRAFIK 24 DATA, TREN 7 HARI + 1 DUMMY):', dateStr);
     try {
         if (!dateStr) { 
             showToast('⚠️ Pilih tanggal dulu!', 'warning'); 
             return; 
         }
         
-        // ⭐ AMBIL DATA 7 HARI (DARI TANGGAL YANG DIPILIH - 6 HARI)
-        const startDate = new Date(dateStr);
+        // ⭐ BUAT FORMAT DENGAN LEADING ZERO
+        const dateStrWithZero = dateStr.split('-').map((part, i) => i === 0 ? part : part.padStart(2, '0')).join('-');
+        console.log('📅 Format dengan leading zero:', dateStrWithZero);
+        
+        const startDate = new Date(dateStrWithZero);
         startDate.setDate(startDate.getDate() - 6);
         const startStr = startDate.toISOString().slice(0, 10);
         
-        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${startStr}T00"&endAt="${dateStr}T23"`;
+        const url = `https://growlightta-default-rtdb.asia-southeast1.firebasedatabase.app/sensor_history.json?orderBy="$key"&startAt="${startStr}T00"&endAt="${dateStrWithZero}T23"`;
         console.log('📡 Fetching URL:', url);
         
         const response = await fetch(url);
@@ -392,10 +395,10 @@ export async function loadChartHistoryByDate(dateStr) {
         }
 
         // ⭐ BUAT DATA UNTUK GRAFIK (HANYA TANGGAL YANG DIPILIH)
-        const chartKeys = allKeys.filter(key => key.includes(dateStr));
+        const chartKeys = allKeys.filter(key => key.includes(dateStrWithZero));
         
         // ⭐ BUAT DATA UNTUK TREN & HEATMAP (SEMUA DATA 7 HARI)
-        const trendKeys = allKeys;
+        let trendKeys = allKeys;
 
         console.log(`📊 Data untuk grafik: ${chartKeys.length}, Data untuk tren: ${trendKeys.length}`);
 
@@ -434,8 +437,23 @@ export async function loadChartHistoryByDate(dateStr) {
             });
         };
 
-        const chartData = processData(chartKeys);
-        const trendData = processData(trendKeys);
+        let chartData = processData(chartKeys);
+        let trendData = processData(trendKeys);
+
+        // ⭐ TAMBAHIN 1 DATA DUMMY (HARI SETELAH TANGGAL YANG DIPILIH)
+        const dummyDate = new Date(dateStrWithZero);
+        dummyDate.setDate(dummyDate.getDate() + 1);
+        const dummyKey = dummyDate.toISOString().slice(0, 10) + 'T00-00-00-000Z';
+        const dummyData = {
+            key: dummyKey,
+            suhu: 0,
+            kelembapan: 0,
+            cahaya: 0,
+            lampu: 0,
+            timestamp: dummyDate.getTime()
+        };
+        trendData.push(dummyData);
+        console.log('📊 Data dummy ditambahkan:', dummyKey);
 
         // ⭐ APPLY: GRAFIK PAKE chartData, TREN & HEATMAP PAKE trendData
         applyChartData(chartData, trendData);
@@ -530,7 +548,7 @@ export function applyChartData(chartData, trendData = null) {
         console.log('✅ humidityChart updated');
     }
 
-    // ⭐ TREN, HEATMAP, HISTOGRAM PAKE dataForTrend (7 HARI)
+    // ⭐ TREN, HEATMAP, HISTOGRAM PAKE dataForTrend (7 HARI + 1 DUMMY)
     updateStats(dataForTrend);
     updateCategoryStats(dataForTrend);
     updateLampStats(dataForTrend);
@@ -659,7 +677,7 @@ function updateTrend(data) {
 }
 
 // ============================================
-// HEATMAP 7 HARI (SUHU) - FIX KOLOM 0-6
+// HEATMAP 7 HARI (SUHU) - SKIP DUMMY
 // ============================================
 function updateHeatmap(data) {
     const table = document.getElementById('heatmapTable');
@@ -667,12 +685,18 @@ function updateHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE d.timestamp LANGSUNG
-        const date = new Date(d.timestamp);
-        if (isNaN(date.getTime())) return;
-        const day = date.toISOString().slice(0, 10);
-        if (!days[day]) days[day] = [];
-        days[day].push({ hour: date.getHours(), suhu: d.suhu });
+        // ⭐ SKIP DATA DUMMY (suhu = 0)
+        if (d.suhu === 0 && d.kelembapan === 0 && d.cahaya === 0) return;
+        
+        const keyParts = d.key.split('T');
+        if (keyParts.length !== 2) return;
+        const dateStr = keyParts[0];
+        const timeParts = keyParts[1].split('-');
+        if (timeParts.length < 2) return;
+        const hour = parseInt(timeParts[0]);
+        
+        if (!days[dateStr]) days[dateStr] = [];
+        days[dateStr].push({ hour: hour, suhu: d.suhu });
     });
     
     const sortedDays = Object.keys(days).sort();
@@ -767,7 +791,7 @@ function updateHumidityTrend(data) {
 }
 
 // ============================================
-// HEATMAP KELEMBAPAN 7 HARI - FIX KOLOM 0-6
+// HEATMAP KELEMBAPAN 7 HARI - SKIP DUMMY
 // ============================================
 function updateHumidityHeatmap(data) {
     const table = document.getElementById('humidityHeatmapTable');
@@ -775,12 +799,18 @@ function updateHumidityHeatmap(data) {
     
     const days = {};
     data.forEach(d => {
-        // ⭐ PAKE d.timestamp LANGSUNG
-        const date = new Date(d.timestamp);
-        if (isNaN(date.getTime())) return;
-        const day = date.toISOString().slice(0, 10);
-        if (!days[day]) days[day] = [];
-        days[day].push({ hour: date.getHours(), kelembapan: d.kelembapan || 0 });
+        // ⭐ SKIP DATA DUMMY (kelembapan = 0)
+        if (d.suhu === 0 && d.kelembapan === 0 && d.cahaya === 0) return;
+        
+        const keyParts = d.key.split('T');
+        if (keyParts.length !== 2) return;
+        const dateStr = keyParts[0];
+        const timeParts = keyParts[1].split('-');
+        if (timeParts.length < 2) return;
+        const hour = parseInt(timeParts[0]);
+        
+        if (!days[dateStr]) days[dateStr] = [];
+        days[dateStr].push({ hour: hour, kelembapan: d.kelembapan || 0 });
     });
     
     const sortedDays = Object.keys(days).sort();
@@ -1357,4 +1387,4 @@ window.resetAnalyticsCache = resetAnalyticsCache;
 // ⭐ EXPOSE KE GLOBAL WINDOW (BIAR BISA DIPANGGIL DARI CONSOLE / APP.JS)
 window.loadChartHistoryByDate = loadChartHistoryByDate;
 
-console.log('✅ analytics.js loaded (FIX HEATMAP + KELEMBAPAN)');
+console.log('✅ analytics.js loaded (FIX HEATMAP + 1 DUMMY)');
